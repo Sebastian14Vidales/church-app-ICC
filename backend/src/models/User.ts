@@ -1,4 +1,5 @@
-import mongoose, { Schema, Document, Types } from "mongoose";
+import mongoose, { Schema, Document, Types, PopulatedDoc } from "mongoose";
+import { IRole } from './Role';
 
 export interface IUser extends Document {
     email: string;
@@ -6,7 +7,7 @@ export interface IUser extends Document {
     name: string;
     confirmed: boolean;
     active: boolean;
-    roles: Types.ObjectId[];
+    roles: PopulatedDoc<IRole & Document>[];
 }
 
 const userSchema: Schema = new Schema({
