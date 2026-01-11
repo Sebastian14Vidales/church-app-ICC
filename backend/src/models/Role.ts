@@ -10,7 +10,7 @@ const roleSchema: Schema = new Schema({
         type: String,
         required: true,
         unique: true,
-        enum: ["member", "professor", "pastor", "admin", "superadmin"],
+        enum: ["student", "member", "professor", "pastor", "admin", "superadmin"],
     },
     description: {
         type: String,
