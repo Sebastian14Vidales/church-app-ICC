@@ -19,7 +19,6 @@ export class CourseController {
         try {
             await course.save();
             res.send("Curso creado exitosamente");
-            console.log("Curso creado exitosamente");
         } catch (error) {
             res.status(500).json({ message: 'Error al crear curso', error });
         }

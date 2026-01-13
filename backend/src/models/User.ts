@@ -19,7 +19,6 @@ const userSchema: Schema = new Schema({
     },
     password: {
         type: String,
-        required: true,
     },
     name: {
         type: String,
@@ -28,10 +27,6 @@ const userSchema: Schema = new Schema({
     confirmed: {
         type: Boolean,
         default: false
-    },
-    active: {
-        type: Boolean,
-        default: true
     },
     roles: [
         {

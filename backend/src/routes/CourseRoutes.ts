@@ -26,6 +26,7 @@ router.put('/:id',
     param('id').isMongoId().withMessage('ID de curso inválido'),
     body('name').notEmpty().withMessage('El nombre del curso es obligatorio'),
     body('description').notEmpty().withMessage('La descripción del curso es obligatoria'),
+    body('isActive').isBoolean().withMessage('El estado debe ser true o false'),
     handleInputErrors,
     CourseController.updateCourse);
 

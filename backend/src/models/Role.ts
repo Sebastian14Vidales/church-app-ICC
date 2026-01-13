@@ -2,7 +2,6 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IRole extends Document {
     name: string;
-    description: string;
 }
 
 const roleSchema: Schema = new Schema({
@@ -10,12 +9,11 @@ const roleSchema: Schema = new Schema({
         type: String,
         required: true,
         unique: true,
-        enum: ["student", "member", "professor", "pastor", "admin", "superadmin"],
+        enum: ["Estudiante", "Miembro", "Profesor", "Pastor", "Admin", "Superadmin"],
     },
-    description: {
-        type: String,
-        trim: true,
-    },
+    access: {
+        type: Boolean,
+    }    
 }, { timestamps: true }
 );
 
