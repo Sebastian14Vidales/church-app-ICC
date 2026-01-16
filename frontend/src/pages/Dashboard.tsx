@@ -55,21 +55,21 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-900">Acciones Rápidas</h3>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2  gap-4">
               <>
-                <button className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                <button className="cursor-pointer flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
                   <Users className="h-8 w-8 text-blue-600 mb-2" />
                   <span className="text-sm font-medium text-blue-700">Nuevo Miembro</span>
                 </button>
-                <button className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                <button className="cursor-pointer flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
                   <BookOpen className="h-8 w-8 text-green-600 mb-2" />
                   <span className="text-sm font-medium text-green-700">Crear Curso</span>
                 </button>
-                <button className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                <button className="cursor-pointer flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
                   <Calendar className="h-8 w-8 text-purple-600 mb-2" />
                   <span className="text-sm font-medium text-purple-700">Nuevo Evento</span>
                 </button>
-                <button className="flex flex-col items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+                <button className="cursor-pointer flex flex-col items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
                   <TrendingUp className="h-8 w-8 text-yellow-600 mb-2" />
                   <span className="text-sm font-medium text-yellow-700">Ver Reportes</span>
                 </button>
@@ -87,6 +87,47 @@ export default function Dashboard() {
             <p className="text-gray-500 text-center py-4">No hay eventos próximos</p>
           </div>
         </div>
+        <div className="grid gap-8">
+          {/* Active Courses */}
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Cursos Creados</h3>
+            </div>
+            <div className="p-6">
+                <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                  <div>
+                    <p className="font-medium text-gray-900">Caracter Cristiano</p>
+                    <p className="text-sm text-gray-500">Descripción: Lorem ipsum dolor sit, amet consectetur adipisicing elit. Doloremque recusandae, libero omnis cupiditate minus labore autem non culpa animi distinctio?</p>
+                  </div>
+                  
+                </div>             
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-8">
+          {/* Active Courses */}
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Cursos Activos</h3>
+            </div>
+            <div className="p-6">
+                <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                  <div>
+                    <p className="font-medium text-gray-900">Caracter Cristiano</p>
+                    <p className="text-sm text-gray-500">Profesor: Pepito Perez</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900">
+                      15/20
+                    </p>
+                    <p className="text-xs text-gray-500">estudiantes</p>
+                  </div>
+                </div>             
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
       </div>
     </div>
   )
