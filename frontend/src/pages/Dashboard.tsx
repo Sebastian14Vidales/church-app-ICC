@@ -1,7 +1,15 @@
+
 import { Users, BookOpen, Calendar, DollarSign, TrendingUp, Heart } from 'lucide-react';
+import { useState } from 'react';
+import ModalView from '../components/dashboard/ModalView';
+import CreateCourseForm from '../components/dashboard/CreateCourseForm';
+import CreateMemberForm from '../components/dashboard/CreateMemberForm';
+import CreateEventForm from '../components/dashboard/CreateEventForm';
+
 
 
 export default function Dashboard() {
+  const [modalType, setModalType] = useState<null | 'curso' | 'miembro' | 'evento'>(null);
 
   const stats = [
     { name: 'Miembros Activos', value: 1, icon: Users, color: 'bg-blue-500' },
@@ -14,7 +22,7 @@ export default function Dashboard() {
 
   return (
     <div className='space-y-8'>
-      <div className="bg-linear-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
         <h1 className="text-3xl font-bold mb-2">
           Panel Pastoral
         </h1>
@@ -47,9 +55,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Recent Activity */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Quick Actions */}
         <div className="bg-white shadow-sm rounded-xl border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Acciones Rápidas</h3>
@@ -57,15 +63,24 @@ export default function Dashboard() {
           <div className="p-6">
             <div className="grid grid-cols-2  gap-4">
               <>
-                <button className="cursor-pointer flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                <button
+                  className="cursor-pointer flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  onClick={() => setModalType('miembro')}
+                >
                   <Users className="h-8 w-8 text-blue-600 mb-2" />
                   <span className="text-sm font-medium text-blue-700">Nuevo Miembro</span>
                 </button>
-                <button className="cursor-pointer flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                <button
+                  className="cursor-pointer flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                  onClick={() => setModalType('curso')}
+                >
                   <BookOpen className="h-8 w-8 text-green-600 mb-2" />
                   <span className="text-sm font-medium text-green-700">Crear Curso</span>
                 </button>
-                <button className="cursor-pointer flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                <button
+                  className="cursor-pointer flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                  onClick={() => setModalType('evento')}
+                >
                   <Calendar className="h-8 w-8 text-purple-600 mb-2" />
                   <span className="text-sm font-medium text-purple-700">Nuevo Evento</span>
                 </button>
@@ -78,7 +93,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Upcoming Events */}
         <div className="bg-white shadow-sm rounded-xl border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Próximos Eventos</h3>
@@ -94,41 +108,54 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-gray-900">Cursos Creados</h3>
             </div>
             <div className="p-6">
-                <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-                  <div>
-                    <p className="font-medium text-gray-900">Caracter Cristiano</p>
-                    <p className="text-sm text-gray-500">Descripción: Lorem ipsum dolor sit, amet consectetur adipisicing elit. Doloremque recusandae, libero omnis cupiditate minus labore autem non culpa animi distinctio?</p>
-                  </div>
-                  
-                </div>             
+              <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                <div>
+                  <p className="font-medium text-gray-900">Caracter Cristiano</p>
+                  <p className="text-sm text-gray-500">Descripción: Lorem ipsum dolor sit, amet consectetur adipisicing elit. Doloremque recusandae, libero omnis cupiditate minus labore autem non culpa animi distinctio?</p>
+                </div>
+
+              </div>
             </div>
           </div>
         </div>
         <div className="grid gap-8">
-          {/* Active Courses */}
           <div className="bg-white shadow-sm rounded-xl border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Cursos Activos</h3>
             </div>
             <div className="p-6">
-                <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-                  <div>
-                    <p className="font-medium text-gray-900">Caracter Cristiano</p>
-                    <p className="text-sm text-gray-500">Profesor: Pepito Perez</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      15/20
-                    </p>
-                    <p className="text-xs text-gray-500">estudiantes</p>
-                  </div>
-                </div>             
+              <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                <div>
+                  <p className="font-medium text-gray-900">Caracter Cristiano</p>
+                  <p className="text-sm text-gray-500">Profesor: Pepito Perez</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">
+                    15/20
+                  </p>
+                  <p className="text-xs text-gray-500">estudiantes</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Recent Activity */}
       </div>
+
+      {modalType === 'curso' && (
+        <ModalView isOpen={true} onClose={() => setModalType(null)} title="Crear Curso">
+          <CreateCourseForm />
+        </ModalView>
+      )}
+      {modalType === 'miembro' && (
+        <ModalView isOpen={true} onClose={() => setModalType(null)} title="Nuevo Miembro">
+          <CreateMemberForm />
+        </ModalView>
+      )}
+      {modalType === 'evento' && (
+        <ModalView isOpen={true} onClose={() => setModalType(null)} title="Nuevo Evento">
+          <CreateEventForm />
+        </ModalView>
+      )}
     </div>
   )
-} 
+}

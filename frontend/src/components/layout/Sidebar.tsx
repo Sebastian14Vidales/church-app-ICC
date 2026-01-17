@@ -1,4 +1,4 @@
-import logo from '../../assets/logo.png';
+import logo from '@/assets/logo.png';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     Home,
@@ -26,7 +26,7 @@ export default function Sidebar() {
     ];
   return (
      <div className="min-h-screen flex">
-            <aside className="hidden lg:flex w-72 flex-col bg-linear-to-b from-blue-900 to-blue-800">
+            <aside className="hidden lg:flex w-72 flex-col bg-gradient-to-b from-blue-900 to-blue-800">
                 <div className="flex grow flex-col gap-y-5 overflow-y-auto px-6 pb-4">
                     <div className="flex h-16 items-center mt-4">
                         <img src={logo} alt="Imagen de la iglesia" className='h-8 w-8' />

@@ -24,7 +24,7 @@ export default function Header() {
           <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
           
           <div className="relative">
-            <div className="h-8 w-8 rounded-full bg-linear-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
               <span className="text-sm font-medium text-white">
                 {/* {user?.name.split(' ').map(n => n[0]).join('')} */}
                 PJP
