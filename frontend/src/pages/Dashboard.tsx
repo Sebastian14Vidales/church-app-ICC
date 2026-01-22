@@ -61,7 +61,7 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-900">Acciones Rápidas</h3>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-2  gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <>
                 <button
                   className="cursor-pointer flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"

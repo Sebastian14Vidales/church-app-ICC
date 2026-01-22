@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Types, PopulatedDoc } from "mongoose";
-import { ICourseAssigned } from "./CourseAssigned";
-import { IUser } from "./User";
+import { ICourseAssigned } from "./course-assigned.model";
+import { IUser } from "./user.model";
 
 export interface IAttendance {
     student: PopulatedDoc<IUser & Document>;

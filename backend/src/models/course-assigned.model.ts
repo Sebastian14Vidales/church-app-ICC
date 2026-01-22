@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Types, PopulatedDoc } from "mongoose";
-import { IUser } from "./User";
-import { ICourse } from "./Course";
+import { IUser } from "./user.model";
+import { ICourse } from "./course.model";
 
 const courseAssignedStatus = {
     ACTIVE: 'active',
