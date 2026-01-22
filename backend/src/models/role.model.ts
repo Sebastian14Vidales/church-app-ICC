@@ -1,20 +1,29 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IRole extends Document {
-    name: string;
+  name: string;
 }
 
-const roleSchema: Schema = new Schema({
+const roleSchema: Schema = new Schema(
+  {
     name: {
-        type: String,
-        required: true,
-        unique: true,
-        enum: ["Estudiante", "Miembro", "Profesor", "Pastor", "Admin", "Superadmin"],
+      type: String,
+      required: true,
+      unique: true,
+      enum: [
+        "Estudiante",
+        "Miembro",
+        "Profesor",
+        "Pastor",
+        "Admin",
+        "Superadmin",
+      ],
     },
     access: {
-        type: Boolean,
-    }    
-}, { timestamps: true }
+      type: Boolean,
+    },
+  },
+  { timestamps: true },
 );
 
 const Role = mongoose.model<IRole>("Role", roleSchema);

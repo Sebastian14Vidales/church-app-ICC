@@ -1,31 +1,32 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface ICourse extends Document {
-    name: string;
-    description: string;
-    isActive: boolean;
+  name: string;
+  description: string;
+  isActive: boolean;
 }
 
-const CourseSchema: Schema = new Schema({
+const CourseSchema: Schema = new Schema(
+  {
     name: {
-        type: String,
-        required: true,
-        trim: true,
-        unique: true
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
     },
     description: {
-        type: String,
-        required: true,
-        trim: true
+      type: String,
+      required: true,
+      trim: true,
     },
     isActive: {
-        type: Boolean,
-        default: true
+      type: Boolean,
+      default: true,
     },
-},
-    { timestamps: true }
+  },
+  { timestamps: true },
 );
 
-const Course = mongoose.model<ICourse>('Course', CourseSchema);
+const Course = mongoose.model<ICourse>("Course", CourseSchema);
 
 export default Course;

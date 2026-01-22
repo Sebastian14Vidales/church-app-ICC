@@ -3,65 +3,70 @@ import { ICourseAssigned } from "./course-assigned.model";
 import { IUser } from "./user.model";
 
 export interface IAttendance {
-    student: PopulatedDoc<IUser & Document>;
-    present: boolean;
-    notes?: string;
+  student: PopulatedDoc<IUser & Document>;
+  present: boolean;
+  notes?: string;
 }
 
 export interface IClassSession extends Document {
-    courseAssigned: PopulatedDoc<ICourseAssigned & Document>;
-    classNumber: number;
-    data: Date;
-    topic?: string;
-    observations?: string;
-    attendance: IAttendance[];
+  courseAssigned: PopulatedDoc<ICourseAssigned & Document>;
+  classNumber: number;
+  data: Date;
+  topic?: string;
+  observations?: string;
+  attendance: IAttendance[];
 }
 
-const attendanceSchema: Schema = new Schema({
+const attendanceSchema: Schema = new Schema(
+  {
     student: {
-        type: Types.ObjectId,
-        ref: "User",
-        required: true
+      type: Types.ObjectId,
+      ref: "User",
+      required: true,
     },
     present: {
-        type: Boolean,
-        required: true
+      type: Boolean,
+      required: true,
     },
-},
-    { _id: false }
+  },
+  { _id: false },
 );
 
-const classSessionSchema: Schema = new Schema({
+const classSessionSchema: Schema = new Schema(
+  {
     courseAssigned: {
-        type: Types.ObjectId,
-        ref: "CourseAssigned",
-        required: true
+      type: Types.ObjectId,
+      ref: "CourseAssigned",
+      required: true,
     },
     classNumber: {
-        type: Number,
-        required: true,
-        min: 1
+      type: Number,
+      required: true,
+      min: 1,
     },
     date: {
-        type: Date,
-        required: true
+      type: Date,
+      required: true,
     },
     topic: {
-        type: String,
-        trim: true
+      type: String,
+      trim: true,
     },
     observations: {
-        type: String,
-        trim: true
+      type: String,
+      trim: true,
     },
     attendance: {
-        type: [attendanceSchema],
-        default: []
-    }
-},
-    { timestamps: true }
+      type: [attendanceSchema],
+      default: [],
+    },
+  },
+  { timestamps: true },
 );
 
-const ClassSession = mongoose.model<IClassSession>("ClassSession", classSessionSchema);
+const ClassSession = mongoose.model<IClassSession>(
+  "ClassSession",
+  classSessionSchema,
+);
 
 export default ClassSession;

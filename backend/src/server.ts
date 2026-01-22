@@ -9,8 +9,7 @@ app.use(express.json());
 connectDB();
 
 //Routes
-
-app.use('/api/courses', courseRoutes);
-app.use('/api/users', userRoutes);
+app.use("/api/courses", courseRoutes);
+app.use("/api/users", userRoutes);
 
 export default app;
