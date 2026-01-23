@@ -13,7 +13,8 @@
       "@/layouts/*": ["layouts/*"],
       "@/pages/*": ["pages/*"],
       "@/utils/*": ["utils/*"],
-      "@assets/*": ["/assets/*"]
+      "@/assets/*": ["assets/*"],
+      "@/constants/*": ["constants/*"]
     },
 
     /* Bundler mode */
