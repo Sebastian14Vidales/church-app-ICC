@@ -19,6 +19,11 @@ const CourseSchema: Schema = new Schema(
       required: true,
       trim: true,
     },
+    level: {
+      type: String,
+      enum: ["basic", "intermediate", "advanced"],
+      default: "basic",
+    },
     isActive: {
       type: Boolean,
       default: true,

@@ -2,10 +2,7 @@
 import { Users, BookOpen, Calendar, DollarSign, TrendingUp, Heart } from 'lucide-react';
 import { useState } from 'react';
 import ModalView from '../components/dashboard/ModalView';
-import CreateCourseForm from '../components/dashboard/CreateCourseForm';
-import CreateMemberForm from '../components/dashboard/CreateMemberForm';
-import CreateEventForm from '../components/dashboard/CreateEventForm';
-
+import CourseForm from '../components/dashboard/CourseForm';
 
 
 export default function Dashboard() {
@@ -17,7 +14,6 @@ export default function Dashboard() {
     { name: 'Eventos Próximos', value: 3, icon: Calendar, color: 'bg-purple-500' },
     { name: 'Grupos de Vida', value: 4, icon: Heart, color: 'bg-red-500' },
     { name: 'Ofrendas del Mes', value: 5, icon: DollarSign, color: 'bg-yellow-500' }
-
   ];
 
   return (
@@ -142,18 +138,13 @@ export default function Dashboard() {
       </div>
 
       {modalType === 'curso' && (
-        <ModalView isOpen={true} onClose={() => setModalType(null)} title="Crear Curso">
-          <CreateCourseForm />
-        </ModalView>
-      )}
-      {modalType === 'miembro' && (
-        <ModalView isOpen={true} onClose={() => setModalType(null)} title="Nuevo Miembro">
-          <CreateMemberForm />
-        </ModalView>
-      )}
-      {modalType === 'evento' && (
-        <ModalView isOpen={true} onClose={() => setModalType(null)} title="Nuevo Evento">
-          <CreateEventForm />
+        <ModalView
+          isOpen
+          onClose={() => setModalType(null)}
+          title="Crear Curso"
+          formId="create-course-form"
+        >
+          <CourseForm />
         </ModalView>
       )}
     </div>

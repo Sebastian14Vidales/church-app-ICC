@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import {
   Modal,
   ModalContent,
@@ -12,26 +13,36 @@ interface ModalViewProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  children: React.ReactNode;
+  formId?: string;
+  children: ReactNode;
 }
 
-export default function ModalView({ isOpen, onClose, title, children }: ModalViewProps) {
+export default function ModalView({
+  isOpen,
+  onClose,
+  title,
+  children,
+  formId,
+}: ModalViewProps) {
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose}>
       <ModalContent>
         {() => (
           <>
-            <ModalHeader className="flex flex-col gap-1">{title}</ModalHeader>
-            <ModalBody>
-              {children}
-            </ModalBody>
+            <ModalHeader>{title}</ModalHeader>
+
+            <ModalBody>{children}</ModalBody>
+
             <ModalFooter>
               <Button color="danger" variant="light" onPress={onClose}>
                 Cerrar
               </Button>
-              <Button color="primary" onPress={onClose}>
-                Guardar
-              </Button>
+
+              {formId && (
+                <Button color="primary" type="submit" form={formId}>
+                  Guardar
+                </Button>
+              )}
             </ModalFooter>
           </>
         )}

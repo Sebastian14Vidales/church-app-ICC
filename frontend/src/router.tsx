@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import AppLayout from "@/layouts/AppLayout";
-import PATHS from "@/constants/routes";
+import PATHS from "@/utils/constants/routes";
 
 export const routes: RouteObject[] = [
   {
@@ -15,7 +15,7 @@ export const routes: RouteObject[] = [
       {
         path: PATHS.courses,
         lazy: async () => ({
-          Component: (await import("@/pages/Courses")).default,
+          Component: (await import("@/pages/courses/Courses")).default,
         }),
       },
     ],

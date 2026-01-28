@@ -19,9 +19,6 @@ const roleSchema: Schema = new Schema(
         "Superadmin",
       ],
     },
-    access: {
-      type: Boolean,
-    },
   },
   { timestamps: true },
 );

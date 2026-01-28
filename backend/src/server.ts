@@ -2,7 +2,7 @@ import express from "express";
 import connectDB from "./config/db";
 
 import courseRoutes from "./routes/course.routes";
-import userRoutes from "./routes/user.routes";
+import userRoutes from "./routes/auth.routes";
 
 const app = express();
 app.use(express.json());
