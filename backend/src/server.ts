@@ -1,15 +1,24 @@
 import express from "express";
 import connectDB from "./config/db";
+import { seedDatabase } from "./config/seed";
 
 import courseRoutes from "./routes/course.routes";
+import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/auth.routes";
 
 const app = express();
 app.use(express.json());
-connectDB();
+
+connectDB().then( async () => {
+  console.log("✅ Conectado a la base de datos");
+  await seedDatabase();
+}).catch((error) => {
+  console.error("❌ Error al conectar a la base de datos:", error);
+});
 
 //Routes
-app.use("/api/courses", courseRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/courses", courseRoutes);
 
 export default app;

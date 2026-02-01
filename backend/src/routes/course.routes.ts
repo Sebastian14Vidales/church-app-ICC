@@ -12,6 +12,9 @@ router.post(
   body("description")
     .notEmpty()
     .withMessage("La descripción del curso es obligatoria"),
+  body("level")
+    .isIn(["beginner", "intermediate", "advanced"])
+    .withMessage("El nivel del curso debe ser 'beginner', 'intermediate' o 'advanced'"),
   handleInputErrors,
   CourseController.create,
 );
