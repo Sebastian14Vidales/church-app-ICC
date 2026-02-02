@@ -1,21 +1,22 @@
-import {type UseFormRegister, type FieldErrors } from "react-hook-form";
-import {type CourseFormData} from '@/types/index';
+import { type UseFormRegister, type FieldErrors, Controller, type Control } from "react-hook-form";
+import { type CourseFormData } from '@/types/index';
 import { Input, Select, SelectItem, Textarea } from "@heroui/react";
 
 
 export type CourseFormProps = {
-    register: UseFormRegister<CourseFormData>;
-    errors: FieldErrors<CourseFormData>;
+  register: UseFormRegister<CourseFormData>;
+  errors: FieldErrors<CourseFormData>;
+  control: Control<CourseFormData>;
 }
 
-export default function CourseForm({ register, errors }: CourseFormProps) {
+export default function CourseForm({ register, errors, control }: CourseFormProps) {
   return (
     <div className="flex flex-col space-y-4">
       <div>
-        <label htmlFor="courseName" className="block text-sm font-medium text-gray-700">Nombre del curso</label>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre del curso</label>
         <Input
-          id="courseName"
-          {...register("courseName", { required: true })}
+          id="name"
+          {...register("name", { required: true })}
           type="text"
           placeholder="Ingrese el nombre del curso"
           className="input"
@@ -24,7 +25,7 @@ export default function CourseForm({ register, errors }: CourseFormProps) {
             input: "focus:outline-none focus:ring-0",
           }}
         />
-        {errors.courseName && (
+        {errors.name && (
           <span className="text-red-500 text-xs">Este campo es requerido</span>
         )}
       </div>
@@ -45,19 +46,34 @@ export default function CourseForm({ register, errors }: CourseFormProps) {
         )}
       </div>
       <div>
-        <label htmlFor="level" className="block text-sm font-medium text-gray-700">Nivel</label>
-        <Select
-          id="level"
-          {...register("level", { required: true })}
-          className="input"
-          placeholder="Seleccione un nivel"
-        >
-          <SelectItem>Básico</SelectItem>
-          <SelectItem>Intermedio</SelectItem>
-          <SelectItem>Avanzado</SelectItem>
-        </Select>
+        <label className="block text-sm font-medium text-gray-700">
+          Nivel
+        </label>
+
+        <Controller
+          name="level"
+          control={control}
+          rules={{ required: true }}
+          render={({ field }) => (
+            <Select
+              selectedKeys={field.value ? [field.value] : []}
+              onSelectionChange={(keys) => {
+                field.onChange([...keys][0]);
+              }}
+              placeholder="Seleccione un nivel"
+              className="input"
+            >
+              <SelectItem key="basic">Básico</SelectItem>
+              <SelectItem key="intermediate">Intermedio</SelectItem>
+              <SelectItem key="advanced">Avanzado</SelectItem>
+            </Select>
+          )}
+        />
+
         {errors.level && (
-          <span className="text-red-500 text-xs">Este campo es requerido</span>
+          <span className="text-red-500 text-xs">
+            Este campo es requerido
+          </span>
         )}
       </div>
     </div>

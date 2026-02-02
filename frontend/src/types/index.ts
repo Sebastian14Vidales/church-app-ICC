@@ -1,12 +1,12 @@
 import z from "zod"
 
 // courses
-export const courseLevelSchema = z.enum(["beginner", "intermediate", "advanced"])
+export const courseLevelSchema = z.enum(["basic", "intermediate", "advanced"])
 export type CourseLevel = z.infer<typeof courseLevelSchema>
 
 export const createCourseSchema = z.object({
     _id: z.string(),
-    courseName: z.string(),
+    name: z.string(),
     description: z.string(),
     level: courseLevelSchema,
     createdAt: z.string(),
@@ -14,4 +14,4 @@ export const createCourseSchema = z.object({
 })
 
 export type Course = z.infer<typeof createCourseSchema>
-export type CourseFormData = Pick<Course, "courseName" | "description" | "level">
+export type CourseFormData = Pick<Course, "name" | "description" | "level">

@@ -3,25 +3,32 @@ import ModalView from "@/components/dashboard/ModalView";
 import CourseForm from "@/components/dashboard/CourseForm";
 import { type CourseFormData } from '@/types/index';
 import { useForm } from "react-hook-form";
-
+import { createCourse } from "@/api/CourseAPI";
+// import { useNavigate } from "react-router-dom";
+import { toast }from "react-toastify";
 
 export default function Courses() {
-  const initialValues: CourseFormData = {
-    courseName: "",
-    description: "",
-    level: "beginner"
-  }
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({ defaultValues: initialValues });
-  const [open, setOpen] = useState(false);
+  // const navigate = useNavigate();
 
-  const onSubmit = async (formData: CourseFormData) => {
-    console.log(formData);
+  const initialValues: CourseFormData = {
+    name: "",
+    description: "",
+    level: "basic"
   }
+const { register, handleSubmit, formState: { errors }, reset, control } = useForm({ defaultValues: initialValues });  
+const [open, setOpen] = useState(false);
 
   const handleClose = () => {
     setOpen(false);
     reset(initialValues);
   };
+
+  const onSubmit = async (formData: CourseFormData) => {
+    const data = await createCourse(formData);
+    console.log(data);
+    toast.success("Curso creado exitosamente");
+    handleClose();
+  }
 
   return (
     <div className="p-4">
@@ -38,7 +45,7 @@ export default function Courses() {
         title="Crear curso"
       >
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <CourseForm register={register} errors={errors} />
+          <CourseForm register={register} errors={errors} control={control} />
 
           <input
             type="submit"

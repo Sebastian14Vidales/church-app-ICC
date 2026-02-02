@@ -6,6 +6,9 @@ import courseRoutes from "./routes/course.routes";
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/auth.routes";
 
+import cors from "cors";
+
+
 const app = express();
 app.use(express.json());
 
@@ -15,6 +18,11 @@ connectDB().then( async () => {
 }).catch((error) => {
   console.error("❌ Error al conectar a la base de datos:", error);
 });
+
+//Middlewares
+app.use(cors({
+  origin: `${process.env.FRONTEND_URL}`,
+}));
 
 //Routes
 app.use("/api/auth", authRoutes);
