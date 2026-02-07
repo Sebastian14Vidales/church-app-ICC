@@ -1,12 +1,7 @@
 
 import { Users, BookOpen, Calendar, DollarSign, TrendingUp, Heart } from 'lucide-react';
-import { useState } from 'react';
-import ModalView from '../components/dashboard/ModalView';
-import CourseForm from '../components/dashboard/CourseForm';
-
 
 export default function Dashboard() {
-  const [modalType, setModalType] = useState<null | 'curso' | 'miembro' | 'evento'>(null);
 
   const stats = [
     { name: 'Miembros Activos', value: 1, icon: Users, color: 'bg-blue-500' },
@@ -61,21 +56,18 @@ export default function Dashboard() {
               <>
                 <button
                   className="cursor-pointer flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                  onClick={() => setModalType('miembro')}
                 >
                   <Users className="h-8 w-8 text-blue-600 mb-2" />
                   <span className="text-sm font-medium text-blue-700">Nuevo Miembro</span>
                 </button>
                 <button
                   className="cursor-pointer flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                  onClick={() => setModalType('curso')}
                 >
                   <BookOpen className="h-8 w-8 text-green-600 mb-2" />
                   <span className="text-sm font-medium text-green-700">Crear Curso</span>
                 </button>
                 <button
                   className="cursor-pointer flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-                  onClick={() => setModalType('evento')}
                 >
                   <Calendar className="h-8 w-8 text-purple-600 mb-2" />
                   <span className="text-sm font-medium text-purple-700">Nuevo Evento</span>
@@ -136,17 +128,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {modalType === 'curso' && (
-        <ModalView
-          isOpen
-          onClose={() => setModalType(null)}
-          title="Crear Curso"
-          formId="create-course-form"
-        >
-          <CourseForm />
-        </ModalView>
-      )}
     </div>
   )
 }

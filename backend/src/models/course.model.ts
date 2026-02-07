@@ -22,7 +22,7 @@ const CourseSchema: Schema = new Schema(
     level: {
       type: String,
       enum: ["basic", "intermediate", "advanced"],
-      default: "basic",
+      required: true,
     },
     isActive: {
       type: Boolean,

@@ -35,7 +35,7 @@ export default function CourseForm({ register, errors, control }: CourseFormProp
           id="description"
           {...register("description", { required: true })}
           className="input"
-          placeholder="Ingrese la descripción del curso"
+          placeholder="Ingrese la Descripción del curso"
           classNames={{
             inputWrapper: "border-none shadow-none",
             input: "focus:outline-none focus:ring-0",
@@ -58,7 +58,7 @@ export default function CourseForm({ register, errors, control }: CourseFormProp
             <Select
               selectedKeys={field.value ? [field.value] : []}
               onSelectionChange={(keys) => {
-                field.onChange([...keys][0]);
+                field.onChange([...keys][0] ?? "");
               }}
               placeholder="Seleccione un nivel"
               className="input"
@@ -79,3 +79,5 @@ export default function CourseForm({ register, errors, control }: CourseFormProp
     </div>
   );
 }
+
+

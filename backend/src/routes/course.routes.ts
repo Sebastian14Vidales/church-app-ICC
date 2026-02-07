@@ -11,10 +11,10 @@ router.post(
   body("name").notEmpty().withMessage("El nombre del curso es obligatorio"),
   body("description")
     .notEmpty()
-    .withMessage("La descripciÃ³n del curso es obligatoria"),
+    .withMessage("La descripción del curso es obligatoria"),
   body("level")
-    .isIn(["beginner", "intermediate", "advanced"])
-    .withMessage("El nivel del curso debe ser 'beginner', 'intermediate' o 'advanced'"),
+    .isIn(["basic", "intermediate", "advanced"])
+    .withMessage("El nivel del curso debe ser 'basic', 'intermediate' o 'advanced'"),
   handleInputErrors,
   CourseController.create,
 );
@@ -24,7 +24,7 @@ router.get("/", CourseController.findAll);
 //Route to get a course by ID with validation
 router.get(
   "/:id",
-  param("id").isMongoId().withMessage("ID de curso invÃ¡lido"),
+  param("id").isMongoId().withMessage("ID de curso inválido"),
   handleInputErrors,
   CourseController.findById,
 );
@@ -32,11 +32,11 @@ router.get(
 // Route to update a course by ID
 router.put(
   "/:id",
-  param("id").isMongoId().withMessage("ID de curso invÃ¡lido"),
+  param("id").isMongoId().withMessage("ID de curso inválido"),
   body("name").notEmpty().withMessage("El nombre del curso es obligatorio"),
   body("description")
     .notEmpty()
-    .withMessage("La descripciÃ³n del curso es obligatoria"),
+    .withMessage("La descripción del curso es obligatoria"),
   body("isActive").isBoolean().withMessage("El estado debe ser true o false"),
   handleInputErrors,
   CourseController.update,
@@ -45,9 +45,10 @@ router.put(
 // Route to delete a course
 router.delete(
   "/:id",
-  param("id").isMongoId().withMessage("ID de curso invÃ¡lido"),
+  param("id").isMongoId().withMessage("ID de curso inválido"),
   handleInputErrors,
   CourseController.remove,
 );
 
 export default router;
+
