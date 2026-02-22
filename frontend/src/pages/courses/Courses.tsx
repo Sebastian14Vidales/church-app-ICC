@@ -1,19 +1,22 @@
 import { useState } from "react";
 import ModalView from "@/components/dashboard/ModalView";
 import CourseForm from "@/components/dashboard/CourseForm";
+import AssignCourseForm from "@/components/dashboard/AssignCourseForm";
 import { type CourseFormData } from "@/types/index";
 import { useForm } from "react-hook-form";
 import { createCourse, getAllCourses } from "@/api/CourseAPI";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, BadgePlus, NotebookPen } from "lucide-react";
 import { Button } from "@heroui/react";
+import { type CourseAssignedFormData } from '@/types/index';
+
 
 export default function Courses() {
   const initialValues: CourseFormData = {
     name: "",
     description: "",
-    level: "",
+    level: "basic",
   };
 
   const {
@@ -23,12 +26,27 @@ export default function Courses() {
     reset,
     control,
   } = useForm({ defaultValues: initialValues });
+  const assignForm = useForm<CourseAssignedFormData>({
+  defaultValues: {
+    course: "",
+    professor: "",
+    startDate: new Date(),
+    startTime: "",
+    totalClasses: 0,
+    endDate: undefined,
+    location: "",
+    status: "active"
+  }
+});
   const [open, setOpen] = useState(false);
+  const [openAssign, setOpenAssign] = useState(false);
   const queryClient = useQueryClient();
 
   const handleClose = () => {
     setOpen(false);
     reset(initialValues);
+    setOpenAssign(false);
+    assignForm.reset({ course: "", professor: "", startDate: new Date(), startTime: "", totalClasses: 0, endDate: undefined, location: "", status: "active" });
   };
 
   const mutation = useMutation({
@@ -60,12 +78,23 @@ export default function Courses() {
 
   return (
     <div className="p-4">
-      <button
-        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-4"
-        onClick={() => setOpen(true)}
-      >
-        Crear curso
-      </button>
+      <div className="flex justify-end gap-4">
+        <Button
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-4 flex items-center"
+          onPress={() => setOpen(true)}
+        >
+          <BadgePlus className="size-5" />
+          Crear curso
+        </Button>
+
+        <Button
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-4 flex items-center"
+          onPress={() => setOpenAssign(true)}
+        >
+          <NotebookPen className="size-5" />
+          Asignar curso
+        </Button>
+      </div>
 
       <ModalView isOpen={open} onClose={handleClose} title="Crear curso">
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -79,34 +108,52 @@ export default function Courses() {
         </form>
       </ModalView>
 
+      <ModalView isOpen={openAssign} onClose={handleClose} title="Asignar curso">
+        <form onSubmit={assignForm.handleSubmit(() => {/* lógica de asignación aquí */ })} noValidate>
+          <AssignCourseForm
+            control={assignForm.control}
+            errors={assignForm.formState.errors}
+          />        </form>
+      </ModalView>
+
+      <h2 className="text-2xl font-bold mb-4">{data?.length ? `Cursos Disponibles (${data.length})` : "No hay cursos disponibles"}</h2>
+
       <div>
         {data?.length ? (
-          <ul className="space-y-4 divide-y divide-gray-200">
+          <ul className="flex gap-4 divide-gray-200">
             {data.map((course) => (
-              <li key={course._id} className="flex justify-between p-4 border rounded shadow">
+              <li key={course._id} className="flex flex-col justify-around p-4 h-44 w-5/12 border rounded shadow">
                 <div className="flex-col space-y-2">
-                  <h3 className="font-bold text-lg">{course.name}</h3>
-                  <p className="text-gray-600">{course.description}</p>
-                  <span className={`${course.level === "basic" ? "bg-green-400" : course.level === "intermediate" ? "bg-yellow-400" : "bg-red-400"} text-${course.level === "basic" ? "text-green-800" : course.level === "intermediate" ? "text-yellow-800" : "text-red-800"} text-xs font-medium px-2.5 py-0.5 rounded`}>
-                    {course.level === "basic"
-                      ? "Básico"
-                      : course.level === "intermediate"
-                        ? "Intermedio"
-                        : course.level === "advanced"
-                          ? "Avanzado"
-                          : course.level}
-                  </span>
+                  <div className="flex gap-4 items-center">
+                    <h3 className="font-bold text-lg">{course.name}</h3>
+                    <span className={`${course.level === "basic" ? "bg-green-400" : course.level === "intermediate" ? "bg-yellow-400" : "bg-red-400"} text-${course.level === "basic" ? "text-green-800" : course.level === "intermediate" ? "text-yellow-800" : "text-red-800"} text-xs font-medium px-2.5 py-0.5 rounded`}>
+                      {course.level === "basic"
+                        ? "Básico"
+                        : course.level === "intermediate"
+                          ? "Intermedio"
+                          : course.level === "advanced"
+                            ? "Avanzado"
+                            : course.level}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 text-sm flex items-center">
+                    {course.description.length > 100
+                      ? course.description.slice(0, 100) + "..."
+                      : course.description}
+                  </p>
                 </div>
-                <div className="flex flex-col items-center gap-4">
-                  <Button className="w-28" color="primary">
+
+
+                <div className="flex justify-center mt-4 items-center gap-4">
+                  <Button className="w-full" color="primary">
                     <Pencil className="size-4" />
                     Editar
                   </Button>
-                  <Button className="w-28" color="danger">
+                  <Button className="w-full" color="danger">
                     <Trash2 className="size-4" />
                     Eliminar
                   </Button>
-                </div>  
+                </div>
               </li>
             ))}
           </ul>
