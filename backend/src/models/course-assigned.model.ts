@@ -44,10 +44,10 @@ const CourseAssignedSchema: Schema = new Schema(
     },
     totalClasses: {
       type: Number,
-      required: true,
     },
     endDate: {
       type: Date,
+      required: true,
     },
     location: {
       type: String,

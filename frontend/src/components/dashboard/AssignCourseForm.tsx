@@ -1,8 +1,10 @@
 import { Controller, type FieldErrors, type Control } from "react-hook-form";
-import { Button, Select, SelectItem } from "@heroui/react";
+import { Button, DatePicker, Select, SelectItem } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCourses } from "@/api/CourseAPI";
 import { type CourseAssignedFormData } from "@/types/index";
+import { LOCATIONS } from "@/utils/constants/locations";
+import { getLocalTimeZone, today } from "@internationalized/date";
 
 export type AssignCourseFormProps = {
     control: Control<CourseAssignedFormData>;
@@ -17,7 +19,6 @@ export default function AssignCourseForm({ control, errors }: AssignCourseFormPr
 
     return (
         <div className="space-y-4">
-
             <div>
                 <label className="block text-sm font-medium mb-1">
                     Curso
@@ -71,6 +72,63 @@ export default function AssignCourseForm({ control, errors }: AssignCourseFormPr
                 {errors.professor && (
                     <span className="text-red-500 text-xs">
                         {errors.professor.message}
+                    </span>
+                )}
+            </div>
+
+            <div className="flex gap-4">
+                <div className="w-1/2">
+                    <label className="block text-sm font-medium mb-1">
+                        Fecha de Inicio
+                    </label>
+                    <DatePicker
+                        className="w-full"
+                        label="Date"
+                        minValue={today(getLocalTimeZone())}
+                    />
+                </div>
+                <div className="w-1/2">
+                    <label className="block text-sm font-medium mb-1">
+                        Fecha de Fin
+                    </label>
+                    <DatePicker
+                        className="w-full"
+                        label="Date"
+                        minValue={today(getLocalTimeZone())}
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium mb-1">
+                    Salón
+                </label>
+
+                <Controller
+                    name="location"
+                    control={control}
+                    rules={{ required: "Salón requerido" }}
+                    render={({ field }) => (
+                        <Select
+                            selectedKeys={field.value ? [field.value] : []}
+                            onSelectionChange={(keys) =>
+                                field.onChange(Array.from(keys)[0])
+                            }
+                            className="w-full"
+                            placeholder="Selecciona un salón"
+                        >
+                            {LOCATIONS?.map((salon) => (
+                                <SelectItem key={salon.id}>
+                                    {salon.name}
+                                </SelectItem>
+                            ))}
+                        </Select>
+                    )}
+                />
+
+                {errors.location && (
+                    <span className="text-red-500 text-xs">
+                        {errors.location.message}
                     </span>
                 )}
             </div>

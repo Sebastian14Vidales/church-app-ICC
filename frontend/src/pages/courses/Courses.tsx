@@ -33,7 +33,7 @@ export default function Courses() {
     startDate: new Date(),
     startTime: "",
     totalClasses: 0,
-    endDate: undefined,
+    endDate: new Date(),
     location: "",
     status: "active"
   }
