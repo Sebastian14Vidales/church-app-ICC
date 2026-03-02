@@ -1,4 +1,4 @@
-import { dashboardCourseSchema, type CourseFormData } from '@/types/index';
+import { dashboardCourseSchema, type CourseFormData, type Course } from '@/types/index';
 import api from '@/lib/axios';
 
 export const createCourse = async (formData: CourseFormData) => {
@@ -23,6 +23,29 @@ export const getAllCourses = async () => {
         throw new Error("Respuesta de cursos inválida");
     } catch (error) {
         console.error("Error retrieving courses:", error);
+        throw error;
+    }
+}
+
+export const updateCourse = async (courseId: Course['_id'], formData: CourseFormData) => {
+    try {
+        const { data } = await api.put(`/courses/${courseId}`, {
+            ...formData,
+            isActive: true,
+        });
+        return data;
+    } catch (error) {
+        console.error("Error updating course:", error);
+        throw error;
+    }
+}
+
+export const deleteCourse = async (courseId: Course['_id']) => {
+    try {
+        const { data } = await api.delete(`/courses/${courseId}`);
+        return data;
+    } catch (error) {
+        console.error("Error deleting course:", error);
         throw error;
     }
 }

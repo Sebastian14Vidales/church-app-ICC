@@ -1,15 +1,16 @@
 import { useState } from "react";
+import { showSweetAlert } from "@/components/alert/SweetAlert";
 import ModalView from "@/components/dashboard/ModalView";
 import CourseForm from "@/components/dashboard/CourseForm";
 import AssignCourseForm from "@/components/dashboard/AssignCourseForm";
 import { type CourseFormData } from "@/types/index";
 import { useForm } from "react-hook-form";
-import { createCourse, getAllCourses } from "@/api/CourseAPI";
+import { createCourse, getAllCourses, updateCourse, deleteCourse } from "@/api/CourseAPI";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { Pencil, Trash2, BadgePlus, NotebookPen } from "lucide-react";
 import { Button } from "@heroui/react";
-import { type CourseAssignedFormData } from '@/types/index';
+import { type CourseAssignedFormData, type Course } from '@/types/index';
 
 
 export default function Courses() {
@@ -27,29 +28,31 @@ export default function Courses() {
     control,
   } = useForm({ defaultValues: initialValues });
   const assignForm = useForm<CourseAssignedFormData>({
-  defaultValues: {
-    course: "",
-    professor: "",
-    startDate: new Date(),
-    startTime: "",
-    totalClasses: 0,
-    endDate: new Date(),
-    location: "",
-    status: "active"
-  }
-});
+    defaultValues: {
+      course: "",
+      professor: "",
+      startDate: new Date(),
+      startTime: "",
+      totalClasses: 0,
+      endDate: new Date(),
+      location: "",
+      status: "active"
+    }
+  });
   const [open, setOpen] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const queryClient = useQueryClient();
 
   const handleClose = () => {
     setOpen(false);
+    setEditingCourse(null);
     reset(initialValues);
     setOpenAssign(false);
     assignForm.reset({ course: "", professor: "", startDate: new Date(), startTime: "", totalClasses: 0, endDate: undefined, location: "", status: "active" });
   };
 
-  const mutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: createCourse,
     onSuccess: (data) => {
       toast.success(data ?? "Curso creado");
@@ -60,14 +63,69 @@ export default function Courses() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ courseId, formData }: { courseId: string; formData: CourseFormData }) =>
+      updateCourse(courseId, formData),
+    onSuccess: (data) => {
+      toast.success(data ?? "Curso actualizado");
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleEditCourse = (course: Course) => {
+    setEditingCourse(course);
+    reset({
+      name: course.name,
+      description: course.description,
+      level: course.level,
+    });
+    setOpen(true);
+  };
+
   const onSubmit = async (formData: CourseFormData) => {
     try {
-      await mutation.mutateAsync(formData);
+      if (editingCourse) {
+        await updateMutation.mutateAsync({ courseId: editingCourse._id, formData });
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
       handleClose();
     } catch {
       // errors are handled by mutation onError
     }
   };
+
+  const deleteMutation = useMutation({
+    mutationFn: (courseId: string) => deleteCourse(courseId),
+    onSuccess: () => {
+      toast.success("Curso eliminado");
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleDeleteCourse = async (courseId: string) => {
+    showSweetAlert({
+      title: '¿Eliminar curso?',
+      text: 'Esta acción no se puede deshacer.',
+      type: 'warning',
+      confirmButtonText: 'Sí, eliminar',
+      showCancelButton: true,
+      cancelButtonText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          await deleteMutation.mutateAsync(courseId);
+        } catch (error) {
+          // errors are handled by mutation onError
+        }
+      },
+    });
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["courses"],
@@ -81,7 +139,11 @@ export default function Courses() {
       <div className="flex justify-end gap-4">
         <Button
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-4 flex items-center"
-          onPress={() => setOpen(true)}
+          onPress={() => {
+            setEditingCourse(null);
+            reset(initialValues);
+            setOpen(true);
+          }}
         >
           <BadgePlus className="size-5" />
           Crear curso
@@ -96,13 +158,13 @@ export default function Courses() {
         </Button>
       </div>
 
-      <ModalView isOpen={open} onClose={handleClose} title="Crear curso">
+      <ModalView isOpen={open} onClose={handleClose} title={editingCourse ? "Editar curso" : "Crear curso"}>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <CourseForm register={register} errors={errors} control={control} />
 
           <input
             type="submit"
-            value="Crear Curso"
+            value={editingCourse ? "Guardar Cambios" : "Crear Curso"}
             className="text-white my-6 w-full uppercase font-bold bg-blue-600 hover:bg-blue-700 cursor-pointer rounded-lg text-sm px-5 py-2.5 text-center"
           />
         </form>
@@ -145,11 +207,11 @@ export default function Courses() {
 
 
                 <div className="flex justify-center mt-4 items-center gap-4">
-                  <Button className="w-full" color="primary">
+                  <Button className="w-full" color="primary" onPress={() => handleEditCourse(course)}>
                     <Pencil className="size-4" />
                     Editar
                   </Button>
-                  <Button className="w-full" color="danger">
+                  <Button className="w-full" color="danger" onPress={() => handleDeleteCourse(course._id)}>
                     <Trash2 className="size-4" />
                     Eliminar
                   </Button>
