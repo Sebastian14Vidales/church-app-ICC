@@ -20,19 +20,22 @@ export const seedDatabase = async () => {
     );
   }
 
-  const superadminExists = await User.findOne({
-    email: "vidales14sebastian@gmail.com",
-  });
+  const superadminRole = await Role.findOne({ name: "Superadmin" });
 
-  if (!superadminExists) {
-    const superadminRole = await Role.findOne({ name: "Superadmin" });
-
-    await User.create({
-      email: "vidales14sebastian@gmail.com",
-      password: await bycrpt.hash("Superadmin1234", 10),
-      confirmed: true,
-      roles: [superadminRole?._id],
-    });
-    console.log("✅ Superadmin creado");
-  }
+  await User.findOneAndUpdate(
+    { email: "vidales14sebastian@gmail.com" },
+    {
+      $set: {
+        name: "Superadmin",
+        active: true,
+        confirmed: true,
+        roles: superadminRole ? [superadminRole._id] : [],
+      },
+      $setOnInsert: {
+        email: "vidales14sebastian@gmail.com",
+        password: await bycrpt.hash("Superadmin1234", 10),
+      },
+    },
+    { upsert: true, new: true },
+  );
 };

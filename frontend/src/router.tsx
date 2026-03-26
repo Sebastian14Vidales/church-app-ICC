@@ -18,6 +18,12 @@ export const routes: RouteObject[] = [
           Component: (await import("@/pages/courses/Courses")).default,
         }),
       },
+      {
+        path: PATHS.members,
+        lazy: async () => ({
+          Component: (await import("@/pages/members/Members")).default,
+        }),
+      }
     ],
   },
   {

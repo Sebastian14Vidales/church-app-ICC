@@ -18,12 +18,21 @@ const userSchema: Schema = new Schema(
       unique: true,
       lowercase: true,
     },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     password: {
       type: String,
     },
     confirmed: {
       type: Boolean,
       default: false,
+    },
+    active: {
+      type: Boolean,
+      default: true,
     },
     roles: [
       {

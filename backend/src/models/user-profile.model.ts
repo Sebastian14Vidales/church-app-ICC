@@ -1,14 +1,16 @@
 import mongoose, { Schema, Document, Types, PopulatedDoc } from "mongoose";
+import { IRole } from "./role.model";
 
 export interface IUserProfile extends Document {
-    firstName: string;
-    lastName: string;
-    documentID: string;
-    birthdate: Date;
-    neighborhood: string;
-    phoneNumber: string;
-    bloodType: string;
-    user: PopulatedDoc<Types.ObjectId>;
+  firstName: string;
+  lastName: string;
+  documentID: string;
+  birthdate: Date;
+  neighborhood: string;
+  phoneNumber: string;
+  bloodType: string;
+  role: PopulatedDoc<IRole & Document>;
+  user?: PopulatedDoc<Types.ObjectId>;
 }
 
 const userProfileSchema: Schema = new Schema(
@@ -41,10 +43,16 @@ const userProfileSchema: Schema = new Schema(
       type: String,
       required: true,
     },
+    role: {
+      type: Types.ObjectId,
+      ref: "Role",
+      required: true,
+    },
     user: {
       type: Types.ObjectId,
       ref: "User",
       unique: true,
+      sparse: true,
     },
   },
   { timestamps: true },

@@ -3,26 +3,35 @@ import User from "../models/user.model";
 import Role from "../models/role.model";
 import bcrypt from "bcrypt";
 
+const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
+
 export class UserController {
   static create = async (req: Request, res: Response) => {
     try {
-      const { email, roleName } = req.body;
+      const { email, roleName, name } = req.body;
 
       const role = await Role.findOne({ name: roleName });
       if (!role) {
         return res.status(400).json({ message: "Rol inválido" });
       }
 
-      const requiresEmail = ["Pastor", "Profesor"].includes(role.name);
+      if (!LOGIN_ENABLED_ROLES.includes(role.name)) {
+        return res.status(400).json({
+          message: "Solo Admin, Superadmin, Profesor y Pastor pueden tener acceso al login",
+        });
+      }
 
-      const password = requiresEmail
-        ? undefined
-        : await bcrypt.hash("Temporal123*", 10);
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(409).json({ message: "El correo ya está registrado" });
+      }
 
       const user = await User.create({
         email,
-        password,
-        confirmed: !requiresEmail,
+        name,
+        password: await bcrypt.hash("Temporal123*", 10),
+        confirmed: false,
+        active: true,
         roles: [role._id],
       });
 
