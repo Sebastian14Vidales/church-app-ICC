@@ -9,8 +9,14 @@ import {
 } from "@/types/index";
 
 export const createMember = async (formData: MemberFormData) => {
+    const baptized = formData.baptized === "true";
+    const servesInMinistry = formData.servesInMinistry === "true";
     const payload = {
         ...formData,
+        baptized,
+        servesInMinistry,
+        ministry: servesInMinistry ? formData.ministry || undefined : undefined,
+        ministryInterest: servesInMinistry ? undefined : formData.ministryInterest || undefined,
         email: formData.email || undefined,
         password: formData.password || undefined,
     };

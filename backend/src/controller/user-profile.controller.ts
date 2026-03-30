@@ -24,6 +24,11 @@ export class UserProfileController {
         password,
         firstName,
         lastName,
+        baptized,
+        servesInMinistry,
+        ministry,
+        ministryInterest,
+        spiritualGrowthStage,
         ...profileData
       } = req.body;
 
@@ -60,6 +65,17 @@ export class UserProfileController {
         ...profileData,
         firstName,
         lastName,
+        baptized: typeof baptized === "boolean" ? baptized : false,
+        servesInMinistry: typeof servesInMinistry === "boolean" ? servesInMinistry : false,
+        ministry:
+          servesInMinistry === true
+            ? ministry ?? null
+            : null,
+        ministryInterest:
+          servesInMinistry === false
+            ? ministryInterest ?? null
+            : null,
+        spiritualGrowthStage: spiritualGrowthStage || "Consolidación",
         role: role._id,
         user: userId,
       });
@@ -138,8 +154,25 @@ export class UserProfileController {
         password,
         firstName = profile.firstName,
         lastName = profile.lastName,
+        baptized,
+        servesInMinistry,
+        ministry,
+        ministryInterest,
+        spiritualGrowthStage,
         ...updateData
       } = req.body;
+      const normalizedUpdateData = {
+        ...updateData,
+        ...(typeof baptized === "boolean" ? { baptized } : {}),
+        ...(typeof servesInMinistry === "boolean"
+          ? {
+              servesInMinistry,
+              ministry: servesInMinistry ? ministry ?? null : null,
+              ministryInterest: servesInMinistry ? null : ministryInterest ?? null,
+            }
+          : {}),
+        ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
+      };
 
       let role = profile.role;
       if (roleName) {
@@ -148,7 +181,7 @@ export class UserProfileController {
           return res.status(400).json({ message: "Rol inválido" });
         }
         role = nextRole;
-        updateData.role = nextRole._id;
+        normalizedUpdateData.role = nextRole._id;
       }
 
       const requiresAccess = LOGIN_ENABLED_ROLES.includes(getRoleName(role));
@@ -195,17 +228,17 @@ export class UserProfileController {
             roles: [role._id],
           });
 
-          updateData.user = createdUser._id;
+          normalizedUpdateData.user = createdUser._id;
         }
       } else if (profile.user) {
         await User.findByIdAndDelete(profile.user._id);
-        updateData.user = undefined;
+        normalizedUpdateData.user = undefined;
       }
 
-      updateData.firstName = firstName;
-      updateData.lastName = lastName;
+      normalizedUpdateData.firstName = firstName;
+      normalizedUpdateData.lastName = lastName;
 
-      const updatedProfile = await UserProfile.findByIdAndUpdate(id, updateData, {
+      const updatedProfile = await UserProfile.findByIdAndUpdate(id, normalizedUpdateData, {
         new: true,
       })
         .populate("user")

@@ -46,12 +46,34 @@ export type Role = z.infer<typeof roleSchema>
 
 // Members
 export const memberRoleSchema = z.enum([
-    "Estudiante",
+    "Asistente",
     "Miembro",
     "Profesor",
     "Pastor",
     "Admin",
     "Superadmin",
+])
+
+export const ministrySchema = z.enum([
+    "Ministerio de Alabanza",
+    "Ministerio de Danza (Niñas entre 7 y 14 años)",
+    "Ministerio de Jóvenes",
+    "Ministerio de Servidores",
+    "Ministerio de Oración e Intercesión",
+    "Ministerio de Hombres",
+    "Ministerio de Mujeres",
+    "Ministerio de Parejas y Familias",
+    "Ministerio Iglesia Infantil",
+    "Ministerio de Evangelismo y Consolidación G.V.E",
+])
+
+export const spiritualGrowthStageSchema = z.enum([
+    "Consolidación",
+    "Discipulado básico",
+    "Carácter cristiano",
+    "Sanidad y propósito",
+    "Cosmovisión bíblica",
+    "Doctrina cristiana",
 ])
 
 export const memberSchema = z.object({
@@ -63,6 +85,11 @@ export const memberSchema = z.object({
     neighborhood: z.string(),
     phoneNumber: z.string(),
     bloodType: z.string(),
+    baptized: z.boolean().optional(),
+    servesInMinistry: z.boolean().optional(),
+    ministry: ministrySchema.optional().nullable(),
+    ministryInterest: ministrySchema.optional().nullable(),
+    spiritualGrowthStage: spiritualGrowthStageSchema.optional(),
     role: roleSchema,
     user: z.object({
         _id: z.string(),
@@ -85,6 +112,8 @@ export const createMemberResponseSchema = z.object({
 export type Member = z.infer<typeof memberSchema>
 export type CreateMemberResponse = z.infer<typeof createMemberResponseSchema>
 export type MemberRoleName = z.infer<typeof memberRoleSchema>
+export type MinistryName = z.infer<typeof ministrySchema>
+export type SpiritualGrowthStage = z.infer<typeof spiritualGrowthStageSchema>
 export type MemberFormData = {
     firstName: string
     lastName: string
@@ -93,8 +122,12 @@ export type MemberFormData = {
     neighborhood: string
     phoneNumber: string
     bloodType: string
+    baptized: "true" | "false" | ""
+    servesInMinistry: "true" | "false" | ""
+    ministry: MinistryName | ""
+    ministryInterest: MinistryName | ""
+    spiritualGrowthStage: SpiritualGrowthStage | ""
     roleName: MemberRoleName | ""
     email?: string
     password?: string
 }
-

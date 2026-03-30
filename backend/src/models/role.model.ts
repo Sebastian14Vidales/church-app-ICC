@@ -11,7 +11,7 @@ const roleSchema: Schema = new Schema(
       required: true,
       unique: true,
       enum: [
-        "Estudiante",
+        "Asistente",
         "Miembro",
         "Profesor",
         "Pastor",

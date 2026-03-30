@@ -1,4 +1,10 @@
-import { Controller, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
+﻿import {
+  Controller,
+  useWatch,
+  type Control,
+  type FieldErrors,
+  type UseFormRegister,
+} from "react-hook-form";
 import { Input, Select, SelectItem } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllRoles } from "@/api/MemberAPI";
@@ -6,6 +12,30 @@ import { type MemberFormData } from "@/types/index";
 
 const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
+const BOOLEAN_OPTIONS = [
+  { key: "true", label: "Sí" },
+  { key: "false", label: "No" },
+];
+const MINISTRIES = [
+  "Ministerio de Alabanza",
+  "Ministerio de Danza (Niñas entre 7 y 14 años)",
+  "Ministerio de Jóvenes",
+  "Ministerio de Servidores",
+  "Ministerio de Oración e Intercesión",
+  "Ministerio de Hombres",
+  "Ministerio de Mujeres",
+  "Ministerio de Parejas y Familias",
+  "Ministerio Iglesia Infantil",
+  "Ministerio de Evangelismo y Consolidación G.V.E",
+];
+const SPIRITUAL_GROWTH_STAGES = [
+  "Consolidación",
+  "Discipulado básico",
+  "Carácter cristiano",
+  "Sanidad y propósito",
+  "Cosmovisión bíblica",
+  "Doctrina cristiana",
+];
 
 type MemberFormProps = {
   register: UseFormRegister<MemberFormData>;
@@ -25,7 +55,9 @@ export default function MemberForm({
     queryFn: getAllRoles,
   });
 
+  const servesInMinistry = useWatch({ control, name: "servesInMinistry" });
   const requiresAccess = LOGIN_ENABLED_ROLES.includes(selectedRole);
+  const visibleRoles = roles.filter((role) => !["Admin", "Superadmin"].includes(role.name));
 
   return (
     <div className="flex flex-col space-y-4">
@@ -40,7 +72,7 @@ export default function MemberForm({
             placeholder="Ingrese el nombre"
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
-          {errors.firstName && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.firstName && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
 
         <div>
@@ -53,7 +85,7 @@ export default function MemberForm({
             placeholder="Ingrese el apellido"
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
-          {errors.lastName && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.lastName && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
       </div>
 
@@ -64,11 +96,21 @@ export default function MemberForm({
           </label>
           <Input
             id="documentID"
-            {...register("documentID", { required: true })}
+            {...register("documentID", {
+              required: true,
+              minLength: 10,
+              maxLength: 10,
+              pattern: /^\d{10}$/,
+              onChange: (event) => {
+                event.target.value = event.target.value.replace(/\D/g, "").slice(0, 10);
+              },
+            })}
             placeholder="Ingrese el documento"
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
-          {errors.documentID && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.documentID && (
+            <span className="text-xs text-red-500">Debe tener exactamente 10 dígitos</span>
+          )}
         </div>
 
         <div>
@@ -81,7 +123,7 @@ export default function MemberForm({
             type="date"
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
-          {errors.birthdate && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.birthdate && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
       </div>
 
@@ -96,7 +138,7 @@ export default function MemberForm({
             placeholder="Ingrese el barrio"
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
-          {errors.neighborhood && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.neighborhood && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
 
         <div>
@@ -105,11 +147,21 @@ export default function MemberForm({
           </label>
           <Input
             id="phoneNumber"
-            {...register("phoneNumber", { required: true })}
+            {...register("phoneNumber", {
+              required: true,
+              minLength: 10,
+              maxLength: 10,
+              pattern: /^\d{10}$/,
+              onChange: (event) => {
+                event.target.value = event.target.value.replace(/\D/g, "").slice(0, 10);
+              },
+            })}
             placeholder="Ingrese el teléfono"
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
-          {errors.phoneNumber && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.phoneNumber && (
+            <span className="text-xs text-red-500">Debe tener exactamente 10 dígitos</span>
+          )}
         </div>
       </div>
 
@@ -133,9 +185,33 @@ export default function MemberForm({
               </Select>
             )}
           />
-          {errors.bloodType && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.bloodType && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Bautizado</label>
+          <Controller
+            name="baptized"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Select
+                selectedKeys={field.value ? [field.value] : []}
+                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                placeholder="Seleccione una opción"
+                className="input"
+              >
+                {BOOLEAN_OPTIONS.map((option) => (
+                  <SelectItem key={option.key}>{option.label}</SelectItem>
+                ))}
+              </Select>
+            )}
+          />
+          {errors.baptized && <span className="text-xs text-red-500">Este campo es requerido</span>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">Rol</label>
           <Controller
@@ -150,13 +226,128 @@ export default function MemberForm({
                 placeholder="Seleccione un rol"
                 className="input"
               >
-                {roles.map((role) => (
+                {visibleRoles.map((role) => (
                   <SelectItem key={role.name}>{role.name}</SelectItem>
                 ))}
               </Select>
             )}
           />
-          {errors.roleName && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+          {errors.roleName && <span className="text-xs text-red-500">Este campo es requerido</span>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Crecimiento espiritual</label>
+          <Controller
+            name="spiritualGrowthStage"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Select
+                selectedKeys={field.value ? [field.value] : []}
+                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                placeholder="Seleccione una etapa"
+                className="input"
+              >
+                {SPIRITUAL_GROWTH_STAGES.map((stage) => (
+                  <SelectItem key={stage}>{stage}</SelectItem>
+                ))}
+              </Select>
+            )}
+          />
+          {errors.spiritualGrowthStage && (
+            <span className="text-xs text-red-500">Este campo es requerido</span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">¿Sirve en algún ministerio?</label>
+          <Controller
+            name="servesInMinistry"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Select
+                selectedKeys={field.value ? [field.value] : []}
+                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                placeholder="Seleccione una opción"
+                className="input"
+              >
+                {BOOLEAN_OPTIONS.map((option) => (
+                  <SelectItem key={option.key}>{option.label}</SelectItem>
+                ))}
+              </Select>
+            )}
+          />
+          {errors.servesInMinistry && (
+            <span className="text-xs text-red-500">Este campo es requerido</span>
+          )}
+        </div>
+
+        <div>
+          {servesInMinistry === "true" && (
+            <>
+              <label className="block text-sm font-medium text-gray-700">¿En qué ministerio sirve?</label>
+              <Controller
+                name="ministry"
+                control={control}
+                rules={{ required: true }}
+                render={({ field }) => (
+                  <Select
+                    selectedKeys={field.value ? [field.value] : []}
+                    onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                    placeholder="Seleccione un ministerio"
+                    className="input"
+                  >
+                    {MINISTRIES.map((ministry) => (
+                      <SelectItem key={ministry}>{ministry}</SelectItem>
+                    ))}
+                  </Select>
+                )}
+              />
+            </>
+          )}
+
+          {servesInMinistry === "false" && (
+            <>
+              <label className="block text-sm font-medium text-gray-700">
+                ¿En qué ministerio está interesado servir?
+              </label>
+              <Controller
+                name="ministryInterest"
+                control={control}
+                rules={{ required: true }}
+                render={({ field }) => (
+                  <Select
+                    selectedKeys={field.value ? [field.value] : []}
+                    onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                    placeholder="Seleccione un ministerio"
+                    className="input"
+                  >
+                    {MINISTRIES.map((ministry) => (
+                      <SelectItem key={ministry}>{ministry}</SelectItem>
+                    ))}
+                  </Select>
+                )}
+              />
+            </>
+          )}
+
+          {!servesInMinistry && (
+            <>
+              <label className="block text-sm font-medium text-gray-700">Ministerio</label>
+              <Input
+                isDisabled
+                placeholder="Primero selecciona si sirve en algún ministerio"
+                classNames={{ inputWrapper: "border-none shadow-none" }}
+              />
+            </>
+          )}
+
+          {(errors.ministry || errors.ministryInterest) && (
+            <span className="text-xs text-red-500">Este campo es requerido</span>
+          )}
         </div>
       </div>
 
@@ -178,7 +369,7 @@ export default function MemberForm({
                 placeholder="correo@iglesia.com"
                 classNames={{ inputWrapper: "border-none shadow-none" }}
               />
-              {errors.email && <span className="text-red-500 text-xs">Este campo es requerido</span>}
+              {errors.email && <span className="text-xs text-red-500">Este campo es requerido</span>}
             </div>
 
             <div>
