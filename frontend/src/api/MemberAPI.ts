@@ -28,7 +28,6 @@ const buildMemberPayload = (formData: MemberFormData) => {
         ministryInterest: servesInMinistry === false ? formData.ministryInterest || undefined : undefined,
         spiritualGrowthStage: formData.spiritualGrowthStage || undefined,
         email: formData.email || undefined,
-        password: formData.password || undefined,
     };
 };
 

@@ -148,5 +148,4 @@ export type MemberFormData = {
     spiritualGrowthStage: SpiritualGrowthStage | ""
     roleName: MemberRoleName | ""
     email?: string
-    password?: string
 }

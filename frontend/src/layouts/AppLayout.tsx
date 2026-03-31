@@ -5,12 +5,12 @@ import { ToastContainer } from "react-toastify";
 
 export default function AppLayout() {
     return (
-        <div className="min-h-screen flex">
+        <div className="flex h-screen overflow-hidden bg-slate-100">
             <Sidebar />
-            <div className="flex-1 flex flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
                 <Header />
-                <main className="flex-1 overflow-y-auto bg-gray-50">
-                    <div className='px-4 sm:px-6 lg:px-8 py-8'>
+                <main className="flex-1 overflow-y-auto bg-slate-100">
+                    <div className="px-4 py-8 sm:px-6 lg:px-8">
                         <Outlet />
                     </div>
                 </main>
@@ -25,4 +25,3 @@ export default function AppLayout() {
         </div>
     );
 }
-

@@ -364,10 +364,11 @@ export default function MemberForm({
       {requiresAccess && (
         <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="mb-3 text-sm text-blue-900">
-            Este rol tendrá acceso al login. Debes registrar correo y puedes definir una contraseña temporal.
+            Este rol tendra acceso al login. Solo debes registrar el correo; la contrasena temporal
+            se generara despues en el flujo de activacion por correo.
           </p>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Correo
@@ -380,19 +381,6 @@ export default function MemberForm({
                 classNames={{ inputWrapper: "border-none shadow-none" }}
               />
               {errors.email && <span className="text-xs text-red-500">Este campo es requerido</span>}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Contraseña temporal
-              </label>
-              <Input
-                id="password"
-                {...register("password")}
-                type="text"
-                placeholder="Temporal123*"
-                classNames={{ inputWrapper: "border-none shadow-none" }}
-              />
             </div>
           </div>
         </div>

@@ -15,7 +15,7 @@ import {
 } from "@/api/CourseAPI";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { CalendarDays, MapPin, NotebookPen, Pencil, Trash2, UserRound, BadgePlus } from "lucide-react";
+import { CalendarDays, MapPin, NotebookPen, Pencil, Trash2, UserRound, BadgePlus, Timer, BookOpenCheck } from "lucide-react";
 import { Button } from "@heroui/react";
 import { type CourseAssignedFormData, type Course } from "@/types/index";
 import { getLocationNameById } from "@/utils/constants/locations";
@@ -302,8 +302,14 @@ export default function Courses() {
                   <MapPin className="h-4 w-4 text-gray-400" />
                   {getLocationNameById(assignment.location)}
                 </p>
-                <p className="text-gray-600">Hora: {assignment.startTime}</p>
-                <p className="text-gray-600">Total de clases: {assignment.totalClasses}</p>
+                <p className="flex items-center gap-2 ">
+                  <Timer className="h-4 w-4 text-gray-400" />
+                  Hora: {assignment.startTime}
+                </p>
+                <p className="flex items-center gap-2">
+                  <BookOpenCheck className="h-4 w-4 text-gray-400" />
+                  Total de clases: {assignment.totalClasses}
+                </p>
               </div>
             </article>
           ))}

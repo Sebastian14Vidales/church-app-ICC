@@ -1,88 +1,84 @@
-import logo from '@/assets/img/logo.png';
-import { NavLink, useLocation } from 'react-router-dom';
+import logo from "@/assets/img/logo.png";
+import { NavLink } from "react-router-dom";
 import {
-    Home,
+    BarChart3,
     BookOpen,
-    Users,
     Calendar,
     DollarSign,
     Heart,
-    BarChart3,
-    LogOut
-} from 'lucide-react';
+    Home,
+    LogOut,
+    Users,
+} from "lucide-react";
 
 export default function Sidebar() {
-
-    const location = useLocation();
-
     const navigation = [
-        { name: 'Dashboard', href: '/', icon: Home },
-        { name: 'Cursos', href: '/courses', icon: BookOpen },
-        { name: 'Miembros', href: '/members', icon: Users },
-        { name: 'Eventos', href: '/events', icon: Calendar },
-        { name: 'Ofrendas', href: '/offerings', icon: DollarSign },
-        { name: 'Grupos de Vida', href: '/life-groups', icon: Heart },
-        { name: 'Reportes', href: '/reports', icon: BarChart3 },
+        { name: "Dashboard", href: "/", icon: Home },
+        { name: "Cursos", href: "/courses", icon: BookOpen },
+        { name: "Miembros", href: "/members", icon: Users },
+        { name: "Eventos", href: "/events", icon: Calendar },
+        { name: "Ofrendas", href: "/offerings", icon: DollarSign },
+        { name: "Grupos de Vida", href: "/life-groups", icon: Heart },
+        { name: "Reportes", href: "/reports", icon: BarChart3 },
     ];
-  return (
-     <div className="min-h-screen flex">
-            <aside className="hidden lg:flex w-72 flex-col bg-gradient-to-b from-blue-900 to-blue-800">
-                <div className="flex grow flex-col gap-y-5 overflow-y-auto px-6 pb-4">
-                    <div className="flex h-16 items-center mt-4">
-                        <img src={logo} alt="Imagen de la iglesia" className='h-8 w-8' />
-                        {/* <Church className="h-8 w-8 text-yellow-400" /> */}
-                        <div className="ml-3">
-                            <h1 className="text-lg font-bold text-white">Iglesia Cruzada Cristiana Casa de Dios</h1>
-                            {/* <p className="text-xs text-blue-200">Casa de Dios</p> */}
+
+    return (
+        <aside className="hidden h-screen w-72 shrink-0 border-r border-slate-800 bg-slate-950 lg:flex lg:flex-col">
+            <div className="flex grow flex-col overflow-y-auto px-5 py-6">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-slate-950/30">
+                    <div className="flex items-center gap-3">
+                        <img
+                            src={logo}
+                            alt="Imagen de la iglesia"
+                            className="h-10 w-10 rounded-full bg-white/95 p-1"
+                        />
+                        <div>
+                            <h1 className="text-sm font-bold leading-5 text-white">
+                                Iglesia Cruzada Cristiana Casa de Dios
+                            </h1>
+                            <p className="mt-1 text-xs text-slate-300">Panel administrativo</p>
                         </div>
                     </div>
-
-                    <nav className="flex flex-1 flex-col">
-                        <ul className="flex flex-1 flex-col gap-y-7">
-                            <li>
-                                <ul className="-mx-2 space-y-1">
-                                    {navigation.map((item) => {
-                                        const isActive = location.pathname === item.href;
-                                        return (
-                                            <li key={item.name}>
-                                                <NavLink
-                                                    to={item.href}
-                                                    className={`group flex gap-x-3 rounded-md p-2 text-sm font-semibold transition-colors ${isActive
-                                                            ? 'bg-blue-700 text-white'
-                                                            : 'text-blue-200 hover:bg-blue-700 hover:text-white'
-                                                        }`}
-                                                >
-                                                    <item.icon className="h-6 w-6" />
-                                                    {item.name}
-                                                </NavLink>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </li>
-
-                            <li className="mt-auto">
-                                <div className="bg-blue-800/50 rounded-lg p-4 mb-4">
-                                    <div className="flex items-center">
-                                        <div className="h-10 w-10 rounded-full bg-yellow-400 flex items-center justify-center">
-                                            <span className="text-sm font-medium text-blue-900">PJP</span>
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-sm font-medium text-white">Pastor Juan Perez</p>
-                                            <p className="text-xs text-blue-200 capitalize">Pastor</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button className="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-blue-200 hover:bg-blue-700 hover:text-white">
-                                    <LogOut className="h-6 w-6" />
-                                    Cerrar Sesión
-                                </button>
-                            </li>
-                        </ul>
-                    </nav>
                 </div>
-            </aside>
-        </div>
-  )
+
+                <nav className="mt-8 flex flex-1 flex-col">
+                    <ul className="space-y-2">
+                        {navigation.map((item) => (
+                            <li key={item.name}>
+                                <NavLink
+                                    to={item.href}
+                                    className={({ isActive }) =>
+                                        `group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-semibold transition-all ${isActive
+                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
+                                            : "text-slate-300 hover:bg-white/10 hover:text-white"
+                                        }`
+                                    }
+                                >
+                                    <item.icon className="h-5 w-5" />
+                                    {item.name}
+                                </NavLink>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <div className="mt-auto rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 to-blue-950 p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-300 text-sm font-bold text-slate-900">
+                                PJP
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-white">Pastor Juan Perez</p>
+                                <p className="text-xs text-slate-300">Pastor principal</p>
+                            </div>
+                        </div>
+
+                        <button className="mt-4 flex w-full items-center justify-center gap-x-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10 hover:text-white">
+                            <LogOut className="h-4 w-4" />
+                            Cerrar sesion
+                        </button>
+                    </div>
+                </nav>
+            </div>
+        </aside>
+    );
 }
