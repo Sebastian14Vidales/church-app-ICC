@@ -5,8 +5,9 @@
   type FieldErrors,
   type UseFormRegister,
 } from "react-hook-form";
-import { Input, Select, SelectItem } from "@heroui/react";
+import { DatePicker, Input, Select, SelectItem } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { getAllRoles } from "@/api/MemberAPI";
 import { type MemberFormData } from "@/types/index";
 
@@ -77,12 +78,12 @@ export default function MemberForm({
 
         <div>
           <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-            Apellido
+            Apellidos
           </label>
           <Input
             id="lastName"
             {...register("lastName", { required: true })}
-            placeholder="Ingrese el apellido"
+            placeholder="Ingrese los apellidos"
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
           {errors.lastName && <span className="text-xs text-red-500">Este campo es requerido</span>}
@@ -117,11 +118,18 @@ export default function MemberForm({
           <label htmlFor="birthdate" className="block text-sm font-medium text-gray-700">
             Fecha de nacimiento
           </label>
-          <Input
-            id="birthdate"
-            {...register("birthdate", { required: true })}
-            type="date"
-            classNames={{ inputWrapper: "border-none shadow-none" }}
+          <Controller
+            name="birthdate"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <DatePicker
+                value={field.value ? parseDate(field.value) : null}
+                onChange={(value) => field.onChange(value ? value.toString() : "")}
+                maxValue={today(getLocalTimeZone())}
+                className="w-full"
+              />
+            )}
           />
           {errors.birthdate && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
@@ -213,7 +221,7 @@ export default function MemberForm({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Rol</label>
+          <label className="block text-sm font-medium text-gray-700">Rol en la Iglesia</label>
           <Controller
             name="roleName"
             control={control}
@@ -236,7 +244,7 @@ export default function MemberForm({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Crecimiento espiritual</label>
+          <label className="block text-sm font-medium text-gray-700">Ruta de Crecimiento Espiritual</label>
           <Controller
             name="spiritualGrowthStage"
             control={control}

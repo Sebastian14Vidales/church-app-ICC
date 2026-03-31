@@ -1,13 +1,15 @@
 ﻿import { useEffect, useState } from "react";
-import { Button } from "@heroui/react";
-import { Plus } from "lucide-react";
+import { Button, Progress } from "@heroui/react";
+import { Award, Calendar, Heart, MapPin, Phone, Plus, HeartPulse, Church } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import ModalView from "@/components/dashboard/ModalView";
 import MemberForm from "@/components/dashboard/MemberForm";
 import { createMember, getAllMembers } from "@/api/MemberAPI";
-import { type Member, type MemberFormData, type SpiritualGrowthStage } from "@/types/index";
+import { type MemberFormData, type SpiritualGrowthStage } from "@/types/index";
+import {roleColors, roleLabels} from "@/utils/constants/roleColors";
+
 
 const SPIRITUAL_GROWTH_STAGES: SpiritualGrowthStage[] = [
     "Consolidación",
@@ -25,21 +27,6 @@ const getGrowthProgress = (stage?: SpiritualGrowthStage) => {
     return Math.round(((stageIndex + 1) / SPIRITUAL_GROWTH_STAGES.length) * 100);
 };
 
-const getMinistryText = (member: Member) => {
-    if (member.ministry) {
-        return `Sirve en: ${member.ministry}`;
-    }
-
-    if (member.ministryInterest) {
-        return `Interesado en servir en: ${member.ministryInterest}`;
-    }
-
-    if (member.servesInMinistry) {
-        return "Sirve en ministerio";
-    }
-
-    return "Aún no registra ministerio de interés";
-};
 
 const initialValues: MemberFormData = {
     firstName: "",
@@ -145,6 +132,7 @@ export default function Members() {
                 isOpen={showCreateModal}
                 onClose={handleClose}
                 title="Crear miembro"
+                size="2xl"
             >
                 <form onSubmit={handleSubmit(onSubmit)} noValidate>
                     <MemberForm
@@ -163,29 +151,104 @@ export default function Members() {
                 </form>
             </ModalView>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {members.map((member) => (
                     <div key={member._id} className="rounded-lg border p-4 shadow-sm">
-                        <h3 className="text-lg font-semibold">{member.firstName} {member.lastName}</h3>
-                        <p className="text-gray-600">Rol: {member.role.name}</p>
-                        <p className="text-gray-600">Documento: {member.documentID}</p>
-                        <p className="text-gray-600">Teléfono: {member.phoneNumber}</p>
-                        <p className="text-gray-600">Bautizado: {member.baptized ? "Sí" : "No"}</p>
-                        <p className="text-gray-600">{getMinistryText(member)}</p>
+                        <div className="mb-3 flex gap-3">
+                            <h3 className="text-lg font-semibold">{member.firstName} {member.lastName}</h3>
+                            <p className={`inline-block mt-1 rounded-full px-2 py-0.5 text-xs ${roleColors[member.role.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}>
+                                {roleLabels[member.role.name as keyof typeof roleLabels] ?? member.role.name}
+                            </p>
+                        </div>
+
+
+                        {member.documentID && (
+                            <div className="flex items-center text-sm text-gray-600">
+                                <span className="text-gray-400 mr-2">CC:</span>
+                                <span>{member.documentID}</span>
+                            </div>
+                        )}
+
+                        {member.phoneNumber && (
+                            <div className="flex items-center text-sm text-gray-600">
+                                <Phone className="h-4 w-4 mr-2 text-gray-400" />
+                                <span>{member.phoneNumber}</span>
+                            </div>
+                        )}
+
+                        {member.neighborhood && (
+                            <div className="flex items-center text-sm text-gray-600">
+                                <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+                                <span>{member.neighborhood}</span>
+                            </div>
+                        )}
+                        {member.birthdate && (
+                            <div className="flex items-center text-sm text-gray-600">
+                                <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                                <span>Fecha de nacimiento: {new Date(member.birthdate).toLocaleDateString('es-ES')}</span>
+                            </div>
+                        )}
+                        
+                        {member.bloodType && (
+                            <div className="flex items-center text-sm text-gray-600">
+                                <HeartPulse className="h-4 w-4 mr-2 text-gray-400" />
+                                <span>Tipo de sangre: {member.bloodType}</span>
+                            </div>
+                        )}
+
+                            <div className="flex items-center text-sm text-gray-600">
+                                <Church className="h-4 w-4 mr-2 text-gray-400" />
+                                <span>Bautizado: {member.baptized ? "Sí" : "No"}</span>
+                            </div>
+                        
+                        
 
                         <div className="mt-4">
                             <div className="mb-1 flex items-center justify-between text-sm">
                                 <span className="font-medium text-gray-700">Crecimiento espiritual</span>
                                 <span className="text-gray-500">
-                                    {member.spiritualGrowthStage ?? "Sin definir"}
+                                    {member.spiritualGrowthStage ?? "Sin definir"} - <span className="text-sm font-semibold text-blue-600">
+                                        {getGrowthProgress(member.spiritualGrowthStage)}%
+                                    </span>
                                 </span>
                             </div>
-                            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
-                                <div
-                                    className="h-full rounded-full bg-blue-600 transition-all"
-                                    style={{ width: `${getGrowthProgress(member.spiritualGrowthStage)}%` }}
-                                />
+
+                            <div className="mb-2 flex justify-end">
+
                             </div>
+
+                            <Progress
+                                aria-label="Progreso de crecimiento espiritual"
+                                value={getGrowthProgress(member.spiritualGrowthStage)}
+                                color="primary"
+                                radius="sm"
+                                className="w-full"
+                            />
+
+                            {member.servesInMinistry && member.ministry && (
+                                <div className="mt-2 p-3 bg-green-100 rounded-lg">
+                                    <div className="flex items-center">
+                                        <Award className="h-4 w-4 text-green-600 mr-2" />
+                                        <span className="text-sm font-medium text-green-800">Sirve en:</span>
+                                    </div>
+                                    <p className="text-sm text-green-700 mt-1">
+                                        {member.ministry}
+                                    </p>
+                                </div>
+                            )}
+
+                            {!member.servesInMinistry && member.ministryInterest && (
+                                <div className="mt-2 p-3 bg-yellow-100 rounded-lg">
+                                    <div className="flex items-center">
+                                        <Heart className="h-4 w-4 text-red-600 mr-2" />
+                                        <span className="text-sm font-medium text-yellow-800">Interesado en:</span>
+                                    </div>
+                                    <p className="text-sm text-yellow-700 mt-1">
+                                        {member.ministryInterest}
+                                    </p>
+                                </div>
+                            )}
+
                         </div>
                     </div>
                 ))}

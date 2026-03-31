@@ -42,27 +42,6 @@ export const seedDatabase = async () => {
     await Role.deleteMany({ _id: { $in: obsoleteRoleIds } });
   }
 
-  await UserProfile.updateMany(
-    { baptized: { $exists: false } },
-    { $set: { baptized: false } },
-  );
-  await UserProfile.updateMany(
-    { servesInMinistry: { $exists: false } },
-    { $set: { servesInMinistry: false } },
-  );
-  await UserProfile.updateMany(
-    { ministry: { $exists: false } },
-    { $set: { ministry: null } },
-  );
-  await UserProfile.updateMany(
-    { ministryInterest: { $exists: false } },
-    { $set: { ministryInterest: null } },
-  );
-  await UserProfile.updateMany(
-    { spiritualGrowthStage: { $exists: false } },
-    { $set: { spiritualGrowthStage: "Consolidación" } },
-  );
-
   const superadminRole = await Role.findOne({ name: "Superadmin" });
 
   await User.findOneAndUpdate(

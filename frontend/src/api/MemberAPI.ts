@@ -8,15 +8,22 @@ import {
     type Role,
 } from "@/types/index";
 
+const parseOptionalBoolean = (value: MemberFormData["baptized"]) => {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return undefined;
+};
+
 export const createMember = async (formData: MemberFormData) => {
-    const baptized = formData.baptized === "true";
-    const servesInMinistry = formData.servesInMinistry === "true";
+    const baptized = parseOptionalBoolean(formData.baptized);
+    const servesInMinistry = parseOptionalBoolean(formData.servesInMinistry);
     const payload = {
         ...formData,
         baptized,
         servesInMinistry,
-        ministry: servesInMinistry ? formData.ministry || undefined : undefined,
-        ministryInterest: servesInMinistry ? undefined : formData.ministryInterest || undefined,
+        ministry: servesInMinistry === true ? formData.ministry || undefined : undefined,
+        ministryInterest: servesInMinistry === false ? formData.ministryInterest || undefined : undefined,
+        spiritualGrowthStage: formData.spiritualGrowthStage || undefined,
         email: formData.email || undefined,
         password: formData.password || undefined,
     };

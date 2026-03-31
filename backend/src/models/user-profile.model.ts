@@ -9,11 +9,11 @@ export interface IUserProfile extends Document {
   neighborhood: string;
   phoneNumber: string;
   bloodType: string;
-  baptized: boolean;
-  servesInMinistry: boolean;
+  baptized?: boolean;
+  servesInMinistry?: boolean;
   ministry?: string | null;
   ministryInterest?: string | null;
-  spiritualGrowthStage: string;
+  spiritualGrowthStage?: string;
   role: PopulatedDoc<IRole & Document>;
   user?: PopulatedDoc<Types.ObjectId>;
 }
@@ -72,26 +72,21 @@ const userProfileSchema: Schema = new Schema(
     },
     baptized: {
       type: Boolean,
-      default: false,
     },
     servesInMinistry: {
       type: Boolean,
-      default: false,
     },
     ministry: {
       type: String,
       enum: MINISTRIES,
-      default: null,
     },
     ministryInterest: {
       type: String,
       enum: MINISTRIES,
-      default: null,
     },
     spiritualGrowthStage: {
       type: String,
       enum: SPIRITUAL_GROWTH_STAGES,
-      default: "Consolidación",
     },
     role: {
       type: Types.ObjectId,

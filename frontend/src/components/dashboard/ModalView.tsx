@@ -12,6 +12,7 @@ interface ModalViewProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
 }
 
 export default function ModalView({
@@ -19,9 +20,10 @@ export default function ModalView({
   onClose,
   title,
   children,
+  size = "md",
 }: ModalViewProps) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onClose}>
+    <Modal isOpen={isOpen} onOpenChange={onClose} size={size}>
       <ModalContent>
         {() => (
           <>

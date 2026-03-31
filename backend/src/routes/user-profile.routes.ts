@@ -25,6 +25,22 @@ const SPIRITUAL_GROWTH_STAGES = [
   "Doctrina cristiana",
 ];
 
+const parseBooleanField = (value: unknown) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return value;
+};
+
 const router = Router();
 
 router.get("/", UserProfileController.findAll);
@@ -53,9 +69,11 @@ router.post(
     .withMessage("El número de teléfono debe contener solo números"),
   body("bloodType").notEmpty().withMessage("El tipo de sangre es obligatorio"),
   body("baptized")
+    .customSanitizer(parseBooleanField)
     .isBoolean()
     .withMessage("El campo de bautizado debe ser sí o no"),
   body("servesInMinistry")
+    .customSanitizer(parseBooleanField)
     .isBoolean()
     .withMessage("Debes indicar si sirve en algún ministerio"),
   body("ministry")
@@ -122,10 +140,12 @@ router.put(
     .withMessage("El número de teléfono debe contener solo números"),
   body("baptized")
     .optional()
+    .customSanitizer(parseBooleanField)
     .isBoolean()
     .withMessage("El campo de bautizado debe ser sí o no"),
   body("servesInMinistry")
     .optional()
+    .customSanitizer(parseBooleanField)
     .isBoolean()
     .withMessage("Debes indicar si sirve en algún ministerio"),
   body("ministry")

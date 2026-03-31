@@ -61,24 +61,20 @@ export class UserProfileController {
         createdUserId = String(createdUser._id);
       }
 
-      const profile = new UserProfile({
+      const profilePayload = {
         ...profileData,
         firstName,
         lastName,
-        baptized: typeof baptized === "boolean" ? baptized : false,
-        servesInMinistry: typeof servesInMinistry === "boolean" ? servesInMinistry : false,
-        ministry:
-          servesInMinistry === true
-            ? ministry ?? null
-            : null,
-        ministryInterest:
-          servesInMinistry === false
-            ? ministryInterest ?? null
-            : null,
-        spiritualGrowthStage: spiritualGrowthStage || "Consolidación",
         role: role._id,
         user: userId,
-      });
+        ...(typeof baptized === "boolean" ? { baptized } : {}),
+        ...(typeof servesInMinistry === "boolean" ? { servesInMinistry } : {}),
+        ...(servesInMinistry === true && ministry ? { ministry } : {}),
+        ...(servesInMinistry === false && ministryInterest ? { ministryInterest } : {}),
+        ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
+      };
+
+      const profile = new UserProfile(profilePayload);
 
       await profile.save();
 
@@ -161,18 +157,15 @@ export class UserProfileController {
         spiritualGrowthStage,
         ...updateData
       } = req.body;
+
       const normalizedUpdateData = {
         ...updateData,
         ...(typeof baptized === "boolean" ? { baptized } : {}),
-        ...(typeof servesInMinistry === "boolean"
-          ? {
-              servesInMinistry,
-              ministry: servesInMinistry ? ministry ?? null : null,
-              ministryInterest: servesInMinistry ? null : ministryInterest ?? null,
-            }
-          : {}),
+        ...(typeof servesInMinistry === "boolean" ? { servesInMinistry } : {}),
+        ...(servesInMinistry === true && ministry ? { ministry } : {}),
+        ...(servesInMinistry === false && ministryInterest ? { ministryInterest } : {}),
         ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
-      };
+      } as Record<string, unknown>;
 
       let role = profile.role;
       if (roleName) {
