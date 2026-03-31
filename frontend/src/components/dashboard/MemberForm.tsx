@@ -58,7 +58,9 @@ export default function MemberForm({
 
   const servesInMinistry = useWatch({ control, name: "servesInMinistry" });
   const requiresAccess = LOGIN_ENABLED_ROLES.includes(selectedRole);
-  const visibleRoles = roles.filter((role) => !["Admin", "Superadmin"].includes(role.name));
+  const visibleRoles = roles.filter(
+    (role) => !["Admin", "Superadmin"].includes(role.name) || role.name === selectedRole,
+  );
 
   return (
     <div className="flex flex-col space-y-4">

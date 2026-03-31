@@ -162,10 +162,19 @@ export class UserProfileController {
         ...updateData,
         ...(typeof baptized === "boolean" ? { baptized } : {}),
         ...(typeof servesInMinistry === "boolean" ? { servesInMinistry } : {}),
-        ...(servesInMinistry === true && ministry ? { ministry } : {}),
-        ...(servesInMinistry === false && ministryInterest ? { ministryInterest } : {}),
         ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
       } as Record<string, unknown>;
+      const unsetFields: Record<string, "" | 1> = {};
+
+      if (servesInMinistry === true) {
+        normalizedUpdateData.ministry = ministry;
+        unsetFields.ministryInterest = "";
+      }
+
+      if (servesInMinistry === false) {
+        normalizedUpdateData.ministryInterest = ministryInterest;
+        unsetFields.ministry = "";
+      }
 
       let role = profile.role;
       if (roleName) {
@@ -225,15 +234,22 @@ export class UserProfileController {
         }
       } else if (profile.user) {
         await User.findByIdAndDelete(profile.user._id);
-        normalizedUpdateData.user = undefined;
+        unsetFields.user = "";
       }
 
       normalizedUpdateData.firstName = firstName;
       normalizedUpdateData.lastName = lastName;
 
-      const updatedProfile = await UserProfile.findByIdAndUpdate(id, normalizedUpdateData, {
-        new: true,
-      })
+      const updatedProfile = await UserProfile.findByIdAndUpdate(
+        id,
+        {
+          ...normalizedUpdateData,
+          ...(Object.keys(unsetFields).length ? { $unset: unsetFields } : {}),
+        },
+        {
+          new: true,
+        },
+      )
         .populate("user")
         .populate("role");
 

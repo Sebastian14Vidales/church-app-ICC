@@ -1,32 +1,40 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Progress } from "@heroui/react";
-import { Award, Calendar, Heart, MapPin, Phone, Plus, HeartPulse, Church } from "lucide-react";
+import {
+    Award,
+    Calendar,
+    Church,
+    Heart,
+    HeartPulse,
+    MapPin,
+    Pencil,
+    Phone,
+    Plus,
+    Trash2,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
+import { showSweetAlert } from "@/components/alert/SweetAlert";
+import MemberFilters, { type MemberFiltersValue } from "@/components/dashboard/MemberFilters";
 import ModalView from "@/components/dashboard/ModalView";
 import MemberForm from "@/components/dashboard/MemberForm";
-import { createMember, getAllMembers } from "@/api/MemberAPI";
-import { type MemberFormData, type SpiritualGrowthStage } from "@/types/index";
-import {roleColors, roleLabels} from "@/utils/constants/roleColors";
+import {
+    createMember,
+    deleteMember,
+    getAllMembers,
+    updateMember,
+} from "@/api/MemberAPI";
+import {
+    spiritualGrowthStageSchema,
+    type Member,
+    type MemberFormData,
+    type SpiritualGrowthStage,
+} from "@/types/index";
+import { roleColors, roleLabels } from "@/utils/constants/roleColors";
+import { formatFullName, normalizeSearchText } from "@/utils/text";
 
-
-const SPIRITUAL_GROWTH_STAGES: SpiritualGrowthStage[] = [
-    "Consolidación",
-    "Discipulado básico",
-    "Carácter cristiano",
-    "Sanidad y propósito",
-    "Cosmovisión bíblica",
-    "Doctrina cristiana",
-];
-
-const getGrowthProgress = (stage?: SpiritualGrowthStage) => {
-    if (!stage) return 0;
-    const stageIndex = SPIRITUAL_GROWTH_STAGES.indexOf(stage);
-    if (stageIndex === -1) return 0;
-    return Math.round(((stageIndex + 1) / SPIRITUAL_GROWTH_STAGES.length) * 100);
-};
-
+const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options as SpiritualGrowthStage[];
 
 const initialValues: MemberFormData = {
     firstName: "",
@@ -46,8 +54,47 @@ const initialValues: MemberFormData = {
     password: "",
 };
 
+const initialFilters: MemberFiltersValue = {
+    baptized: "",
+    bloodType: "",
+    searchTerm: "",
+};
+
+const getGrowthProgress = (stage?: SpiritualGrowthStage) => {
+    if (!stage) return 0;
+
+    const stageIndex = SPIRITUAL_GROWTH_STAGES.indexOf(stage);
+    if (stageIndex === -1) return 0;
+
+    return Math.round(((stageIndex + 1) / SPIRITUAL_GROWTH_STAGES.length) * 100);
+};
+
+const memberToFormData = (member: Member): MemberFormData => ({
+    firstName: member.firstName,
+    lastName: member.lastName,
+    documentID: member.documentID,
+    birthdate: member.birthdate.split("T")[0] ?? member.birthdate,
+    neighborhood: member.neighborhood,
+    phoneNumber: member.phoneNumber,
+    bloodType: member.bloodType,
+    baptized:
+        typeof member.baptized === "boolean" ? (String(member.baptized) as "true" | "false") : "",
+    servesInMinistry:
+        typeof member.servesInMinistry === "boolean"
+            ? (String(member.servesInMinistry) as "true" | "false")
+            : "",
+    ministry: member.servesInMinistry ? member.ministry ?? "" : "",
+    ministryInterest: member.servesInMinistry === false ? member.ministryInterest ?? "" : "",
+    spiritualGrowthStage: member.spiritualGrowthStage ?? "",
+    roleName: member.role.name as MemberFormData["roleName"],
+    email: member.user?.email ?? "",
+    password: "",
+});
+
 export default function Members() {
-    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showMemberModal, setShowMemberModal] = useState(false);
+    const [editingMember, setEditingMember] = useState<Member | null>(null);
+    const [filters, setFilters] = useState<MemberFiltersValue>(initialFilters);
     const queryClient = useQueryClient();
     const {
         register,
@@ -66,6 +113,25 @@ export default function Members() {
         queryFn: getAllMembers,
     });
 
+    const filteredMembers = members.filter((member) => {
+        const normalizedSearchTerm = normalizeSearchText(filters.searchTerm);
+        const matchesSearch =
+            !normalizedSearchTerm ||
+            normalizeSearchText(`${member.firstName} ${member.lastName}`).includes(normalizedSearchTerm) ||
+            member.documentID.includes(filters.searchTerm.trim());
+        const matchesBloodType = !filters.bloodType || member.bloodType === filters.bloodType;
+        const matchesBaptized =
+            !filters.baptized || String(Boolean(member.baptized)) === filters.baptized;
+
+        return matchesSearch && matchesBloodType && matchesBaptized;
+    });
+
+    const handleClose = () => {
+        setShowMemberModal(false);
+        setEditingMember(null);
+        reset(initialValues);
+    };
+
     const createMutation = useMutation({
         mutationFn: createMember,
         onSuccess: (data) => {
@@ -78,10 +144,29 @@ export default function Members() {
         },
     });
 
-    const handleClose = () => {
-        setShowCreateModal(false);
-        reset(initialValues);
-    };
+    const updateMutation = useMutation({
+        mutationFn: ({ memberId, formData }: { memberId: string; formData: MemberFormData }) =>
+            updateMember(memberId, formData),
+        onSuccess: () => {
+            toast.success("Miembro actualizado correctamente");
+            queryClient.invalidateQueries({ queryKey: ["members"] });
+            handleClose();
+        },
+        onError: (error) => {
+            toast.error(error.message);
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: deleteMember,
+        onSuccess: (message) => {
+            toast.success(message);
+            queryClient.invalidateQueries({ queryKey: ["members"] });
+        },
+        onError: (error) => {
+            toast.error(error.message);
+        },
+    });
 
     useEffect(() => {
         const rolesWithAccess = ["Admin", "Superadmin", "Profesor", "Pastor"];
@@ -102,21 +187,63 @@ export default function Members() {
         }
     }, [servesInMinistry, setValue]);
 
-    const onSubmit = async (formData: MemberFormData) => {
-        await createMutation.mutateAsync(formData);
+    const handleCreateMember = () => {
+        setEditingMember(null);
+        reset(initialValues);
+        setShowMemberModal(true);
     };
+
+    const handleEditMember = (member: Member) => {
+        setEditingMember(member);
+        reset(memberToFormData(member));
+        setShowMemberModal(true);
+    };
+
+    const handleDeleteMember = (member: Member) => {
+        showSweetAlert({
+            title: "Eliminar miembro?",
+            text: `Se eliminara el registro de ${formatFullName(member.firstName, member.lastName)}. Esta accion no se puede deshacer.`,
+            type: "warning",
+            confirmButtonText: "Si, eliminar",
+            showCancelButton: true,
+            cancelButtonText: "Cancelar",
+            onConfirm: async () => {
+                try {
+                    await deleteMutation.mutateAsync(member._id);
+                } catch {
+                    // Los errores ya se manejan en la mutacion
+                }
+            },
+        });
+    };
+
+    const onSubmit = async (formData: MemberFormData) => {
+        try {
+            if (editingMember) {
+                await updateMutation.mutateAsync({ memberId: editingMember._id, formData });
+                return;
+            }
+
+            await createMutation.mutateAsync(formData);
+        } catch {
+            // Los errores ya se manejan en las mutaciones
+        }
+    };
+
+    const isSubmitting = createMutation.isPending || updateMutation.isPending;
+    const hasActiveFilters = Boolean(filters.searchTerm || filters.bloodType || filters.baptized);
 
     if (isLoading) return <h1>Cargando miembros...</h1>;
 
     return (
         <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Gestión de Miembros</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Gestion de Miembros</h1>
                     <p className="text-gray-600">Administra los miembros y roles de la iglesia</p>
                 </div>
                 <Button
-                    onPress={() => setShowCreateModal(true)}
+                    onPress={handleCreateMember}
                     className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
                 >
                     <Plus className="mr-2 h-5 w-5" />
@@ -124,14 +251,24 @@ export default function Members() {
                 </Button>
             </div>
 
+            <MemberFilters
+                filters={filters}
+                onChange={setFilters}
+                onClear={() => setFilters(initialFilters)}
+            />
+
             <h2 className="mb-4 mt-6 text-2xl font-bold">
-                {members.length ? `Miembros registrados (${members.length})` : "No hay miembros registrados"}
+                {filteredMembers.length
+                    ? `Miembros registrados (${filteredMembers.length}${hasActiveFilters ? ` de ${members.length}` : ""})`
+                    : hasActiveFilters
+                      ? "No hay miembros que coincidan con el filtro"
+                      : "No hay miembros registrados"}
             </h2>
 
             <ModalView
-                isOpen={showCreateModal}
+                isOpen={showMemberModal}
                 onClose={handleClose}
-                title="Crear miembro"
+                title={editingMember ? "Editar miembro" : "Crear miembro"}
                 size="2xl"
             >
                 <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -144,115 +281,138 @@ export default function Members() {
 
                     <input
                         type="submit"
-                        value={createMutation.isPending ? "Creando..." : "Crear Miembro"}
-                        disabled={createMutation.isPending}
+                        value={
+                            isSubmitting
+                                ? editingMember
+                                    ? "Guardando..."
+                                    : "Creando..."
+                                : editingMember
+                                  ? "Guardar cambios"
+                                  : "Crear miembro"
+                        }
+                        disabled={isSubmitting}
                         className="my-6 w-full cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-center text-sm font-bold uppercase text-white hover:bg-blue-700 disabled:bg-blue-300"
                     />
                 </form>
             </ModalView>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {members.map((member) => (
-                    <div key={member._id} className="rounded-lg border p-4 shadow-sm">
-                        <div className="mb-3 flex gap-3">
-                            <h3 className="text-lg font-semibold">{member.firstName} {member.lastName}</h3>
-                            <p className={`inline-block mt-1 rounded-full px-2 py-0.5 text-xs ${roleColors[member.role.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}>
-                                {roleLabels[member.role.name as keyof typeof roleLabels] ?? member.role.name}
-                            </p>
-                        </div>
+            {filteredMembers.length ? (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+                    {filteredMembers.map((member) => (
+                        <div key={member._id} className="rounded-lg border p-4 shadow-sm">
+                            <div className="mb-4 flex items-start justify-between gap-3">
+                                <div>
+                                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                                        <h3 className="text-lg font-semibold">
+                                            {formatFullName(member.firstName, member.lastName)}
+                                        </h3>
+                                        <p
+                                            className={`inline-block rounded-full px-2 py-0.5 text-xs ${roleColors[member.role.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}
+                                        >
+                                            {roleLabels[member.role.name as keyof typeof roleLabels] ?? member.role.name}
+                                        </p>
+                                    </div>
+                                    {member.user?.email && (
+                                        <p className="text-sm text-gray-500">{member.user.email}</p>
+                                    )}
+                                </div>
 
+                                <div className="flex gap-2">
+                                    <Button isIconOnly color="primary" variant="flat" onPress={() => handleEditMember(member)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button isIconOnly color="danger" variant="flat" onPress={() => handleDeleteMember(member)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
 
-                        {member.documentID && (
-                            <div className="flex items-center text-sm text-gray-600">
-                                <span className="text-gray-400 mr-2">CC:</span>
-                                <span>{member.documentID}</span>
-                            </div>
-                        )}
+                            {member.documentID && (
+                                <div className="flex items-center text-sm text-gray-600">
+                                    <span className="mr-2 text-gray-400">CC:</span>
+                                    <span>{member.documentID}</span>
+                                </div>
+                            )}
 
-                        {member.phoneNumber && (
-                            <div className="flex items-center text-sm text-gray-600">
-                                <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                                <span>{member.phoneNumber}</span>
-                            </div>
-                        )}
+                            {member.phoneNumber && (
+                                <div className="flex items-center text-sm text-gray-600">
+                                    <Phone className="mr-2 h-4 w-4 text-gray-400" />
+                                    <span>{member.phoneNumber}</span>
+                                </div>
+                            )}
 
-                        {member.neighborhood && (
-                            <div className="flex items-center text-sm text-gray-600">
-                                <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                                <span>{member.neighborhood}</span>
-                            </div>
-                        )}
-                        {member.birthdate && (
-                            <div className="flex items-center text-sm text-gray-600">
-                                <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                                <span>Fecha de nacimiento: {new Date(member.birthdate).toLocaleDateString('es-ES')}</span>
-                            </div>
-                        )}
-                        
-                        {member.bloodType && (
-                            <div className="flex items-center text-sm text-gray-600">
-                                <HeartPulse className="h-4 w-4 mr-2 text-gray-400" />
-                                <span>Tipo de sangre: {member.bloodType}</span>
-                            </div>
-                        )}
+                            {member.neighborhood && (
+                                <div className="flex items-center text-sm text-gray-600">
+                                    <MapPin className="mr-2 h-4 w-4 text-gray-400" />
+                                    <span>{member.neighborhood}</span>
+                                </div>
+                            )}
 
-                            <div className="flex items-center text-sm text-gray-600">
-                                <Church className="h-4 w-4 mr-2 text-gray-400" />
-                                <span>Bautizado: {member.baptized ? "Sí" : "No"}</span>
-                            </div>
-                        
-                        
-
-                        <div className="mt-4">
-                            <div className="mb-1 flex items-center justify-between text-sm">
-                                <span className="font-medium text-gray-700">Crecimiento espiritual</span>
-                                <span className="text-gray-500">
-                                    {member.spiritualGrowthStage ?? "Sin definir"} - <span className="text-sm font-semibold text-blue-600">
-                                        {getGrowthProgress(member.spiritualGrowthStage)}%
+                            {member.birthdate && (
+                                <div className="flex items-center text-sm text-gray-600">
+                                    <Calendar className="mr-2 h-4 w-4 text-gray-400" />
+                                    <span>
+                                        Fecha de nacimiento:{" "}
+                                        {new Date(member.birthdate).toLocaleDateString("es-ES")}
                                     </span>
-                                </span>
-                            </div>
-
-                            <div className="mb-2 flex justify-end">
-
-                            </div>
-
-                            <Progress
-                                aria-label="Progreso de crecimiento espiritual"
-                                value={getGrowthProgress(member.spiritualGrowthStage)}
-                                color="primary"
-                                radius="sm"
-                                className="w-full"
-                            />
-
-                            {member.servesInMinistry && member.ministry && (
-                                <div className="mt-2 p-3 bg-green-100 rounded-lg">
-                                    <div className="flex items-center">
-                                        <Award className="h-4 w-4 text-green-600 mr-2" />
-                                        <span className="text-sm font-medium text-green-800">Sirve en:</span>
-                                    </div>
-                                    <p className="text-sm text-green-700 mt-1">
-                                        {member.ministry}
-                                    </p>
                                 </div>
                             )}
 
-                            {!member.servesInMinistry && member.ministryInterest && (
-                                <div className="mt-2 p-3 bg-yellow-100 rounded-lg">
-                                    <div className="flex items-center">
-                                        <Heart className="h-4 w-4 text-red-600 mr-2" />
-                                        <span className="text-sm font-medium text-yellow-800">Interesado en:</span>
-                                    </div>
-                                    <p className="text-sm text-yellow-700 mt-1">
-                                        {member.ministryInterest}
-                                    </p>
+                            {member.bloodType && (
+                                <div className="flex items-center text-sm text-gray-600">
+                                    <HeartPulse className="mr-2 h-4 w-4 text-gray-400" />
+                                    <span>Tipo de sangre: {member.bloodType}</span>
                                 </div>
                             )}
 
+                            <div className="flex items-center text-sm text-gray-600">
+                                <Church className="mr-2 h-4 w-4 text-gray-400" />
+                                <span>Bautizado: {member.baptized ? "Si" : "No"}</span>
+                            </div>
+
+                            <div className="mt-4">
+                                <div className="mb-1 flex items-center justify-between text-sm">
+                                    <span className="font-medium text-gray-700">Crecimiento espiritual</span>
+                                    <span className="text-gray-500">
+                                        {member.spiritualGrowthStage ?? "Sin definir"} -{" "}
+                                        <span className="text-sm font-semibold text-blue-600">
+                                            {getGrowthProgress(member.spiritualGrowthStage)}%
+                                        </span>
+                                    </span>
+                                </div>
+
+                                <Progress
+                                    aria-label="Progreso de crecimiento espiritual"
+                                    value={getGrowthProgress(member.spiritualGrowthStage)}
+                                    color="primary"
+                                    radius="sm"
+                                    className="w-full"
+                                />
+
+                                {member.servesInMinistry && member.ministry && (
+                                    <div className="mt-2 rounded-lg bg-green-100 p-3">
+                                        <div className="flex items-center">
+                                            <Award className="mr-2 h-4 w-4 text-green-600" />
+                                            <span className="text-sm font-medium text-green-800">Sirve en:</span>
+                                        </div>
+                                        <p className="mt-1 text-sm text-green-700">{member.ministry}</p>
+                                    </div>
+                                )}
+
+                                {!member.servesInMinistry && member.ministryInterest && (
+                                    <div className="mt-2 rounded-lg bg-yellow-100 p-3">
+                                        <div className="flex items-center">
+                                            <Heart className="mr-2 h-4 w-4 text-red-600" />
+                                            <span className="text-sm font-medium text-yellow-800">Interesado en:</span>
+                                        </div>
+                                        <p className="mt-1 text-sm text-yellow-700">{member.ministryInterest}</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            ) : null}
         </div>
-    )
+    );
 }

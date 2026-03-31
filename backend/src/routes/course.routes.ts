@@ -19,6 +19,30 @@ router.post(
   CourseController.create,
 );
 
+router.get("/assignments", CourseController.findAssignments);
+
+router.post(
+  "/assignments",
+  body("course").isMongoId().withMessage("El curso seleccionado no es valido"),
+  body("professor").isMongoId().withMessage("El profesor seleccionado no es valido"),
+  body("startDate")
+    .isISO8601()
+    .withMessage("La fecha de inicio es obligatoria"),
+  body("startTime")
+    .notEmpty()
+    .withMessage("La hora de inicio es obligatoria"),
+  body("totalClasses")
+    .isInt({ min: 1 })
+    .withMessage("El total de clases debe ser mayor a 0"),
+  body("location").notEmpty().withMessage("El salon es obligatorio"),
+  body("status")
+    .optional()
+    .isIn(["active", "completed", "cancelled"])
+    .withMessage("El estado no es valido"),
+  handleInputErrors,
+  CourseController.assignCourse,
+);
+
 // Route to get all courses
 router.get("/", CourseController.findAll);
 //Route to get a course by ID with validation

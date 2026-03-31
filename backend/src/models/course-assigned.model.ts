@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Types, PopulatedDoc } from "mongoose";
-import { IUser } from "./user.model";
 import { ICourse } from "./course.model";
+import { IUserProfile } from "./user-profile.model";
 
 const courseAssignedStatus = {
   ACTIVE: "active",
@@ -13,7 +13,7 @@ export type CourseAssignedStatus =
 
 export interface ICourseAssigned extends Document {
   course: PopulatedDoc<ICourse & Document>;
-  professor: PopulatedDoc<IUser & Document>;
+  professor: PopulatedDoc<IUserProfile & Document>;
   startDate: Date;
   startTime: string;
   totalClasses: number;
@@ -31,7 +31,7 @@ const CourseAssignedSchema: Schema = new Schema(
     },
     professor: {
       type: Types.ObjectId,
-      ref: "User",
+      ref: "UserProfile",
       required: true,
     },
     startDate: {
@@ -60,6 +60,11 @@ const CourseAssignedSchema: Schema = new Schema(
     },
   },
   { timestamps: true },
+);
+
+CourseAssignedSchema.index(
+  { professor: 1 },
+  { unique: true, partialFilterExpression: { status: courseAssignedStatus.ACTIVE } },
 );
 
 const CourseAssigned = mongoose.model<ICourseAssigned>(

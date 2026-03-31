@@ -24,10 +24,10 @@ export type CourseAssignedStatus = z.infer<typeof CourseAssignedStatus>;
 export const CourseAssignedSchema = z.object({
     course: z.string(),
     professor: z.string(), 
-    startDate: z.date(),
+    startDate: z.string(),
     startTime: z.string(),
     totalClasses: z.number(),
-    endDate: z.date().optional(),
+    endDate: z.string(),
     location: z.string(),
     status: CourseAssignedStatus
 });
@@ -102,11 +102,30 @@ export const memberSchema = z.object({
 
 export const membersSchema = z.array(memberSchema)
 
+export const assignedCourseSchema = z.object({
+    _id: z.string(),
+    course: createCourseSchema,
+    professor: memberSchema,
+    startDate: z.string(),
+    startTime: z.string(),
+    totalClasses: z.number(),
+    endDate: z.string(),
+    location: z.string(),
+    status: CourseAssignedStatus,
+})
+
+export const assignedCoursesSchema = z.array(assignedCourseSchema)
+export type CourseAssigned = z.infer<typeof assignedCourseSchema>
+
 export const createMemberResponseSchema = z.object({
     message: z.string(),
     profile: memberSchema,
     accessUserCreated: z.boolean(),
     temporaryPassword: z.string().optional(),
+})
+
+export const messageResponseSchema = z.object({
+    message: z.string(),
 })
 
 export type Member = z.infer<typeof memberSchema>

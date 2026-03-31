@@ -5,19 +5,44 @@ import CourseForm from "@/components/dashboard/CourseForm";
 import AssignCourseForm from "@/components/dashboard/AssignCourseForm";
 import { type CourseFormData } from "@/types/index";
 import { useForm } from "react-hook-form";
-import { createCourse, getAllCourses, updateCourse, deleteCourse } from "@/api/CourseAPI";
+import {
+  assignCourse,
+  createCourse,
+  deleteCourse,
+  getAllCourses,
+  getCourseAssignments,
+  updateCourse,
+} from "@/api/CourseAPI";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { Pencil, Trash2, BadgePlus, NotebookPen } from "lucide-react";
+import { CalendarDays, MapPin, NotebookPen, Pencil, Trash2, UserRound, BadgePlus } from "lucide-react";
 import { Button } from "@heroui/react";
-import { type CourseAssignedFormData, type Course } from '@/types/index';
+import { type CourseAssignedFormData, type Course } from "@/types/index";
+import { getLocationNameById } from "@/utils/constants/locations";
+import { formatFullName } from "@/utils/text";
 
+const COURSE_STATUS_LABELS = {
+  active: "Activo",
+  completed: "Completado",
+  cancelled: "Cancelado",
+} as const;
 
 export default function Courses() {
   const initialValues: CourseFormData = {
     name: "",
     description: "",
     level: "basic",
+  };
+
+  const initialAssignmentValues: CourseAssignedFormData = {
+    course: "",
+    professor: "",
+    startDate: "",
+    startTime: "",
+    totalClasses: 0,
+    endDate: "",
+    location: "",
+    status: "active",
   };
 
   const {
@@ -27,18 +52,11 @@ export default function Courses() {
     reset,
     control,
   } = useForm({ defaultValues: initialValues });
+
   const assignForm = useForm<CourseAssignedFormData>({
-    defaultValues: {
-      course: "",
-      professor: "",
-      startDate: new Date(),
-      startTime: "",
-      totalClasses: 0,
-      endDate: new Date(),
-      location: "",
-      status: "active"
-    }
+    defaultValues: initialAssignmentValues,
   });
+
   const [open, setOpen] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -49,7 +67,7 @@ export default function Courses() {
     setEditingCourse(null);
     reset(initialValues);
     setOpenAssign(false);
-    assignForm.reset({ course: "", professor: "", startDate: new Date(), startTime: "", totalClasses: 0, endDate: undefined, location: "", status: "active" });
+    assignForm.reset(initialAssignmentValues);
   };
 
   const createMutation = useMutation({
@@ -69,6 +87,18 @@ export default function Courses() {
     onSuccess: (data) => {
       toast.success(data ?? "Curso actualizado");
       queryClient.invalidateQueries({ queryKey: ["courses"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: assignCourse,
+    onSuccess: (message) => {
+      toast.success(message);
+      queryClient.invalidateQueries({ queryKey: ["courseAssignments"] });
+      handleClose();
     },
     onError: (error) => {
       toast.error(error.message);
@@ -111,34 +141,39 @@ export default function Courses() {
 
   const handleDeleteCourse = async (courseId: string) => {
     showSweetAlert({
-      title: '¿Eliminar curso?',
-      text: 'Esta acción no se puede deshacer.',
-      type: 'warning',
-      confirmButtonText: 'Sí, eliminar',
+      title: "Eliminar curso?",
+      text: "Esta accion no se puede deshacer.",
+      type: "warning",
+      confirmButtonText: "Si, eliminar",
       showCancelButton: true,
-      cancelButtonText: 'Cancelar',
+      cancelButtonText: "Cancelar",
       onConfirm: async () => {
         try {
           await deleteMutation.mutateAsync(courseId);
-        } catch (error) {
+        } catch {
           // errors are handled by mutation onError
         }
       },
     });
-  }
+  };
 
-  const { data, isLoading } = useQuery({
+  const { data: courses = [], isLoading } = useQuery({
     queryKey: ["courses"],
     queryFn: getAllCourses,
+  });
+
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["courseAssignments"],
+    queryFn: getCourseAssignments,
   });
 
   if (isLoading) return <h1>Cargando cursos...</h1>;
 
   return (
     <div className="p-4">
-      <div className="flex justify-end gap-4">
+      <div className="mb-4 flex justify-end gap-4">
         <Button
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-4 flex items-center"
+          className="mb-4 flex items-center rounded bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
           onPress={() => {
             setEditingCourse(null);
             reset(initialValues);
@@ -150,7 +185,7 @@ export default function Courses() {
         </Button>
 
         <Button
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-4 flex items-center"
+          className="mb-4 flex items-center rounded bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
           onPress={() => setOpenAssign(true)}
         >
           <NotebookPen className="size-5" />
@@ -165,32 +200,45 @@ export default function Courses() {
           <input
             type="submit"
             value={editingCourse ? "Guardar Cambios" : "Crear Curso"}
-            className="text-white my-6 w-full uppercase font-bold bg-blue-600 hover:bg-blue-700 cursor-pointer rounded-lg text-sm px-5 py-2.5 text-center"
+            className="my-6 w-full cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-center text-sm font-bold uppercase text-white hover:bg-blue-700"
           />
         </form>
       </ModalView>
 
       <ModalView isOpen={openAssign} onClose={handleClose} title="Asignar curso">
-        <form onSubmit={assignForm.handleSubmit(() => {/* lógica de asignación aquí */ })} noValidate>
+        <form
+          onSubmit={assignForm.handleSubmit(async (formData) => {
+            try {
+              await assignMutation.mutateAsync(formData);
+            } catch {
+              // errors are handled by mutation onError
+            }
+          })}
+          noValidate
+        >
           <AssignCourseForm
             control={assignForm.control}
             errors={assignForm.formState.errors}
-          />        </form>
+            setValue={assignForm.setValue}
+          />
+        </form>
       </ModalView>
 
-      <h2 className="text-2xl font-bold mb-4">{data?.length ? `Cursos Disponibles (${data.length})` : "No hay cursos disponibles"}</h2>
+      <h2 className="mb-4 text-2xl font-bold">
+        {courses.length ? `Cursos Disponibles (${courses.length})` : "No hay cursos disponibles"}
+      </h2>
 
       <div>
-        {data?.length ? (
+        {courses.length ? (
           <ul className="flex gap-4 divide-gray-200">
-            {data.map((course) => (
-              <li key={course._id} className="flex flex-col justify-around p-4 h-44 w-5/12 border rounded shadow">
+            {courses.map((course) => (
+              <li key={course._id} className="flex h-44 w-5/12 flex-col justify-around rounded border p-4 shadow">
                 <div className="flex-col space-y-2">
-                  <div className="flex gap-4 items-center">
-                    <h3 className="font-bold text-lg">{course.name}</h3>
-                    <span className={`${course.level === "basic" ? "bg-green-400" : course.level === "intermediate" ? "bg-yellow-400" : "bg-red-400"} text-${course.level === "basic" ? "text-green-800" : course.level === "intermediate" ? "text-yellow-800" : "text-red-800"} text-xs font-medium px-2.5 py-0.5 rounded`}>
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-lg font-bold">{course.name}</h3>
+                    <span className={`${course.level === "basic" ? "bg-green-400" : course.level === "intermediate" ? "bg-yellow-400" : "bg-red-400"} text-${course.level === "basic" ? "text-green-800" : course.level === "intermediate" ? "text-yellow-800" : "text-red-800"} rounded px-2.5 py-0.5 text-xs font-medium`}>
                       {course.level === "basic"
-                        ? "Básico"
+                        ? "Basico"
                         : course.level === "intermediate"
                           ? "Intermedio"
                           : course.level === "advanced"
@@ -198,15 +246,14 @@ export default function Courses() {
                             : course.level}
                     </span>
                   </div>
-                  <p className="text-gray-600 text-sm flex items-center">
+                  <p className="flex items-center text-sm text-gray-600">
                     {course.description.length > 100
-                      ? course.description.slice(0, 100) + "..."
+                      ? `${course.description.slice(0, 100)}...`
                       : course.description}
                   </p>
                 </div>
 
-
-                <div className="flex justify-center mt-4 items-center gap-4">
+                <div className="mt-4 flex items-center justify-center gap-4">
                   <Button className="w-full" color="primary" onPress={() => handleEditCourse(course)}>
                     <Pencil className="size-4" />
                     Editar
@@ -223,6 +270,45 @@ export default function Courses() {
           <p>No hay cursos disponibles.</p>
         )}
       </div>
+
+      <h2 className="mb-4 mt-10 text-2xl font-bold">
+        {assignments.length ? `Cursos Asignados (${assignments.length})` : "No hay cursos asignados"}
+      </h2>
+
+      {assignments.length ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {assignments.map((assignment) => (
+            <article key={assignment._id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">{assignment.course.name}</h3>
+                  <p className="text-sm text-gray-500">{assignment.course.description}</p>
+                </div>
+                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase text-green-700">
+                  {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}
+                </span>
+              </div>
+
+              <div className="space-y-2 text-sm text-gray-700">
+                <p className="flex items-center gap-2">
+                  <UserRound className="h-4 w-4 text-gray-400" />
+                  {formatFullName(assignment.professor.firstName, assignment.professor.lastName)}
+                </p>
+                <p className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-gray-400" />
+                  Inicio: {new Date(assignment.startDate).toLocaleDateString("es-ES")} - Fin: {new Date(assignment.endDate).toLocaleDateString("es-ES")}
+                </p>
+                <p className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  {getLocationNameById(assignment.location)}
+                </p>
+                <p className="text-gray-600">Hora: {assignment.startTime}</p>
+                <p className="text-gray-600">Total de clases: {assignment.totalClasses}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
