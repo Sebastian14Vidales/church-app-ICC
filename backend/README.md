@@ -37,6 +37,14 @@ ICC_CASA_DE_DIOS/
    ```env
    DATABASE_URL=your_mongodb_url
    PORT=3000
+   FRONTEND_URL=http://localhost:5173
+   SMTP_HOST=sandbox.smtp.mailtrap.io
+   SMTP_PORT=2525
+   SMTP_USER=your_mailtrap_user
+   SMTP_PASS=your_mailtrap_password
+   SMTP_SECURE=false
+   MAIL_FROM=no-reply@icccasadedios.com
+   APP_NAME=ICC Casa de Dios
    ```
 5. Start the development server:
    ```bash
@@ -49,6 +57,7 @@ ICC_CASA_DE_DIOS/
 - mongoose
 - dotenv
 - colors
+- nodemailer
 
 ## Requirements
 

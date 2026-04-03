@@ -121,15 +121,27 @@ export const createMemberResponseSchema = z.object({
     message: z.string(),
     profile: memberSchema,
     accessUserCreated: z.boolean(),
-    temporaryPassword: z.string().optional(),
+    confirmationEmailSent: z.boolean().optional(),
 })
 
 export const messageResponseSchema = z.object({
     message: z.string(),
 })
 
+export const authUserSchema = z.object({
+    id: z.string(),
+    email: z.string().email(),
+    name: z.string(),
+})
+
+export const loginResponseSchema = z.object({
+    message: z.string(),
+    user: authUserSchema,
+})
+
 export type Member = z.infer<typeof memberSchema>
 export type CreateMemberResponse = z.infer<typeof createMemberResponseSchema>
+export type AuthUser = z.infer<typeof authUserSchema>
 export type MemberRoleName = z.infer<typeof memberRoleSchema>
 export type MinistryName = z.infer<typeof ministrySchema>
 export type SpiritualGrowthStage = z.infer<typeof spiritualGrowthStageSchema>

@@ -4,6 +4,18 @@ import PATHS from "@/utils/constants/routes";
 
 export const routes: RouteObject[] = [
   {
+    path: PATHS.login,
+    lazy: async () => ({
+      Component: (await import("@/pages/auth/Login")).default,
+    }),
+  },
+  {
+    path: PATHS.confirmAccount,
+    lazy: async () => ({
+      Component: (await import("@/pages/auth/ConfirmAccount")).default,
+    }),
+  },
+  {
     element: <AppLayout />,
     children: [
       {

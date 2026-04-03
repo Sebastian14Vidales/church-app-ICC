@@ -1,5 +1,7 @@
 export const PATHS = {
   dashboard: "/",
+  login: "/login",
+  confirmAccount: "/confirm-account",
   courses: "/courses",
   members: "/members",
   events: "/events",

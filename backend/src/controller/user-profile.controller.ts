@@ -1,27 +1,43 @@
 import { Request, Response } from "express";
 import { Types, type PopulatedDoc, type Document } from "mongoose";
-import bcrypt from "bcrypt";
 import UserProfile from "../models/user-profile.model";
 import Role, { type IRole } from "../models/role.model";
 import User from "../models/user.model";
-
-const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
-const TEMPORARY_PASSWORD = "Temporal123*";
+import { sendConfirmationEmail } from "../services/email.service";
+import {
+  buildUserName,
+  createConfirmationToken,
+  deleteUserTokens,
+  generateTemporaryPassword,
+  hashPassword,
+  isLoginEnabledRole,
+  normalizeEmail,
+} from "../utils/auth.utils";
 
 type RoleReference = PopulatedDoc<IRole & Document>;
 
 const getRoleName = (role: RoleReference) =>
   role instanceof Types.ObjectId ? "" : role.name;
 
+const sendAccountConfirmation = async (email: string, name: string, userId: string) => {
+  const confirmationToken = await createConfirmationToken(userId);
+
+  await sendConfirmationEmail({
+    email,
+    name,
+    token: confirmationToken.token,
+  });
+};
+
 export class UserProfileController {
   static create = async (req: Request, res: Response) => {
     let createdUserId: string | null = null;
+    let createdProfileId: string | null = null;
 
     try {
       const {
         roleName,
         email,
-        password,
         firstName,
         lastName,
         baptized,
@@ -37,21 +53,24 @@ export class UserProfileController {
         return res.status(400).json({ message: "Rol inválido" });
       }
 
-      const requiresAccess = LOGIN_ENABLED_ROLES.includes(role.name);
+      const requiresAccess = isLoginEnabledRole(role.name);
       let userId = undefined;
-      let temporaryPassword: string | undefined;
+      let normalizedEmail: string | undefined;
+      let createdUserName: string | undefined;
 
       if (requiresAccess) {
-        const existingUser = await User.findOne({ email });
+        normalizedEmail = normalizeEmail(email);
+        const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
           return res.status(409).json({ message: "El correo ya está registrado" });
         }
 
-        temporaryPassword = password || TEMPORARY_PASSWORD;
+        const temporaryPassword = generateTemporaryPassword();
+        createdUserName = buildUserName(firstName, lastName);
         const createdUser = await User.create({
-          email,
-          name: `${firstName} ${lastName}`.trim(),
-          password: await bcrypt.hash(temporaryPassword, 10),
+          email: normalizedEmail,
+          name: createdUserName,
+          password: await hashPassword(temporaryPassword),
           confirmed: false,
           active: true,
           roles: [role._id],
@@ -77,25 +96,39 @@ export class UserProfileController {
       const profile = new UserProfile(profilePayload);
 
       await profile.save();
+      createdProfileId = String(profile._id);
+
+      if (requiresAccess && normalizedEmail && createdUserName && createdUserId) {
+        await sendAccountConfirmation(normalizedEmail, createdUserName, createdUserId);
+      }
 
       const createdProfile = await UserProfile.findById(profile._id)
         .populate("user")
         .populate("role");
 
       res.status(201).json({
-        message: "Perfil creado correctamente",
+        message: requiresAccess
+          ? "Perfil creado correctamente. Se envió un código de confirmación al correo."
+          : "Perfil creado correctamente",
         profile: createdProfile,
         accessUserCreated: requiresAccess,
-        temporaryPassword: requiresAccess ? temporaryPassword : undefined,
+        confirmationEmailSent: requiresAccess,
       });
     } catch (error) {
+      console.error("Error al crear el perfil:", error);
+
+      if (createdProfileId) {
+        await UserProfile.findByIdAndDelete(createdProfileId);
+      }
+
       if (createdUserId) {
+        await deleteUserTokens(createdUserId);
         await User.findByIdAndDelete(createdUserId);
       }
 
       res.status(500).json({
         message: "Error al crear el perfil",
-        error,
+        error: error instanceof Error ? error.message : error,
       });
     }
   };
@@ -137,6 +170,7 @@ export class UserProfileController {
 
   static update = async (req: Request, res: Response) => {
     const { id } = req.params;
+    let createdUserId: string | null = null;
 
     try {
       const profile = await UserProfile.findById(id).populate("user").populate("role");
@@ -147,7 +181,6 @@ export class UserProfileController {
       const {
         roleName,
         email,
-        password,
         firstName = profile.firstName,
         lastName = profile.lastName,
         baptized,
@@ -157,6 +190,9 @@ export class UserProfileController {
         spiritualGrowthStage,
         ...updateData
       } = req.body;
+      const normalizedEmail = email ? normalizeEmail(email) : undefined;
+      const nextUserName = buildUserName(firstName, lastName);
+      let confirmationEmailSent = false;
 
       const normalizedUpdateData = {
         ...updateData,
@@ -186,19 +222,19 @@ export class UserProfileController {
         normalizedUpdateData.role = nextRole._id;
       }
 
-      const requiresAccess = LOGIN_ENABLED_ROLES.includes(getRoleName(role));
+      const requiresAccess = isLoginEnabledRole(getRoleName(role));
 
       if (requiresAccess) {
-        if (!profile.user && !email) {
+        if (!profile.user && !normalizedEmail) {
           return res.status(400).json({
             message: "El correo es obligatorio para roles con acceso al login",
           });
         }
 
         if (profile.user) {
-          const duplicatedUser = email
+          const duplicatedUser = normalizedEmail
             ? await User.findOne({
-                email,
+                email: normalizedEmail,
                 _id: { $ne: profile.user._id },
               })
             : null;
@@ -207,32 +243,51 @@ export class UserProfileController {
             return res.status(409).json({ message: "El correo ya está registrado" });
           }
 
-          await User.findByIdAndUpdate(profile.user._id, {
-            ...(email ? { email } : {}),
-            name: `${firstName} ${lastName}`.trim(),
-            ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
+          const currentUserEmail = String((profile.user as { email?: string }).email ?? "");
+          const shouldRefreshConfirmation =
+            Boolean(normalizedEmail) && normalizedEmail !== currentUserEmail;
+          const userUpdatePayload: Record<string, unknown> = {
+            ...(normalizedEmail ? { email: normalizedEmail } : {}),
+            name: nextUserName,
             active: true,
             roles: [role._id],
+          };
+
+          if (shouldRefreshConfirmation) {
+            userUpdatePayload.password = await hashPassword(generateTemporaryPassword());
+            userUpdatePayload.confirmed = false;
+          }
+
+          const updatedUser = await User.findByIdAndUpdate(profile.user._id, userUpdatePayload, {
+            new: true,
           });
+
+          if (shouldRefreshConfirmation && updatedUser) {
+            await sendAccountConfirmation(updatedUser.email, updatedUser.name, String(updatedUser._id));
+            confirmationEmailSent = true;
+          }
         } else {
-          const duplicatedUser = await User.findOne({ email });
+          const duplicatedUser = await User.findOne({ email: normalizedEmail });
           if (duplicatedUser) {
             return res.status(409).json({ message: "El correo ya está registrado" });
           }
 
-          const tempPassword = password || TEMPORARY_PASSWORD;
           const createdUser = await User.create({
-            email,
-            name: `${firstName} ${lastName}`.trim(),
-            password: await bcrypt.hash(tempPassword, 10),
+            email: normalizedEmail,
+            name: nextUserName,
+            password: await hashPassword(generateTemporaryPassword()),
             confirmed: false,
             active: true,
             roles: [role._id],
           });
+          createdUserId = String(createdUser._id);
 
           normalizedUpdateData.user = createdUser._id;
+          await sendAccountConfirmation(createdUser.email, createdUser.name, createdUserId);
+          confirmationEmailSent = true;
         }
       } else if (profile.user) {
+        await deleteUserTokens(String(profile.user._id));
         await User.findByIdAndDelete(profile.user._id);
         unsetFields.user = "";
       }
@@ -255,9 +310,16 @@ export class UserProfileController {
 
       res.status(200).json(updatedProfile);
     } catch (error) {
+      console.error("Error al actualizar perfil:", error);
+
+      if (createdUserId) {
+        await deleteUserTokens(createdUserId);
+        await User.findByIdAndDelete(createdUserId);
+      }
+
       res.status(500).json({
         message: "Error al actualizar perfil",
-        error,
+        error: error instanceof Error ? error.message : error,
       });
     }
   };
@@ -275,6 +337,7 @@ export class UserProfileController {
       await UserProfile.findByIdAndDelete(id);
 
       if (profile.user) {
+        await deleteUserTokens(String(profile.user));
         await User.findByIdAndDelete(profile.user);
       }
 

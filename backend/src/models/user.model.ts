@@ -10,13 +10,17 @@ export interface IUser extends Document {
   roles: PopulatedDoc<IRole & Document>[];
 }
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 const userSchema: Schema = new Schema(
   {
     email: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
       lowercase: true,
+      set: normalizeEmail,
     },
     name: {
       type: String,
