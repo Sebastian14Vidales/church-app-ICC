@@ -48,16 +48,17 @@ const readStoredUser = () => {
     }
 }
 
-const persistSession = ({ token, user }: LoginSession) => {
-    sessionStorage.setItem(AUTH_TOKEN_KEY, token)
-    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
-    setAuthToken(token)
-}
-
 const clearSessionStorage = () => {
     sessionStorage.removeItem(AUTH_TOKEN_KEY)
     sessionStorage.removeItem(AUTH_USER_KEY)
     setAuthToken(null)
+}
+
+const persistSession = ({ token, user }: LoginSession) => {
+    clearSessionStorage()
+    sessionStorage.setItem(AUTH_TOKEN_KEY, token)
+    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+    setAuthToken(token)
 }
 
 export const getInitials = (name: string) =>

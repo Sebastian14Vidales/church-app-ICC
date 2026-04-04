@@ -5,6 +5,7 @@ import { LockKeyhole, LogIn, MailCheck, Shield } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { login } from "@/api/AuthAPI";
+import PasswordField from "@/components/auth/PasswordField";
 import { useAuth } from "@/lib/auth";
 import PATHS from "@/utils/constants/routes";
 
@@ -145,9 +146,8 @@ export default function Login() {
                                 </div>
 
                                 <div>
-                                    <Input
+                                    <PasswordField
                                         label="Contraseña"
-                                        type="password"
                                         variant="bordered"
                                         radius="lg"
                                         size="lg"

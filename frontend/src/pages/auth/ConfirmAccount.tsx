@@ -5,6 +5,7 @@ import { ShieldCheck, KeyRound, Mail, BadgeCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { confirmAccount } from "@/api/AuthAPI";
+import PasswordField from "@/components/auth/PasswordField";
 import PATHS from "@/utils/constants/routes";
 
 type ConfirmAccountFormData = {
@@ -148,7 +149,7 @@ export default function ConfirmAccount() {
                                 </div>
 
                                 <div>
-                                    <Input
+                                    <PasswordField
                                         label="Codigo de verificacion"
                                         variant="bordered"
                                         radius="lg"
@@ -170,7 +171,6 @@ export default function ConfirmAccount() {
                                 <div>
                                     <Input
                                         label="Nueva contrasena"
-                                        type="password"
                                         variant="bordered"
                                         radius="lg"
                                         size="lg"
@@ -188,9 +188,8 @@ export default function ConfirmAccount() {
                                 </div>
 
                                 <div>
-                                    <Input
+                                    <PasswordField
                                         label="Confirmar contrasena"
-                                        type="password"
                                         variant="bordered"
                                         radius="lg"
                                         size="lg"

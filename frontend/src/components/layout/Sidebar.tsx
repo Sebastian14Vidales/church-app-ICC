@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
     BookOpen,
     Calendar,
+    ClipboardCheck,
     DollarSign,
     Heart,
     Home,
@@ -21,6 +22,7 @@ export default function Sidebar() {
         ? [
               { name: "Dashboard", href: PATHS.dashboard, icon: Home },
               { name: "Mis cursos", href: PATHS.myCourses, icon: BookOpen },
+              { name: "Asistencias", href: PATHS.attendance, icon: ClipboardCheck },
               { name: "Miembros", href: PATHS.members, icon: Users },
           ]
         : [

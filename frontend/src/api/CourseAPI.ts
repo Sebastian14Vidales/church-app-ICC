@@ -1,7 +1,9 @@
 import {
+    attendanceOverviewSchema,
     assignedCoursesSchema,
     dashboardCourseSchema,
     messageResponseSchema,
+    type AttendanceOverview,
     type CourseAssigned,
     type CourseAssignedFormData,
     type CourseFormData,
@@ -9,12 +11,20 @@ import {
 } from '@/types/index';
 import api from '@/lib/axios';
 
-export const createCourse = async (formData: CourseFormData) => {
+export const createCourse = async (formData: CourseFormData): Promise<string> => {
     try {
-        
         const { data } = await api.post('/courses', formData);
-        console.log("Course created:", data);
-        return data;
+        const response = messageResponseSchema.safeParse(data);
+
+        if (response.success) {
+            return response.data.message;
+        }
+
+        if (typeof data === "string") {
+            return data;
+        }
+
+        throw new Error("Respuesta de creacion de curso invalida");
     } catch (error) {
         console.error("Error creating course:", error);
         throw error;
@@ -67,23 +77,51 @@ export const getMyCourseAssignments = async (): Promise<CourseAssigned[]> => {
     }
 }
 
-export const updateCourse = async (courseId: Course['_id'], formData: CourseFormData) => {
+export const getMyAttendanceOverview = async (): Promise<AttendanceOverview> => {
+    try {
+        const { data } = await api.get('/courses/my-attendance');
+        const response = attendanceOverviewSchema.safeParse(data);
+
+        if (response.success) {
+            return response.data;
+        }
+
+        throw new Error("Respuesta de asistencias invalida");
+    } catch (error) {
+        console.error("Error retrieving attendance overview:", error);
+        throw error;
+    }
+}
+
+export const updateCourse = async (courseId: Course['_id'], formData: CourseFormData): Promise<string> => {
     try {
         const { data } = await api.put(`/courses/${courseId}`, {
             ...formData,
             isActive: true,
         });
-        return data;
+        const response = messageResponseSchema.safeParse(data);
+
+        if (response.success) {
+            return response.data.message;
+        }
+
+        throw new Error("Respuesta de actualizacion de curso invalida");
     } catch (error) {
         console.error("Error updating course:", error);
         throw error;
     }
 }
 
-export const deleteCourse = async (courseId: Course['_id']) => {
+export const deleteCourse = async (courseId: Course['_id']): Promise<string> => {
     try {
         const { data } = await api.delete(`/courses/${courseId}`);
-        return data;
+        const response = messageResponseSchema.safeParse(data);
+
+        if (response.success) {
+            return response.data.message;
+        }
+
+        throw new Error("Respuesta de eliminacion de curso invalida");
     } catch (error) {
         console.error("Error deleting course:", error);
         throw error;
@@ -156,6 +194,25 @@ export const updateCourseMembers = async (
         throw new Error("Respuesta de actualizacion de miembros invalida")
     } catch (error) {
         console.error("Error updating course members:", error)
+        throw error
+    }
+}
+
+export const saveMyClassAttendance = async (
+    classNumber: number,
+    attendance: Array<{ studentId: string; present: boolean; notes?: string }>,
+) => {
+    try {
+        const { data } = await api.put(`/courses/my-attendance/classes/${classNumber}`, { attendance })
+        const response = messageResponseSchema.safeParse(data)
+
+        if (response.success) {
+            return response.data.message
+        }
+
+        throw new Error("Respuesta de guardado de asistencia invalida")
+    } catch (error) {
+        console.error("Error saving class attendance:", error)
         throw error
     }
 }

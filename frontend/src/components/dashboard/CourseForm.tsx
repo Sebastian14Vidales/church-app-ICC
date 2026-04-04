@@ -1,6 +1,7 @@
 import { type UseFormRegister, type FieldErrors, Controller, type Control } from "react-hook-form";
 import { type CourseFormData } from '@/types/index';
 import { Input, Select, SelectItem, Textarea } from "@heroui/react";
+import { COURSE_LEVEL_OPTIONS } from "@/utils/constants/courses";
 
 
 export type CourseFormProps = {
@@ -63,9 +64,9 @@ export default function CourseForm({ register, errors, control }: CourseFormProp
               placeholder="Seleccione un nivel"
               className="input"
             >
-              <SelectItem key="basic">Básico</SelectItem>
-              <SelectItem key="intermediate">Intermedio</SelectItem>
-              <SelectItem key="advanced">Avanzado</SelectItem>
+              {COURSE_LEVEL_OPTIONS.map((level) => (
+                <SelectItem key={level.value}>{level.label}</SelectItem>
+              ))}
             </Select>
           )}
         />

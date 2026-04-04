@@ -1,9 +1,10 @@
-import { Button, Card, CardBody, CardHeader, Input } from "@heroui/react"
+import { Button, Card, CardBody, CardHeader } from "@heroui/react"
 import { useMutation } from "@tanstack/react-query"
 import { BadgeCheck, KeyRound, ShieldCheck } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { confirmAccount } from "@/api/AuthAPI"
+import PasswordField from "@/components/auth/PasswordField"
 import PATHS from "@/utils/constants/routes"
 
 type ConfirmAccountFormData = {
@@ -113,9 +114,8 @@ export default function ConfirmAccountAccess() {
                             ) : (
                                 <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
                                     <div>
-                                        <Input
+                                        <PasswordField
                                             label="Nueva contraseña"
-                                            type="password"
                                             variant="bordered"
                                             radius="lg"
                                             size="lg"
@@ -133,9 +133,8 @@ export default function ConfirmAccountAccess() {
                                     </div>
 
                                     <div>
-                                        <Input
+                                        <PasswordField
                                             label="Confirmar contraseña"
-                                            type="password"
                                             variant="bordered"
                                             radius="lg"
                                             size="lg"

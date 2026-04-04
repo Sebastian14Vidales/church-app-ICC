@@ -35,16 +35,6 @@ export const CourseAssignedSchema = z.object({
 export type CourseAssignedFormData = z.infer<typeof CourseAssignedSchema>
 
 // Roles
-export const roleSchema = z.object({
-    _id: z.string(),
-    name: z.string(),
-})
-
-export const rolesSchema = z.array(roleSchema)
-
-export type Role = z.infer<typeof roleSchema>
-
-// Members
 export const memberRoleSchema = z.enum([
     "Asistente",
     "Miembro",
@@ -54,6 +44,16 @@ export const memberRoleSchema = z.enum([
     "Superadmin",
 ])
 
+export const roleSchema = z.object({
+    _id: z.string(),
+    name: memberRoleSchema,
+})
+
+export const rolesSchema = z.array(roleSchema)
+
+export type Role = z.infer<typeof roleSchema>
+
+// Members
 export const ministrySchema = z.enum([
     "Ministerio de Alabanza",
     "Ministerio de Danza (Niñas entre 7 y 14 años)",
@@ -97,7 +97,7 @@ export const memberSchema = z.object({
         name: z.string(),
         confirmed: z.boolean().optional(),
         active: z.boolean().optional(),
-    }).nullable().optional(),
+    }).nullable().default(null),
 })
 
 export const membersSchema = z.array(memberSchema)
@@ -118,6 +118,28 @@ export const assignedCourseSchema = z.object({
 export const assignedCoursesSchema = z.array(assignedCourseSchema)
 export type CourseAssigned = z.infer<typeof assignedCourseSchema>
 
+export const classAttendanceSchema = z.object({
+    student: memberSchema,
+    present: z.boolean(),
+    notes: z.string().default(""),
+})
+
+export const classSessionSchema = z.object({
+    _id: z.string().nullable().default(null),
+    classNumber: z.number(),
+    date: z.string(),
+    topic: z.string().default(""),
+    observations: z.string().default(""),
+    attendance: z.array(classAttendanceSchema).default([]),
+})
+
+export const classSessionsSchema = z.array(classSessionSchema)
+
+export const attendanceOverviewSchema = z.object({
+    assignment: assignedCourseSchema.nullable(),
+    sessions: classSessionsSchema,
+})
+
 export const createMemberResponseSchema = z.object({
     message: z.string(),
     profile: memberSchema,
@@ -133,7 +155,7 @@ export const authUserSchema = z.object({
     id: z.string(),
     email: z.string().email(),
     name: z.string(),
-    roles: z.array(z.string()),
+    roles: z.array(memberRoleSchema),
     profileId: z.string().nullable(),
 })
 
@@ -148,6 +170,9 @@ export const currentSessionResponseSchema = z.object({
 })
 
 export type Member = z.infer<typeof memberSchema>
+export type ClassAttendance = z.infer<typeof classAttendanceSchema>
+export type ClassSession = z.infer<typeof classSessionSchema>
+export type AttendanceOverview = z.infer<typeof attendanceOverviewSchema>
 export type CreateMemberResponse = z.infer<typeof createMemberResponseSchema>
 export type AuthUser = z.infer<typeof authUserSchema>
 export type MemberRoleName = z.infer<typeof memberRoleSchema>

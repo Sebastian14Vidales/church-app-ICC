@@ -7,26 +7,9 @@ import { getMyCourseAssignments, updateCourseMembers } from "@/api/CourseAPI"
 import { getAllMembers } from "@/api/MemberAPI"
 import { useAuth } from "@/lib/auth"
 import { type CourseAssigned } from "@/types/index"
+import { COURSE_LEVEL_LABELS, COURSE_STATUS_LABELS } from "@/utils/constants/courses"
 import { getLocationNameById } from "@/utils/constants/locations"
-
-const COURSE_LEVEL_LABELS = {
-    basic: "Basico",
-    intermediate: "Intermedio",
-    advanced: "Avanzado",
-} as const
-
-const COURSE_STATUS_LABELS = {
-    active: "Activo",
-    completed: "Completado",
-    cancelled: "Cancelado",
-} as const
-
-const normalizeSearchValue = (value: string) =>
-    value
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .trim()
+import { formatFullName, normalizeSearchText } from "@/utils/text"
 
 export default function MyCourses() {
     const { user } = useAuth()
@@ -63,15 +46,15 @@ export default function MyCourses() {
         [members],
     )
     const filteredMembers = useMemo(() => {
-        const normalizedSearchTerm = normalizeSearchValue(memberSearchTerm)
+        const normalizedSearchTerm = normalizeSearchText(memberSearchTerm)
 
         if (!normalizedSearchTerm) {
             return availableMembers
         }
 
         return availableMembers.filter((member) => {
-            const fullName = normalizeSearchValue(`${member.firstName} ${member.lastName}`)
-            const documentID = normalizeSearchValue(member.documentID)
+            const fullName = normalizeSearchText(`${member.firstName} ${member.lastName}`)
+            const documentID = normalizeSearchText(member.documentID)
 
             return fullName.includes(normalizedSearchTerm) || documentID.includes(normalizedSearchTerm)
         })
@@ -166,7 +149,7 @@ export default function MyCourses() {
                                 </p>
                                 <p className="flex items-center gap-2">
                                     <BookOpen className="h-4 w-4 text-slate-400" />
-                                    Profesor: {assignment.professor.firstName} {assignment.professor.lastName}
+                                    Profesor: {formatFullName(assignment.professor.firstName, assignment.professor.lastName)}
                                 </p>
                             </div>
 
@@ -192,7 +175,7 @@ export default function MyCourses() {
                                                 key={member._id}
                                                 className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm"
                                             >
-                                                {member.firstName} {member.lastName}
+                                                {formatFullName(member.firstName, member.lastName)}
                                             </span>
                                         ))}
                                     </div>
@@ -268,7 +251,7 @@ export default function MyCourses() {
                                     />
                                     <div>
                                         <p className="font-medium text-slate-900">
-                                            {member.firstName} {member.lastName}
+                                            {formatFullName(member.firstName, member.lastName)}
                                         </p>
                                         <p className="text-sm text-slate-500">
                                             {member.role.name} · {member.documentID}

@@ -16,22 +16,11 @@ import { Link } from "react-router-dom";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllMembers } from "@/api/MemberAPI";
 import { useAuth } from "@/lib/auth";
+import { COURSE_LEVEL_LABELS, COURSE_STATUS_LABELS } from "@/utils/constants/courses";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { roleLabels } from "@/utils/constants/roleColors";
 import PATHS from "@/utils/constants/routes";
 import { formatFullName } from "@/utils/text";
-
-const COURSE_LEVEL_LABELS = {
-    basic: "Basico",
-    intermediate: "Intermedio",
-    advanced: "Avanzado",
-} as const;
-
-const COURSE_STATUS_LABELS = {
-    active: "Activo",
-    completed: "Completado",
-    cancelled: "Cancelado",
-} as const;
 
 const pluralize = (count: number, singular: string, plural: string) =>
     `${count} ${count === 1 ? singular : plural}`;

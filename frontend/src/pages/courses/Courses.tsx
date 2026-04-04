@@ -21,14 +21,13 @@ import { toast } from "react-toastify";
 import { CalendarDays, MapPin, NotebookPen, Pencil, Trash2, UserRound, BadgePlus, Timer, BookOpenCheck } from "lucide-react";
 import { Button } from "@heroui/react";
 import { type CourseAssignedFormData, type Course, type CourseAssigned } from "@/types/index";
+import {
+  COURSE_LEVEL_BADGE_STYLES,
+  COURSE_LEVEL_LABELS,
+  COURSE_STATUS_LABELS,
+} from "@/utils/constants/courses";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { formatFullName } from "@/utils/text";
-
-const COURSE_STATUS_LABELS = {
-  active: "Activo",
-  completed: "Completado",
-  cancelled: "Cancelado",
-} as const;
 
 export default function Courses() {
   const { user } = useAuth();
@@ -56,7 +55,7 @@ export default function Courses() {
     formState: { errors },
     reset,
     control,
-  } = useForm({ defaultValues: initialValues });
+  } = useForm<CourseFormData>({ defaultValues: initialValues });
 
   const assignForm = useForm<CourseAssignedFormData>({
     defaultValues: initialAssignmentValues,
@@ -196,8 +195,8 @@ export default function Courses() {
 
   const deleteMutation = useMutation({
     mutationFn: (courseId: string) => deleteCourse(courseId),
-    onSuccess: () => {
-      toast.success("Curso eliminado");
+    onSuccess: (message) => {
+      toast.success(message);
       queryClient.invalidateQueries({ queryKey: ["courses"] });
     },
     onError: (error) => {
@@ -318,14 +317,8 @@ export default function Courses() {
                 <div className="flex-col space-y-2">
                   <div className="flex items-center gap-4">
                     <h3 className="text-lg font-bold">{course.name}</h3>
-                    <span className={`${course.level === "basic" ? "bg-green-400" : course.level === "intermediate" ? "bg-yellow-400" : "bg-red-400"} text-${course.level === "basic" ? "text-green-800" : course.level === "intermediate" ? "text-yellow-800" : "text-red-800"} rounded px-2.5 py-0.5 text-xs font-medium`}>
-                      {course.level === "basic"
-                        ? "Basico"
-                        : course.level === "intermediate"
-                          ? "Intermedio"
-                          : course.level === "advanced"
-                            ? "Avanzado"
-                            : course.level}
+                    <span className={`${COURSE_LEVEL_BADGE_STYLES[course.level]} rounded px-2.5 py-0.5 text-xs font-medium`}>
+                      {COURSE_LEVEL_LABELS[course.level]}
                     </span>
                   </div>
                   <p className="flex items-center text-sm text-gray-600">

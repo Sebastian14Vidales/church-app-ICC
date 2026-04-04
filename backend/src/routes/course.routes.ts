@@ -32,6 +32,12 @@ router.get(
   CourseController.findMyAssignments,
 );
 
+router.get(
+  "/my-attendance",
+  authorizeRoles(MY_COURSES_ROLES),
+  CourseController.findMyAttendanceOverview,
+);
+
 router.post(
   "/assignments",
   authorizeRoles(ADMIN_ROLES),
@@ -99,6 +105,37 @@ router.patch(
     .withMessage("Todos los miembros deben ser validos"),
   handleInputErrors,
   CourseController.updateAssignmentMembers,
+);
+
+router.put(
+  "/my-attendance/classes/:classNumber",
+  authorizeRoles(MY_COURSES_ROLES),
+  param("classNumber")
+    .isInt({ min: 1 })
+    .withMessage("El numero de clase no es valido"),
+  body("attendance")
+    .isArray()
+    .withMessage("Debes enviar un arreglo de asistencia"),
+  body("attendance.*.studentId")
+    .isMongoId()
+    .withMessage("Cada estudiante debe ser valido"),
+  body("attendance.*.present")
+    .isBoolean()
+    .withMessage("El estado de asistencia debe ser booleano"),
+  body("attendance.*.notes")
+    .optional()
+    .isString()
+    .withMessage("La nota de asistencia debe ser texto"),
+  body("topic")
+    .optional()
+    .isString()
+    .withMessage("El tema debe ser texto"),
+  body("observations")
+    .optional()
+    .isString()
+    .withMessage("Las observaciones deben ser texto"),
+  handleInputErrors,
+  CourseController.saveMyAttendance,
 );
 
 // Route to get all courses
