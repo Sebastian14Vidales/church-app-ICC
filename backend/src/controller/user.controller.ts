@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import User from "../models/user.model";
 import Role from "../models/role.model";
-import { sendConfirmationEmail } from "../services/email.service";
+import { sendConfirmationEmail } from "../services/access-email.service";
 import {
   createConfirmationToken,
   deleteUserTokens,
@@ -46,11 +46,11 @@ export class UserController {
       });
       createdUserId = String(user._id);
 
-      const confirmationToken = await createConfirmationToken(String(user._id));
+      const confirmationToken = await createConfirmationToken(String(user._id), user.email);
       await sendConfirmationEmail({
         email: user.email,
         name: user.name,
-        token: confirmationToken.token,
+        token: confirmationToken,
       });
 
       res.status(201).json({

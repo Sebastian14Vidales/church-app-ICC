@@ -1,62 +1,34 @@
-import { useEffect, useMemo } from "react";
-import { Button, Card, CardBody, CardHeader, Input } from "@heroui/react";
-import { useMutation } from "@tanstack/react-query";
-import { LockKeyhole, LogIn, MailCheck, Shield } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { login } from "@/api/AuthAPI";
-import { useAuth } from "@/lib/auth";
-import PATHS from "@/utils/constants/routes";
+import { Button, Card, CardBody, CardHeader, Input } from "@heroui/react"
+import { useMutation } from "@tanstack/react-query"
+import { BadgeCheck, Mail, RefreshCcw } from "lucide-react"
+import { useForm } from "react-hook-form"
+import { Link } from "react-router-dom"
+import { resendConfirmation } from "@/api/AuthAPI"
+import PATHS from "@/utils/constants/routes"
 
-type LoginFormData = {
+type ResendConfirmationFormData = {
     email: string
-    password: string
 }
 
-const initialValues: LoginFormData = {
-    email: "",
-    password: "",
-}
-
-export default function Login() {
-    const navigate = useNavigate()
-    const { login: loginSession } = useAuth()
-    const [searchParams] = useSearchParams()
-    const initialEmail = useMemo(() => searchParams.get("email") ?? "", [searchParams])
+export default function ResendConfirmation() {
     const {
         register,
         handleSubmit,
-        setValue,
         formState: { errors },
-    } = useForm<LoginFormData>({
+    } = useForm<ResendConfirmationFormData>({
         defaultValues: {
-            ...initialValues,
-            email: initialEmail,
+            email: "",
         },
     })
 
-    useEffect(() => {
-        if (initialEmail) {
-            setValue("email", initialEmail, { shouldDirty: false })
-            navigate(PATHS.login, { replace: true })
-        }
-    }, [initialEmail, navigate, setValue])
-
-    const loginMutation = useMutation({
-        mutationFn: login,
+    const resendMutation = useMutation({
+        mutationFn: resendConfirmation,
     })
 
-    const onSubmit = async (formData: LoginFormData) => {
-        const response = await loginMutation.mutateAsync({
+    const onSubmit = async (formData: ResendConfirmationFormData) => {
+        await resendMutation.mutateAsync({
             email: formData.email.trim().toLowerCase(),
-            password: formData.password,
         })
-
-        loginSession({
-            token: response.token,
-            user: response.user,
-        })
-        navigate(PATHS.dashboard, { replace: true })
     }
 
     return (
@@ -73,36 +45,35 @@ export default function Login() {
                         </div>
 
                         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.35em] text-orange-700">
-                            Inicio de sesión
+                            Reenviar acceso
                         </p>
                         <h1 className="max-w-xl font-serif text-4xl leading-tight text-stone-900 md:text-5xl">
-                            Iglesia Casa de Dios - Cruzada Cristiana
+                            Reenvia el enlace de activación
                         </h1>
                         <p className="mt-5 max-w-xl text-base leading-7 text-stone-600 md:text-lg">
-                            Accede a la plataforma con tu correo y contraseña para administrar
-                            miembros, cursos y procesos internos de la iglesia.
+                            Si tu enlace venció o no encuentras el correo, te enviamos uno nuevo a tu bandeja.
                         </p>
 
                         <div className="mt-8 grid gap-4 sm:grid-cols-3">
                             <div className="rounded-2xl bg-white/80 p-4 shadow-sm">
-                                <MailCheck className="mb-3 h-5 w-5 text-orange-700" />
-                                <p className="text-sm font-semibold text-stone-800">Correo validado</p>
+                                <Mail className="mb-3 h-5 w-5 text-orange-700" />
+                                <p className="text-sm font-semibold text-stone-800">Mismo correo</p>
                                 <p className="mt-1 text-sm text-stone-500">
-                                    Usa el correo con el que activaste tu cuenta.
+                                    Usa el correo con el que fue creado tu acceso al sistema.
                                 </p>
                             </div>
                             <div className="rounded-2xl bg-white/80 p-4 shadow-sm">
-                                <LockKeyhole className="mb-3 h-5 w-5 text-cyan-700" />
-                                <p className="text-sm font-semibold text-stone-800">Acceso seguro</p>
+                                <RefreshCcw className="mb-3 h-5 w-5 text-cyan-700" />
+                                <p className="text-sm font-semibold text-stone-800">Nuevo enlace</p>
                                 <p className="mt-1 text-sm text-stone-500">
-                                    Tu contraseña se valida de forma cifrada.
+                                    El sistema invalida el enlace anterior y genera uno nuevo.
                                 </p>
                             </div>
                             <div className="rounded-2xl bg-white/80 p-4 shadow-sm">
-                                <Shield className="mb-3 h-5 w-5 text-emerald-700" />
-                                <p className="text-sm font-semibold text-stone-800">Ingreso rápido</p>
+                                <BadgeCheck className="mb-3 h-5 w-5 text-emerald-700" />
+                                <p className="text-sm font-semibold text-stone-800">Activación segura</p>
                                 <p className="mt-1 text-sm text-stone-500">
-                                    Al iniciar sesión te llevamos al panel principal.
+                                    Solo las cuentas pendientes reciben un nuevo acceso.
                                 </p>
                             </div>
                         </div>
@@ -111,14 +82,14 @@ export default function Login() {
                     <Card className="overflow-hidden rounded-[32px] border border-white/80 bg-white shadow-[0_24px_80px_rgba(120,53,15,0.16)]">
                         <CardHeader className="flex flex-col items-start gap-2 border-b border-stone-100 px-8 pb-5 pt-8">
                             <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-700">
-                                <LogIn className="h-4 w-4" />
-                                Accede a tu cuenta
+                                <RefreshCcw className="h-4 w-4" />
+                                Reenviar activación
                             </div>
                             <h2 className="text-2xl font-semibold text-stone-900">
-                                Bienvenido de nuevo
+                                Te enviamos un nuevo enlace
                             </h2>
                             <p className="text-sm leading-6 text-stone-500">
-                                Ingresa tus credenciales para entrar al sistema.
+                                Si la cuenta existe y aun no se ha activado, recibiras un nuevo correo.
                             </p>
                         </CardHeader>
 
@@ -144,58 +115,30 @@ export default function Login() {
                                     )}
                                 </div>
 
-                                <div>
-                                    <Input
-                                        label="Contraseña"
-                                        type="password"
-                                        variant="bordered"
-                                        radius="lg"
-                                        size="lg"
-                                        {...register("password", {
-                                            required: "La contraseña es obligatoria",
-                                        })}
-                                    />
-                                    {errors.password && (
-                                        <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
-                                    )}
-                                </div>
+                                {resendMutation.isSuccess && (
+                                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                        {resendMutation.data}
+                                    </div>
+                                )}
 
-                                {loginMutation.isError && (
+                                {resendMutation.isError && (
                                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                        {loginMutation.error.message}
+                                        {resendMutation.error.message}
                                     </div>
                                 )}
 
                                 <Button
                                     type="submit"
-                                    isLoading={loginMutation.isPending}
+                                    isLoading={resendMutation.isPending}
                                     className="h-14 w-full rounded-full bg-[linear-gradient(135deg,#9a3412_0%,#ea580c_100%)] text-base font-semibold text-white shadow-[0_18px_34px_rgba(154,52,18,0.28)]"
                                 >
-                                    Iniciar sesión
+                                    Reenviar enlace
                                 </Button>
                             </form>
 
                             <p className="mt-6 text-center text-sm text-stone-500">
-                                <Link
-                                    className="font-semibold text-orange-700 hover:text-orange-800"
-                                    to={PATHS.forgotPassword}
-                                >
-                                    Olvide mi contraseña
-                                </Link>
-                            </p>
-
-                            <p className="mt-3 text-center text-sm text-stone-500">
-                                ¿Necesitas activar tu cuenta primero?{" "}
-                                <Link className="font-semibold text-orange-700 hover:text-orange-800" to={PATHS.confirmAccount}>
-                                    Ir a validación
-                                </Link>
-                            </p>
-                            <p className="mt-3 text-center text-sm text-stone-500">
-                                <Link
-                                    className="font-semibold text-orange-700 hover:text-orange-800"
-                                    to={PATHS.resendConfirmation}
-                                >
-                                    Reenviar enlace de activación
+                                <Link className="font-semibold text-orange-700 hover:text-orange-800" to={PATHS.login}>
+                                    Volver al inicio de sesión
                                 </Link>
                             </p>
                         </CardBody>

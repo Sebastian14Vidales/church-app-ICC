@@ -51,6 +51,22 @@ export const getCourseAssignments = async (): Promise<CourseAssigned[]> => {
     }
 }
 
+export const getMyCourseAssignments = async (): Promise<CourseAssigned[]> => {
+    try {
+        const { data } = await api.get('/courses/my-courses');
+        const response = assignedCoursesSchema.safeParse(data);
+
+        if (response.success) {
+            return response.data;
+        }
+
+        throw new Error("Respuesta de mis cursos invalida");
+    } catch (error) {
+        console.error("Error retrieving my course assignments:", error);
+        throw error;
+    }
+}
+
 export const updateCourse = async (courseId: Course['_id'], formData: CourseFormData) => {
     try {
         const { data } = await api.put(`/courses/${courseId}`, {
@@ -87,5 +103,59 @@ export const assignCourse = async (formData: CourseAssignedFormData) => {
     } catch (error) {
         console.error("Error assigning course:", error);
         throw error;
+    }
+}
+
+export const updateCourseAssignment = async (
+    assignmentId: CourseAssigned["_id"],
+    formData: CourseAssignedFormData,
+) => {
+    try {
+        const { data } = await api.put(`/courses/assignments/${assignmentId}`, formData)
+        const response = messageResponseSchema.safeParse(data)
+
+        if (response.success) {
+            return response.data.message
+        }
+
+        throw new Error("Respuesta de actualizacion de asignacion invalida")
+    } catch (error) {
+        console.error("Error updating course assignment:", error)
+        throw error
+    }
+}
+
+export const deleteCourseAssignment = async (assignmentId: CourseAssigned["_id"]) => {
+    try {
+        const { data } = await api.delete(`/courses/assignments/${assignmentId}`)
+        const response = messageResponseSchema.safeParse(data)
+
+        if (response.success) {
+            return response.data.message
+        }
+
+        throw new Error("Respuesta de eliminacion de asignacion invalida")
+    } catch (error) {
+        console.error("Error deleting course assignment:", error)
+        throw error
+    }
+}
+
+export const updateCourseMembers = async (
+    assignmentId: CourseAssigned["_id"],
+    memberIds: string[],
+) => {
+    try {
+        const { data } = await api.patch(`/courses/assignments/${assignmentId}/members`, { memberIds })
+        const response = messageResponseSchema.safeParse(data)
+
+        if (response.success) {
+            return response.data.message
+        }
+
+        throw new Error("Respuesta de actualizacion de miembros invalida")
+    } catch (error) {
+        console.error("Error updating course members:", error)
+        throw error
     }
 }

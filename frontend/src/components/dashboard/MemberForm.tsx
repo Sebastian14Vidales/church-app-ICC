@@ -364,8 +364,8 @@ export default function MemberForm({
       {requiresAccess && (
         <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="mb-3 text-sm text-blue-900">
-            Este rol tendra acceso al login. Solo debes registrar el correo; el sistema enviara un
-            codigo de confirmacion y la persona definira su contrasena final al activar la cuenta.
+            Este rol tendrá acceso al login. Solo debes registrar el correo; el sistema enviará un
+            enlace seguro para que la persona active su cuenta y defina su contraseña final.
           </p>
 
           <div>

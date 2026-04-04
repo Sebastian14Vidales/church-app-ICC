@@ -15,6 +15,7 @@ import {
 import { Link } from "react-router-dom";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllMembers } from "@/api/MemberAPI";
+import { useAuth } from "@/lib/auth";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { roleLabels } from "@/utils/constants/roleColors";
 import PATHS from "@/utils/constants/routes";
@@ -36,6 +37,10 @@ const pluralize = (count: number, singular: string, plural: string) =>
     `${count} ${count === 1 ? singular : plural}`;
 
 export default function Dashboard() {
+    const { user } = useAuth()
+    const hasCompactSidebar = user?.roles.some((role) => ["Profesor", "Pastor"].includes(role)) ?? false
+    const coursesPath = hasCompactSidebar ? PATHS.myCourses : PATHS.courses
+    const coursesLinkLabel = hasCompactSidebar ? "Ver mis cursos" : "Administrar cursos"
     const { data: members = [] } = useQuery({
         queryKey: ["members"],
         queryFn: getAllMembers,
@@ -131,10 +136,10 @@ export default function Dashboard() {
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                             <Link
-                                to={PATHS.courses}
+                                to={coursesPath}
                                 className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
                             >
-                                Administrar cursos
+                                {coursesLinkLabel}
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
@@ -195,7 +200,7 @@ export default function Dashboard() {
                             </p>
                             <h2 className="mt-2 text-2xl font-bold text-slate-900">Cursos en desarrollo</h2>
                         </div>
-                        <Link to={PATHS.courses} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                        <Link to={coursesPath} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
                             Ver todo
                         </Link>
                     </div>
@@ -358,8 +363,8 @@ export default function Dashboard() {
                             </p>
                             <h2 className="mt-2 text-2xl font-bold text-slate-900">Catalogo de cursos</h2>
                         </div>
-                        <Link to={PATHS.courses} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
-                            Ir a cursos
+                        <Link to={coursesPath} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                            {hasCompactSidebar ? "Ir a mis cursos" : "Ir a cursos"}
                         </Link>
                     </div>
 

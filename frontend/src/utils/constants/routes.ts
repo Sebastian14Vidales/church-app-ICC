@@ -1,8 +1,12 @@
 export const PATHS = {
   dashboard: "/",
   login: "/login",
+  forgotPassword: "/forgot-password",
+  resendConfirmation: "/resend-confirmation",
+  newPassword: "/new-password",
   confirmAccount: "/confirm-account",
   courses: "/courses",
+  myCourses: "/my-courses",
   members: "/members",
   events: "/events",
   offerings: "/offerings",

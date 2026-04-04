@@ -3,7 +3,7 @@ import { Types, type PopulatedDoc, type Document } from "mongoose";
 import UserProfile from "../models/user-profile.model";
 import Role, { type IRole } from "../models/role.model";
 import User from "../models/user.model";
-import { sendConfirmationEmail } from "../services/email.service";
+import { sendConfirmationEmail } from "../services/access-email.service";
 import {
   buildUserName,
   createConfirmationToken,
@@ -20,12 +20,12 @@ const getRoleName = (role: RoleReference) =>
   role instanceof Types.ObjectId ? "" : role.name;
 
 const sendAccountConfirmation = async (email: string, name: string, userId: string) => {
-  const confirmationToken = await createConfirmationToken(userId);
+  const confirmationToken = await createConfirmationToken(userId, email);
 
   await sendConfirmationEmail({
     email,
     name,
-    token: confirmationToken.token,
+    token: confirmationToken,
   });
 };
 

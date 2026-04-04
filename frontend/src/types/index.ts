@@ -106,6 +106,7 @@ export const assignedCourseSchema = z.object({
     _id: z.string(),
     course: createCourseSchema,
     professor: memberSchema,
+    members: membersSchema.default([]),
     startDate: z.string(),
     startTime: z.string(),
     totalClasses: z.number(),
@@ -132,10 +133,17 @@ export const authUserSchema = z.object({
     id: z.string(),
     email: z.string().email(),
     name: z.string(),
+    roles: z.array(z.string()),
+    profileId: z.string().nullable(),
 })
 
 export const loginResponseSchema = z.object({
     message: z.string(),
+    token: z.string(),
+    user: authUserSchema,
+})
+
+export const currentSessionResponseSchema = z.object({
     user: authUserSchema,
 })
 

@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import connectDB from "./config/db";
 import { seedDatabase } from "./config/seed";
-import authRoutes from "./routes/auth.routes";
+import authRoutes from "./routes/session-auth.routes";
 import courseRoutes from "./routes/course.routes";
 import roleRoutes from "./routes/role.routes";
 import userRoutes from "./routes/user.routes";

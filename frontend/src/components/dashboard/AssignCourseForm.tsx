@@ -13,6 +13,7 @@ export type AssignCourseFormProps = {
     control: Control<CourseAssignedFormData>;
     errors: FieldErrors<CourseAssignedFormData>;
     setValue: UseFormSetValue<CourseAssignedFormData>;
+    currentAssignmentId?: string | null;
 };
 
 const calculateEndDate = (startDate: string, totalClasses: number) => {
@@ -39,7 +40,12 @@ const formatDisplayDate = (value: string) => {
     });
 };
 
-export default function AssignCourseForm({ control, errors, setValue }: AssignCourseFormProps) {
+export default function AssignCourseForm({
+    control,
+    errors,
+    setValue,
+    currentAssignmentId = null,
+}: AssignCourseFormProps) {
     const { data: courses = [] } = useQuery({
         queryKey: ["courses"],
         queryFn: getAllCourses,
@@ -57,7 +63,7 @@ export default function AssignCourseForm({ control, errors, setValue }: AssignCo
 
     const assignedProfessorIds = new Set(
         assignments
-            .filter((assignment) => assignment.status === "active")
+            .filter((assignment) => assignment.status === "active" && assignment._id !== currentAssignmentId)
             .map((assignment) => assignment.professor._id),
     );
 

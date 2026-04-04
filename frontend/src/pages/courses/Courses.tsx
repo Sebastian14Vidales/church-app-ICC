@@ -3,21 +3,24 @@ import { showSweetAlert } from "@/components/alert/SweetAlert";
 import ModalView from "@/components/dashboard/ModalView";
 import CourseForm from "@/components/dashboard/CourseForm";
 import AssignCourseForm from "@/components/dashboard/AssignCourseForm";
+import { useAuth } from "@/lib/auth";
 import { type CourseFormData } from "@/types/index";
 import { useForm } from "react-hook-form";
 import {
   assignCourse,
   createCourse,
+  deleteCourseAssignment,
   deleteCourse,
   getAllCourses,
   getCourseAssignments,
+  updateCourseAssignment,
   updateCourse,
 } from "@/api/CourseAPI";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { CalendarDays, MapPin, NotebookPen, Pencil, Trash2, UserRound, BadgePlus, Timer, BookOpenCheck } from "lucide-react";
 import { Button } from "@heroui/react";
-import { type CourseAssignedFormData, type Course } from "@/types/index";
+import { type CourseAssignedFormData, type Course, type CourseAssigned } from "@/types/index";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { formatFullName } from "@/utils/text";
 
@@ -28,6 +31,8 @@ const COURSE_STATUS_LABELS = {
 } as const;
 
 export default function Courses() {
+  const { user } = useAuth();
+  const isSuperadmin = user?.roles.includes("Superadmin") ?? false;
   const initialValues: CourseFormData = {
     name: "",
     description: "",
@@ -60,6 +65,7 @@ export default function Courses() {
   const [open, setOpen] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<CourseAssigned | null>(null);
   const queryClient = useQueryClient();
 
   const handleClose = () => {
@@ -67,6 +73,7 @@ export default function Courses() {
     setEditingCourse(null);
     reset(initialValues);
     setOpenAssign(false);
+    setEditingAssignment(null);
     assignForm.reset(initialAssignmentValues);
   };
 
@@ -105,6 +112,32 @@ export default function Courses() {
     },
   });
 
+  const updateAssignmentMutation = useMutation({
+    mutationFn: ({ assignmentId, formData }: { assignmentId: string; formData: CourseAssignedFormData }) =>
+      updateCourseAssignment(assignmentId, formData),
+    onSuccess: (message) => {
+      toast.success(message);
+      queryClient.invalidateQueries({ queryKey: ["courseAssignments"] });
+      queryClient.invalidateQueries({ queryKey: ["myCourses"] });
+      handleClose();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: (assignmentId: string) => deleteCourseAssignment(assignmentId),
+    onSuccess: (message) => {
+      toast.success(message);
+      queryClient.invalidateQueries({ queryKey: ["courseAssignments"] });
+      queryClient.invalidateQueries({ queryKey: ["myCourses"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const handleEditCourse = (course: Course) => {
     setEditingCourse(course);
     reset({
@@ -126,6 +159,39 @@ export default function Courses() {
     } catch {
       // errors are handled by mutation onError
     }
+  };
+
+  const handleEditAssignment = (assignment: CourseAssigned) => {
+    setEditingAssignment(assignment);
+    assignForm.reset({
+      course: assignment.course._id,
+      professor: assignment.professor._id,
+      startDate: assignment.startDate.split("T")[0] ?? assignment.startDate,
+      startTime: assignment.startTime,
+      totalClasses: assignment.totalClasses,
+      endDate: assignment.endDate.split("T")[0] ?? assignment.endDate,
+      location: assignment.location,
+      status: assignment.status,
+    });
+    setOpenAssign(true);
+  };
+
+  const handleDeleteAssignment = async (assignmentId: string) => {
+    showSweetAlert({
+      title: "Eliminar asignacion?",
+      text: "Se eliminara el curso asignado y sus registros asociados.",
+      type: "warning",
+      confirmButtonText: "Si, eliminar",
+      showCancelButton: true,
+      cancelButtonText: "Cancelar",
+      onConfirm: async () => {
+        try {
+          await deleteAssignmentMutation.mutateAsync(assignmentId);
+        } catch {
+          // errors are handled by mutation onError
+        }
+      },
+    });
   };
 
   const deleteMutation = useMutation({
@@ -186,7 +252,11 @@ export default function Courses() {
 
         <Button
           className="mb-4 flex items-center rounded bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
-          onPress={() => setOpenAssign(true)}
+          onPress={() => {
+            setEditingAssignment(null);
+            assignForm.reset(initialAssignmentValues);
+            setOpenAssign(true);
+          }}
         >
           <NotebookPen className="size-5" />
           Asignar curso
@@ -205,11 +275,22 @@ export default function Courses() {
         </form>
       </ModalView>
 
-      <ModalView isOpen={openAssign} onClose={handleClose} title="Asignar curso">
+      <ModalView
+        isOpen={openAssign}
+        onClose={handleClose}
+        title={editingAssignment ? "Editar curso asignado" : "Asignar curso"}
+      >
         <form
           onSubmit={assignForm.handleSubmit(async (formData) => {
             try {
-              await assignMutation.mutateAsync(formData);
+              if (editingAssignment) {
+                await updateAssignmentMutation.mutateAsync({
+                  assignmentId: editingAssignment._id,
+                  formData,
+                });
+              } else {
+                await assignMutation.mutateAsync(formData);
+              }
             } catch {
               // errors are handled by mutation onError
             }
@@ -220,6 +301,7 @@ export default function Courses() {
             control={assignForm.control}
             errors={assignForm.formState.errors}
             setValue={assignForm.setValue}
+            currentAssignmentId={editingAssignment?._id ?? null}
           />
         </form>
       </ModalView>
@@ -310,10 +392,35 @@ export default function Courses() {
                   <BookOpenCheck className="h-4 w-4 text-gray-400" />
                   Total de clases: {assignment.totalClasses}
                 </p>
+                <p className="text-sm text-gray-600">
+                  Miembros registrados: {assignment.members.length}
+                </p>
               </div>
+
+              {isSuperadmin ? (
+                <div className="mt-4 flex items-center gap-3">
+                  <Button
+                    color="primary"
+                    className="w-full"
+                    onPress={() => handleEditAssignment(assignment)}
+                  >
+                    <Pencil className="size-4" />
+                    Editar asignación
+                  </Button>
+                  <Button
+                    color="danger"
+                    className="w-full"
+                    onPress={() => handleDeleteAssignment(assignment._id)}
+                  >
+                    <Trash2 className="size-4" />
+                    Eliminar
+                  </Button>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
+        
       ) : null}
     </div>
   );

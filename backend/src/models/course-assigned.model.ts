@@ -14,6 +14,7 @@ export type CourseAssignedStatus =
 export interface ICourseAssigned extends Document {
   course: PopulatedDoc<ICourse & Document>;
   professor: PopulatedDoc<IUserProfile & Document>;
+  members: PopulatedDoc<IUserProfile & Document>[];
   startDate: Date;
   startTime: string;
   totalClasses: number;
@@ -34,6 +35,12 @@ const CourseAssignedSchema: Schema = new Schema(
       ref: "UserProfile",
       required: true,
     },
+    members: [
+      {
+        type: Types.ObjectId,
+        ref: "UserProfile",
+      },
+    ],
     startDate: {
       type: Date,
       required: true,

@@ -1,7 +1,9 @@
 ﻿import { Router } from "express";
 import { body, param } from "express-validator";
 import { UserProfileController } from "../controller/user-profile.controller";
+import { authenticate, authorizeRoles } from "../middleware/auth.middleware";
 import { handleInputErrors } from "../middleware/validation";
+import { MEMBER_MANAGER_ROLES } from "../utils/auth.utils";
 
 const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
 const MINISTRIES = [
@@ -42,6 +44,9 @@ const parseBooleanField = (value: unknown) => {
 };
 
 const router = Router();
+
+router.use(authenticate);
+router.use(authorizeRoles(MEMBER_MANAGER_ROLES));
 
 router.get("/", UserProfileController.findAll);
 

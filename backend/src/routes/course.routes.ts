@@ -1,13 +1,18 @@
 import { Router } from "express";
 import { body, param } from "express-validator";
 import { CourseController } from "../controller/course.controller";
+import { authenticate, authorizeRoles } from "../middleware/auth.middleware";
 import { handleInputErrors } from "../middleware/validation";
+import { ADMIN_ROLES, MY_COURSES_ROLES, SUPERADMIN_ROLES } from "../utils/auth.utils";
 
 const router = Router();
+
+router.use(authenticate);
 
 // Route to post a new course with validation
 router.post(
   "/",
+  authorizeRoles(ADMIN_ROLES),
   body("name").notEmpty().withMessage("El nombre del curso es obligatorio"),
   body("description")
     .notEmpty()
@@ -21,8 +26,39 @@ router.post(
 
 router.get("/assignments", CourseController.findAssignments);
 
+router.get(
+  "/my-courses",
+  authorizeRoles(MY_COURSES_ROLES),
+  CourseController.findMyAssignments,
+);
+
 router.post(
   "/assignments",
+  authorizeRoles(ADMIN_ROLES),
+  body("course").isMongoId().withMessage("El curso seleccionado no es válido"),
+  body("professor").isMongoId().withMessage("El profesor seleccionado no es válido"),
+  body("startDate")
+    .isISO8601()
+    .withMessage("La fecha de inicio es obligatoria"),
+  body("startTime")
+    .notEmpty()
+    .withMessage("La hora de inicio es obligatoria"),
+  body("totalClasses")
+    .isInt({ min: 1 })
+    .withMessage("El total de clases debe ser mayor a 0"),
+  body("location").notEmpty().withMessage("El salón es obligatorio"),
+  body("status")
+    .optional()
+    .isIn(["active", "completed", "cancelled"])
+    .withMessage("El estado no es válido"),
+  handleInputErrors,
+  CourseController.assignCourse,
+);
+
+router.put(
+  "/assignments/:id",
+  authorizeRoles(SUPERADMIN_ROLES),
+  param("id").isMongoId().withMessage("La asignacion no es valida"),
   body("course").isMongoId().withMessage("El curso seleccionado no es valido"),
   body("professor").isMongoId().withMessage("El profesor seleccionado no es valido"),
   body("startDate")
@@ -40,7 +76,29 @@ router.post(
     .isIn(["active", "completed", "cancelled"])
     .withMessage("El estado no es valido"),
   handleInputErrors,
-  CourseController.assignCourse,
+  CourseController.updateAssignment,
+);
+
+router.delete(
+  "/assignments/:id",
+  authorizeRoles(SUPERADMIN_ROLES),
+  param("id").isMongoId().withMessage("La asignacion no es valida"),
+  handleInputErrors,
+  CourseController.removeAssignment,
+);
+
+router.patch(
+  "/assignments/:id/members",
+  authorizeRoles(["Profesor", "Pastor", "Admin", "Superadmin"]),
+  param("id").isMongoId().withMessage("La asignacion no es valida"),
+  body("memberIds")
+    .isArray()
+    .withMessage("Debes enviar un arreglo de miembros"),
+  body("memberIds.*")
+    .isMongoId()
+    .withMessage("Todos los miembros deben ser validos"),
+  handleInputErrors,
+  CourseController.updateAssignmentMembers,
 );
 
 // Route to get all courses
@@ -56,6 +114,7 @@ router.get(
 // Route to update a course by ID
 router.put(
   "/:id",
+  authorizeRoles(ADMIN_ROLES),
   param("id").isMongoId().withMessage("ID de curso inválido"),
   body("name").notEmpty().withMessage("El nombre del curso es obligatorio"),
   body("description")
@@ -69,10 +128,10 @@ router.put(
 // Route to delete a course
 router.delete(
   "/:id",
+  authorizeRoles(ADMIN_ROLES),
   param("id").isMongoId().withMessage("ID de curso inválido"),
   handleInputErrors,
   CourseController.remove,
 );
 
 export default router;
-
