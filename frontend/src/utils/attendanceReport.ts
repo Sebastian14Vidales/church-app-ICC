@@ -127,6 +127,7 @@ export const downloadAttendancePdfReport = ({
 }: AttendanceReportParams) => {
     const sortedSessions = [...sessions].sort((left, right) => left.classNumber - right.classNumber)
     const totalStudents = assignment.members.length
+    const totalRecordedSessions = sortedSessions.length
     const pageCapacity = Math.floor((PDF_START_Y - 40) / PDF_LINE_HEIGHT)
     const pages: string[][] = [[]]
 
@@ -152,7 +153,7 @@ export const downloadAttendancePdfReport = ({
         `Profesor: ${formatFullName(assignment.professor.firstName, assignment.professor.lastName)}`,
     )
     appendParagraph(`Total de estudiantes inscritos: ${totalStudents}`)
-    appendParagraph(`Clases con asistencia registrada: ${sortedSessions.length}`)
+    appendParagraph(`Clases con asistencia registrada: ${totalRecordedSessions}`)
     appendParagraph(`Generado el: ${new Date().toLocaleString("es-CO")}`)
     appendLine("")
 
@@ -181,6 +182,48 @@ export const downloadAttendancePdfReport = ({
             appendLine("")
         }
     })
+
+    appendLine("")
+    appendParagraph("Conclusion del curso")
+
+    if (!totalRecordedSessions) {
+        appendParagraph("No hay suficientes clases registradas para evaluar perdida por fallas.")
+    } else {
+        const membersAtRisk = assignment.members
+            .map((member) => {
+                const absenceCount = sortedSessions.reduce((totalAbsences, session) => {
+                    const attendance = session.attendance.find(
+                        (entry) => entry.student._id === member._id,
+                    )
+
+                    return totalAbsences + (attendance?.present === false ? 1 : 0)
+                }, 0)
+                const absenceRate = absenceCount / totalRecordedSessions
+
+                return {
+                    member,
+                    absenceCount,
+                    absenceRate,
+                }
+            })
+            .filter(({ absenceRate }) => absenceRate > 0.5)
+
+        if (!membersAtRisk.length) {
+            appendParagraph(
+                "Ningun estudiante supera el 50% de fallas sobre las clases con asistencia registrada.",
+            )
+        } else {
+            appendParagraph(
+                "Los siguientes estudiantes superan el 50% de fallas y pierden el curso:",
+            )
+
+            membersAtRisk.forEach(({ member, absenceCount, absenceRate }) => {
+                appendParagraph(
+                    `- ${formatFullName(member.firstName, member.lastName)} (${member.documentID}): ${absenceCount} fallas de ${totalRecordedSessions} clases (${Math.round(absenceRate * 100)}%)`,
+                )
+            })
+        }
+    }
 
     const pdfPages = pages.map((page) => buildPageStream(page))
     const pdfContent = buildPdfDocument(pdfPages)
