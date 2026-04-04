@@ -359,9 +359,33 @@ export default function Courses() {
                   <h3 className="text-lg font-bold text-gray-900">{assignment.course.name}</h3>
                   <p className="text-sm text-gray-500">{assignment.course.description}</p>
                 </div>
-                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase text-green-700">
-                  {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}
-                </span>
+                <div className="flex items-start gap-2">
+                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase text-green-700">
+                    {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}
+                  </span>
+                  {isSuperadmin ? (
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        isIconOnly
+                        color="primary"
+                        variant="flat"
+                        aria-label={`Editar asignacion de ${assignment.course.name}`}
+                        onPress={() => handleEditAssignment(assignment)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        isIconOnly
+                        color="danger"
+                        variant="flat"
+                        aria-label={`Eliminar asignacion de ${assignment.course.name}`}
+                        onPress={() => handleDeleteAssignment(assignment._id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="space-y-2 text-sm text-gray-700">
@@ -390,7 +414,7 @@ export default function Courses() {
                 </p>
               </div>
 
-              {isSuperadmin ? (
+              {false && isSuperadmin ? (
                 <div className="mt-4 flex items-center gap-3">
                   <Button
                     color="primary"

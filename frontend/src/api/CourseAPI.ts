@@ -198,6 +198,22 @@ export const updateCourseMembers = async (
     }
 }
 
+export const closeMyCourseAssignment = async (assignmentId: CourseAssigned["_id"]) => {
+    try {
+        const { data } = await api.patch(`/courses/my-courses/${assignmentId}/close`)
+        const response = messageResponseSchema.safeParse(data)
+
+        if (response.success) {
+            return response.data.message
+        }
+
+        throw new Error("Respuesta de cierre de curso invalida")
+    } catch (error) {
+        console.error("Error closing my course assignment:", error)
+        throw error
+    }
+}
+
 export const saveMyClassAttendance = async (
     classNumber: number,
     attendance: Array<{ studentId: string; present: boolean; notes?: string }>,

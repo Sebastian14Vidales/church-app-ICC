@@ -4,6 +4,7 @@ import UserProfile from "../models/user-profile.model";
 import Role, { type IRole } from "../models/role.model";
 import User from "../models/user.model";
 import { sendConfirmationEmail } from "../services/access-email.service";
+import { emitRealtimeInvalidation } from "../realtime/socket";
 import {
   buildUserName,
   createConfirmationToken,
@@ -28,6 +29,8 @@ const sendAccountConfirmation = async (email: string, name: string, userId: stri
     token: confirmationToken,
   });
 };
+
+const MEMBER_QUERY_KEYS = [["members"], ["myCourses"], ["myAttendance"], ["courseAssignments"]];
 
 export class UserProfileController {
   static create = async (req: Request, res: Response) => {
@@ -106,6 +109,7 @@ export class UserProfileController {
         .populate("user")
         .populate("role");
 
+      emitRealtimeInvalidation("members.changed", MEMBER_QUERY_KEYS);
       res.status(201).json({
         message: requiresAccess
           ? "Perfil creado correctamente. Se envió un código de confirmación al correo."
@@ -308,6 +312,7 @@ export class UserProfileController {
         .populate("user")
         .populate("role");
 
+      emitRealtimeInvalidation("members.changed", MEMBER_QUERY_KEYS);
       res.status(200).json(updatedProfile);
     } catch (error) {
       console.error("Error al actualizar perfil:", error);
@@ -341,6 +346,7 @@ export class UserProfileController {
         await User.findByIdAndDelete(profile.user);
       }
 
+      emitRealtimeInvalidation("members.changed", MEMBER_QUERY_KEYS);
       res.status(200).json({ message: "Perfil eliminado correctamente" });
     } catch (error) {
       res.status(500).json({

@@ -148,7 +148,7 @@ export const downloadAttendancePdfReport = ({
     appendLine("Reporte de asistencias del curso")
     appendLine("")
     appendParagraph(`Curso: ${assignment.course.name}`)
-    appendParagraph(`Descripcion: ${assignment.course.description}`)
+    appendParagraph(`Descripción: ${assignment.course.description}`)
     appendParagraph(
         `Profesor: ${formatFullName(assignment.professor.firstName, assignment.professor.lastName)}`,
     )

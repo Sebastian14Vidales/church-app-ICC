@@ -13,6 +13,7 @@ interface ModalViewProps {
   title: string;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
+  scrollBehavior?: "normal" | "inside" | "outside";
 }
 
 export default function ModalView({
@@ -21,9 +22,10 @@ export default function ModalView({
   title,
   children,
   size = "md",
+  scrollBehavior = "normal",
 }: ModalViewProps) {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onClose} size={size}>
+    <Modal isOpen={isOpen} onOpenChange={onClose} size={size} scrollBehavior={scrollBehavior}>
       <ModalContent>
         {() => (
           <>

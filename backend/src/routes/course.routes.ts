@@ -107,6 +107,14 @@ router.patch(
   CourseController.updateAssignmentMembers,
 );
 
+router.patch(
+  "/my-courses/:id/close",
+  authorizeRoles(["Profesor", "Pastor", "Admin", "Superadmin"]),
+  param("id").isMongoId().withMessage("La asignacion no es valida"),
+  handleInputErrors,
+  CourseController.closeMyAssignment,
+);
+
 router.put(
   "/my-attendance/classes/:classNumber",
   authorizeRoles(MY_COURSES_ROLES),

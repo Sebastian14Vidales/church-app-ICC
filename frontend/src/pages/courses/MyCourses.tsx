@@ -163,8 +163,13 @@ export default function MyCourses() {
                                                 : "Aun no has registrado miembros en este curso"}
                                         </p>
                                     </div>
-                                    <Button color="primary" variant="flat" onPress={() => openMembersModal(assignment)}>
-                                        Registrar miembros
+                                    <Button
+                                        color="primary"
+                                        variant="flat"
+                                        isDisabled={assignment.status !== "active"}
+                                        onPress={() => openMembersModal(assignment)}
+                                    >
+                                        {assignment.status === "active" ? "Registrar miembros" : "Curso cerrado"}
                                     </Button>
                                 </div>
 

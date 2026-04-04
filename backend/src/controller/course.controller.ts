@@ -4,12 +4,17 @@ import CourseAssigned from "../models/course-assigned.model";
 import ClassSession from "../models/class-session.model";
 import UserProfile from "../models/user-profile.model";
 import { AuthenticatedRequest } from "../types/auth";
+import { emitRealtimeInvalidation } from "../realtime/socket";
 
 type AttendancePayload = {
   studentId: string;
   present: boolean;
   notes?: string;
 };
+
+const COURSE_QUERY_KEYS = [["courses"]];
+const ASSIGNMENT_QUERY_KEYS = [["courseAssignments"], ["myCourses"], ["myAttendance"]];
+const ATTENDANCE_QUERY_KEYS = [["myAttendance"], ["courseAssignments"]];
 
 const calculateEndDate = (startDateValue: string, totalClasses: number) => {
   const startDate = new Date(startDateValue);
@@ -116,6 +121,7 @@ export class CourseController {
     const course = new Course(req.body);
     try {
       await course.save();
+      emitRealtimeInvalidation("courses.changed", COURSE_QUERY_KEYS);
       res.send("Curso creado exitosamente");
     } catch (error) {
       res.status(500).json({ message: "Error al crear curso", error });
@@ -146,6 +152,7 @@ export class CourseController {
       if (!course) {
         return res.status(404).json({ message: "Curso no encontrado" });
       }
+      emitRealtimeInvalidation("courses.changed", COURSE_QUERY_KEYS);
       res.status(200).json(course);
     } catch (error) {
       res.status(500).json({ message: "Error al actualizar curso", error });
@@ -160,6 +167,7 @@ export class CourseController {
       if (!course) {
         return res.status(404).json({ message: "Curso no encontrado" });
       }
+      emitRealtimeInvalidation("courses.changed", COURSE_QUERY_KEYS);
       res.status(200).json({ message: "Curso eliminado exitosamente" });
     } catch (error) {
       res.status(500).json({ message: "Error al eliminar curso", error });
@@ -266,6 +274,7 @@ export class CourseController {
         .populate(CourseController.memberPopulate)
         .populate(CourseController.professorPopulate);
 
+      emitRealtimeInvalidation("courseAssignments.changed", ASSIGNMENT_QUERY_KEYS);
       res.status(201).json({
         message: "Curso asignado correctamente",
         assignment: createdAssignment,
@@ -352,6 +361,7 @@ export class CourseController {
         .populate(CourseController.memberPopulate)
         .populate(CourseController.professorPopulate);
 
+      emitRealtimeInvalidation("courseAssignments.changed", ASSIGNMENT_QUERY_KEYS);
       return res.status(200).json({
         message: "Asignacion actualizada correctamente",
         assignment: updatedAssignment,
@@ -383,6 +393,7 @@ export class CourseController {
       }
 
       await ClassSession.deleteMany({ courseAssigned: id });
+      emitRealtimeInvalidation("courseAssignments.changed", ASSIGNMENT_QUERY_KEYS);
 
       return res.status(200).json({ message: "Asignacion eliminada correctamente" });
     } catch (error) {
@@ -415,6 +426,12 @@ export class CourseController {
         return res.status(403).json({ message: "No tienes permisos para actualizar esta asignacion" });
       }
 
+      if (assignment.status !== "active") {
+        return res.status(400).json({
+          message: "Solo puedes registrar miembros en cursos activos",
+        });
+      }
+
       const normalizedMemberIds = Array.from(
         new Set((memberIds ?? []).filter((memberId) => typeof memberId === "string")),
       );
@@ -445,12 +462,63 @@ export class CourseController {
         .populate(CourseController.memberPopulate)
         .populate(CourseController.professorPopulate);
 
+      emitRealtimeInvalidation("courseAssignments.members.changed", ASSIGNMENT_QUERY_KEYS);
       return res.status(200).json({
         message: "Miembros registrados correctamente en el curso",
         assignment: updatedAssignment,
       });
     } catch (error) {
       return res.status(500).json({ message: "Error al actualizar los miembros del curso", error });
+    }
+  };
+
+  static closeMyAssignment = async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+
+    try {
+      const assignment = await CourseAssigned.findById(id).populate({
+        path: "professor",
+        populate: ["role", "user"],
+      });
+
+      if (!assignment) {
+        return res.status(404).json({ message: "Asignacion no encontrada" });
+      }
+
+      const isOwnerProfessor =
+        req.auth?.profileId && String(assignment.professor._id) === req.auth.profileId;
+
+      const canClose =
+        isOwnerProfessor ||
+        req.auth?.roles.some((role) => ["Admin", "Superadmin"].includes(role));
+
+      if (!canClose) {
+        return res.status(403).json({ message: "No tienes permisos para cerrar este curso" });
+      }
+
+      if (assignment.status !== "active") {
+        return res.status(400).json({ message: "Este curso ya no esta activo" });
+      }
+
+      const savedSessionsCount = await ClassSession.countDocuments({
+        courseAssigned: assignment._id,
+      });
+
+      if (savedSessionsCount < assignment.totalClasses) {
+        return res.status(400).json({
+          message: "Debes registrar todas las clases antes de cerrar el curso",
+        });
+      }
+
+      assignment.status = "completed";
+      await assignment.save();
+
+      emitRealtimeInvalidation("courseAssignments.closed", ASSIGNMENT_QUERY_KEYS);
+      return res.status(200).json({
+        message: "Curso cerrado correctamente",
+      });
+    } catch (error) {
+      return res.status(500).json({ message: "Error al cerrar el curso", error });
     }
   };
 
@@ -548,6 +616,7 @@ export class CourseController {
         },
       ).populate(CourseController.attendancePopulate);
 
+      emitRealtimeInvalidation("attendance.changed", ATTENDANCE_QUERY_KEYS);
       return res.status(200).json({
         message: "Asistencia guardada correctamente",
         session: savedSession,

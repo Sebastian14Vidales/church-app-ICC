@@ -80,7 +80,7 @@ export const routes: RouteObject[] = [
               {
                 path: PATHS.attendance,
                 lazy: async () => ({
-                  Component: (await import("@/pages/courses/Attendance")).default,
+                  Component: (await import("@/pages/courses/AttendanceView")).default,
                 }),
               },
             ],

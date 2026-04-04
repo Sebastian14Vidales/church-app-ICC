@@ -29,10 +29,10 @@ export default function Sidebar() {
               { name: "Dashboard", href: PATHS.dashboard, icon: Home },
               { name: "Cursos", href: PATHS.courses, icon: BookOpen },
               { name: "Miembros", href: PATHS.members, icon: Users },
-              { name: "Eventos", href: PATHS.events, icon: Calendar },
-              { name: "Ofrendas", href: PATHS.offerings, icon: DollarSign },
-              { name: "Grupos de Vida", href: PATHS.lifeGroups, icon: Heart },
-              { name: "Reportes", href: PATHS.reports, icon: BarChart3 },
+              { name: "Eventos", href: PATHS.events, icon: Calendar, disabled: true },
+              { name: "Ofrendas", href: PATHS.offerings, icon: DollarSign, disabled: true },
+              { name: "Grupos de Vida", href: PATHS.lifeGroups, icon: Heart, disabled: true },
+              { name: "Reportes", href: PATHS.reports, icon: BarChart3, disabled: true },
           ]
 
     const userInitials = getInitials(user?.name ?? "Usuario")
@@ -66,18 +66,30 @@ export default function Sidebar() {
                     <ul className="space-y-2">
                         {navigation.map((item) => (
                             <li key={item.name}>
-                                <NavLink
-                                    to={item.href}
-                                    className={({ isActive }) =>
-                                        `group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-semibold transition-all ${isActive
-                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
-                                            : "text-slate-300 hover:bg-white/10 hover:text-white"
-                                        }`
-                                    }
-                                >
-                                    <item.icon className="h-5 w-5" />
-                                    {item.name}
-                                </NavLink>
+                                {item.name === "Eventos" || item.name === "Ofrendas" || item.name === "Grupos de Vida" || item.name === "Reportes" ? (
+                                    <div
+                                        className="group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-400 opacity-60 cursor-not-allowed select-none"
+                                    >
+                                        <item.icon className="h-5 w-5" />
+                                        <div className="flex flex-col">
+                                            <span>{item.name}</span>
+                                            <span className="text-[10px] text-slate-400 mt-0.5">próximamente...</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <NavLink
+                                        to={item.href}
+                                        className={({ isActive }) =>
+                                            `group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-semibold transition-all ${isActive
+                                                ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
+                                                : "text-slate-300 hover:bg-white/10 hover:text-white"
+                                            }`
+                                        }
+                                    >
+                                        <item.icon className="h-5 w-5" />
+                                        {item.name}
+                                    </NavLink>
+                                )}
                             </li>
                         ))}
                     </ul>
