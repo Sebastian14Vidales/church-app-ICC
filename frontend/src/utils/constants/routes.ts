@@ -5,6 +5,7 @@ export const PATHS = {
   resendConfirmation: "/resend-confirmation",
   newPassword: "/new-password",
   confirmAccount: "/confirm-account",
+  profile: "/profile",
   courses: "/courses",
   myCourses: "/my-courses",
   attendance: "/attendance",

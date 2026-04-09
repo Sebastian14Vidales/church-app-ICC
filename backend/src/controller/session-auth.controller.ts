@@ -219,6 +219,40 @@ export class AuthController {
     }
   };
 
+  static changePassword = async (req: AuthenticatedRequest, res: Response) => {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.auth?.userId;
+
+    try {
+      if (!userId) {
+        return res.status(401).json({ message: "No autorizado" });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      if (!user.password) {
+        return res.status(400).json({ message: "La cuenta no tiene contraseña configurada" });
+      }
+
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "La contraseña actual es incorrecta" });
+      }
+
+      user.password = await hashPassword(newPassword);
+      await user.save();
+
+      return res.status(200).json({
+        message: "Contraseña cambiada exitosamente",
+      });
+    } catch (error) {
+      return res.status(500).json({ message: "Error al cambiar la contraseña", error });
+    }
+  };
+
   static getCurrentSession = async (req: AuthenticatedRequest, res: Response) => {
     try {
       if (!req.auth?.userId) {

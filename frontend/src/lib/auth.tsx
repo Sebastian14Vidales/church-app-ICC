@@ -31,7 +31,15 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-const readStoredToken = () => sessionStorage.getItem(AUTH_TOKEN_KEY)
+const readStoredToken = () => {
+    const token = sessionStorage.getItem(AUTH_TOKEN_KEY)
+
+    if (!token || token === "undefined" || token === "null") {
+        return null
+    }
+
+    return token
+}
 
 const readStoredUser = () => {
     const storedUser = sessionStorage.getItem(AUTH_USER_KEY)
@@ -55,6 +63,10 @@ const clearSessionStorage = () => {
 }
 
 const persistSession = ({ token, user }: LoginSession) => {
+    if (!token || token === "undefined" || token === "null") {
+        throw new Error("Token de sesión inválido")
+    }
+
     clearSessionStorage()
     sessionStorage.setItem(AUTH_TOKEN_KEY, token)
     sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))

@@ -10,6 +10,7 @@ import {
     LogOut,
     BarChart3,
     Users,
+    User,
 } from "lucide-react";
 import { getInitials, useAuth } from "@/lib/auth";
 import PATHS from "@/utils/constants/routes";
@@ -93,6 +94,22 @@ export default function Sidebar() {
                             </li>
                         ))}
                     </ul>
+
+                    {/* Enlace al perfil */}
+                    <div className="mt-4">
+                        <NavLink
+                            to={PATHS.profile}
+                            className={({ isActive }) =>
+                                `group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-semibold transition-all ${isActive
+                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
+                                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                                }`
+                            }
+                        >
+                            <User className="h-5 w-5" />
+                            Mi Perfil
+                        </NavLink>
+                    </div>
 
                     <div className="mt-auto rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 to-blue-950 p-4">
                         <div className="flex items-center gap-3">

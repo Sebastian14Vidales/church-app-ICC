@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import User from "../models/user.model";
 import Token from "../models/token.model";
 import { type IRole } from "../models/role.model";
+import { AuthenticatedRequest } from "../types/auth";
 import { hashPassword, LOGIN_ENABLED_ROLES, normalizeEmail } from "../utils/auth.utils";
 
 type RoleReference = PopulatedDoc<IRole & Document>;
@@ -100,6 +101,45 @@ export class AuthController {
       });
     } catch (error) {
       return res.status(500).json({ message: "Error al confirmar la cuenta", error });
+    }
+  };
+
+  static changePassword = async (req: AuthenticatedRequest, res: Response) => {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.auth?.userId;
+
+    try {
+      if (!userId) {
+        return res.status(401).json({ message: "No autorizado" });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      if (!user.password) {
+        return res.status(400).json({ message: "La cuenta no tiene contraseña configurada" });
+      }
+
+      // Verificar contraseña actual
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "La contraseña actual es incorrecta" });
+      }
+
+      // Hash de la nueva contraseña
+      const hashedNewPassword = await hashPassword(newPassword);
+
+      // Actualizar contraseña
+      user.password = hashedNewPassword;
+      await user.save();
+
+      return res.status(200).json({
+        message: "Contraseña cambiada exitosamente",
+      });
+    } catch (error) {
+      return res.status(500).json({ message: "Error al cambiar la contraseña", error });
     }
   };
 }

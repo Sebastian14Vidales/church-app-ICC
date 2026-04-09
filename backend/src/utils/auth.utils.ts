@@ -9,7 +9,7 @@ export const SUPERADMIN_ROLES = ["Superadmin"];
 export const MEMBER_MANAGER_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
 export const MY_COURSES_ROLES = ["Profesor", "Pastor"];
 
-const SESSION_TOKEN_EXPIRATION = process.env.JWT_EXPIRES_IN ?? "8h";
+const SESSION_TOKEN_EXPIRATION = process.env.JWT_EXPIRES_IN ?? "1h";
 const ACTION_TOKEN_EXPIRATION_SECONDS = Number(process.env.ACTION_TOKEN_EXPIRES_SECONDS ?? 3600);
 
 const TEMP_PASSWORD_UPPERCASE = "ABCDEFGHJKLMNPQRSTUVWXYZ";

@@ -31,6 +31,11 @@ type ResetPasswordPayload = {
     password: string
 }
 
+type ChangePasswordPayload = {
+    currentPassword: string
+    newPassword: string
+}
+
 const getApiErrorMessage = (error: unknown, fallbackMessage: string) => {
     if (axios.isAxiosError(error)) {
         const responseData = error.response?.data as
@@ -96,6 +101,22 @@ export const resetPassword = async (payload: ResetPasswordPayload): Promise<stri
         throw new Error("Respuesta de cambio de contraseña inválida")
     } catch (error) {
         throw new Error(getApiErrorMessage(error, "No se pudo actualizar la contraseña"))
+    }
+}
+
+export const changePassword = async (payload: ChangePasswordPayload): Promise<string> => {
+    try {
+        const { data } = await api.post("/auth/change-password", payload)
+        const response = messageResponseSchema.safeParse(data)
+
+        if (response.success) {
+            return response.data.message
+        }
+
+        throw new Error("Respuesta de cambio de contraseña inválida")
+    } catch (error) {
+        // Si es un error 401 (token expirado), el interceptor de axios ya maneja el logout
+        throw new Error(getApiErrorMessage(error, "No se pudo cambiar la contraseña"))
     }
 }
 

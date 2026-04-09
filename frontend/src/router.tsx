@@ -58,6 +58,12 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            path: PATHS.profile,
+            lazy: async () => ({
+              Component: (await import("@/pages/Profile")).default,
+            }),
+          },
+          {
             element: <RequireAuth allowedRoles={["Admin", "Superadmin"]} />,
             children: [
               {
