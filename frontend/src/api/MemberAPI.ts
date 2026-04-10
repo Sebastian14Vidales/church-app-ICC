@@ -20,9 +20,17 @@ const parseOptionalBoolean = (value: MemberFormData["baptized"]) => {
 const buildMemberPayload = (formData: MemberFormData) => {
     const baptized = parseOptionalBoolean(formData.baptized);
     const servesInMinistry = parseOptionalBoolean(formData.servesInMinistry);
+    const selectedRoles = Array.from(
+        new Set<string>([
+            ...(formData.roleNames || []),
+            ...(formData.roleName ? [formData.roleName] : []),
+        ]),
+    );
 
     return {
         ...formData,
+        roleNames: selectedRoles,
+        roleName: formData.roleName,
         baptized,
         servesInMinistry,
         ministry: servesInMinistry === true ? formData.ministry || undefined : undefined,

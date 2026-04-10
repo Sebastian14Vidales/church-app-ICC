@@ -5,24 +5,21 @@ import { BookOpen, CalendarDays, Clock3, GraduationCap, MapPin, Search } from "l
 import ModalView from "@/components/dashboard/ModalView"
 import { getMyCourseAssignments, updateCourseMembers } from "@/api/CourseAPI"
 import { getAllMembers } from "@/api/MemberAPI"
-import { useAuth } from "@/lib/auth"
 import { type CourseAssigned } from "@/types/index"
 import { COURSE_LEVEL_LABELS, COURSE_STATUS_LABELS } from "@/utils/constants/courses"
 import { getLocationNameById } from "@/utils/constants/locations"
 import { formatFullName, normalizeSearchText } from "@/utils/text"
 
 export default function MyCourses() {
-    const { user } = useAuth()
-    const isProfessor = user?.roles.includes("Profesor") ?? false
     const queryClient = useQueryClient()
     const [selectedAssignment, setSelectedAssignment] = useState<CourseAssigned | null>(null)
     const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
     const [memberSearchTerm, setMemberSearchTerm] = useState("")
-    const { data: assignments = [], isLoading } = useQuery({
+    const { data: assignments = [], isLoading, isError: isAssignmentsError, error: assignmentsError } = useQuery({
         queryKey: ["myCourses"],
         queryFn: getMyCourseAssignments,
     })
-    const { data: members = [] } = useQuery({
+    const { data: members = [], isError: isMembersError, error: membersError } = useQuery({
         queryKey: ["members"],
         queryFn: getAllMembers,
     })
@@ -78,6 +75,14 @@ export default function MyCourses() {
         return <h1>Cargando cursos...</h1>
     }
 
+    if (isAssignmentsError) {
+        return <h1>{assignmentsError.message}</h1>
+    }
+
+    if (isMembersError) {
+        return <h1>{membersError.message}</h1>
+    }
+
     return (
         <div className="space-y-8">
             <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-7 text-white shadow-xl shadow-slate-300/40 sm:px-8">
@@ -89,9 +94,7 @@ export default function MyCourses() {
                             Mis cursos
                         </div>
                         <h1 className="mt-4 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">
-                            {isProfessor
-                                ? "Consulta tus cursos asignados y su programación."
-                                : "Consulta las asignaciones visibles para tu perfil."}
+                            Consulta tus cursos asignados y su programación.
                         </h1>
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
                             Aquí puedes revisar el estado, calendario y ubicación de los cursos asociados a tu cuenta.
@@ -193,9 +196,7 @@ export default function MyCourses() {
                 <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm shadow-slate-200/70">
                     <h2 className="text-2xl font-semibold text-slate-900">No hay cursos asignados</h2>
                     <p className="mt-3 text-sm leading-6 text-slate-500">
-                        {isProfessor
-                            ? "Cuando se te asigne un curso lo veras aquí con su calendario y ubicación."
-                            : "Este rol no tiene cursos asignados por el momento."}
+                        Cuando se te asigne un curso lo veras aquí con su calendario y ubicación.
                     </p>
                 </section>
             )}

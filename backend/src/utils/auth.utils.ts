@@ -3,11 +3,11 @@ import bcrypt from "bcrypt";
 import { jwtVerify, SignJWT } from "jose";
 import ActionToken from "../models/action-token.model";
 
-export const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
+export const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
 export const ADMIN_ROLES = ["Admin", "Superadmin"];
 export const SUPERADMIN_ROLES = ["Superadmin"];
-export const MEMBER_MANAGER_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
-export const MY_COURSES_ROLES = ["Profesor", "Pastor"];
+export const MEMBER_MANAGER_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
+export const MY_COURSES_ROLES = ["Profesor"];
 
 const SESSION_TOKEN_EXPIRATION = process.env.JWT_EXPIRES_IN ?? "1h";
 const ACTION_TOKEN_EXPIRATION_SECONDS = Number(process.env.ACTION_TOKEN_EXPIRES_SECONDS ?? 3600);

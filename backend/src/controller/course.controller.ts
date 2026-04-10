@@ -32,17 +32,41 @@ const calculateClassDate = (startDateValue: Date | string, classNumber: number) 
 export class CourseController {
   private static memberPopulate = {
     path: "members",
-    populate: ["role", "user"],
+    populate: [
+      "role",
+      {
+        path: "user",
+        populate: {
+          path: "roles",
+        },
+      },
+    ],
   };
 
   private static professorPopulate = {
     path: "professor",
-    populate: ["role", "user"],
+    populate: [
+      "role",
+      {
+        path: "user",
+        populate: {
+          path: "roles",
+        },
+      },
+    ],
   };
 
   private static attendancePopulate = {
     path: "attendance.student",
-    populate: ["role", "user"],
+    populate: [
+      "role",
+      {
+        path: "user",
+        populate: {
+          path: "roles",
+        },
+      },
+    ],
   };
 
   private static buildAssignmentQuery = () =>

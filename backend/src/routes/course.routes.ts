@@ -95,7 +95,7 @@ router.delete(
 
 router.patch(
   "/assignments/:id/members",
-  authorizeRoles(["Profesor", "Pastor", "Admin", "Superadmin"]),
+  authorizeRoles(["Profesor", "Admin", "Superadmin"]),
   param("id").isMongoId().withMessage("La asignacion no es valida"),
   body("memberIds")
     .isArray()
@@ -109,7 +109,7 @@ router.patch(
 
 router.patch(
   "/my-courses/:id/close",
-  authorizeRoles(["Profesor", "Pastor", "Admin", "Superadmin"]),
+  authorizeRoles(["Profesor", "Admin", "Superadmin"]),
   param("id").isMongoId().withMessage("La asignacion no es valida"),
   handleInputErrors,
   CourseController.closeMyAssignment,

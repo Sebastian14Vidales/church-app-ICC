@@ -36,12 +36,17 @@ export default function NewPassword() {
     })
 
     const onSubmit = async (formData: NewPasswordFormData) => {
-        await resetMutation.mutateAsync({
+        const message = await resetMutation.mutateAsync({
             token,
             password: formData.password,
         })
 
-        navigate(PATHS.login, { replace: true })
+        navigate(PATHS.login, {
+            replace: true,
+            state: {
+                notice: message,
+            },
+        })
     }
 
     return (
@@ -108,8 +113,16 @@ export default function NewPassword() {
 
                         <CardBody className="px-8 py-8">
                             {!token ? (
-                                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
-                                    El enlace de recuperación no es válido o está incompleto.
+                                <div className="space-y-4">
+                                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                                        El enlace de recuperación no es válido o está incompleto.
+                                    </div>
+                                    <Link
+                                        to={PATHS.forgotPassword}
+                                        className="inline-flex w-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#9a3412_0%,#ea580c_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_34px_rgba(154,52,18,0.28)]"
+                                    >
+                                        Solicitar otro correo de recuperación
+                                    </Link>
                                 </div>
                             ) : (
                                 <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -152,8 +165,16 @@ export default function NewPassword() {
                                     </div>
 
                                     {resetMutation.isError && (
-                                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                            {resetMutation.error.message}
+                                        <div className="space-y-4">
+                                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                                {resetMutation.error.message}
+                                            </div>
+                                            <Link
+                                                to={PATHS.forgotPassword}
+                                                className="inline-flex w-full items-center justify-center rounded-full border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
+                                            >
+                                                Enviar otro correo con instrucciones
+                                            </Link>
                                         </div>
                                     )}
 

@@ -9,9 +9,10 @@ import { DatePicker, Input, Select, SelectItem } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { getAllRoles } from "@/api/MemberAPI";
+import { useAuth } from "@/lib/auth";
 import { type MemberFormData } from "@/types/index";
 
-const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
+const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 const BOOLEAN_OPTIONS = [
   { key: "true", label: "Sí" },
@@ -51,16 +52,26 @@ export default function MemberForm({
   control,
   selectedRole,
 }: MemberFormProps) {
+  const { user } = useAuth();
   const { data: roles = [], isLoading } = useQuery({
     queryKey: ["roles"],
     queryFn: getAllRoles,
   });
 
   const servesInMinistry = useWatch({ control, name: "servesInMinistry" });
-  const requiresAccess = LOGIN_ENABLED_ROLES.includes(selectedRole);
-  const visibleRoles = roles.filter(
-    (role) => !["Admin", "Superadmin"].includes(role.name) || role.name === selectedRole,
+  const selectedRoleNames = useWatch({ control, name: "roleNames" }) || [];
+  const requiresAccess = [selectedRole, ...selectedRoleNames].some((role) =>
+    LOGIN_ENABLED_ROLES.includes(role)
   );
+  const isRestrictedMemberManager =
+    user?.roles.includes("Profesor") || user?.roles.includes("Pastor") || user?.roles.includes("Supervisor");
+  const visibleRoles = roles.filter((role) => {
+    if (isRestrictedMemberManager) {
+      return ["Asistente", "Miembro"].includes(role.name);
+    }
+    return !["Admin", "Superadmin"].includes(role.name) || role.name === selectedRole;
+  });
+  const additionalRoles = visibleRoles.filter((role) => role.name !== selectedRole);
 
   return (
     <div className="flex flex-col space-y-4">
@@ -233,7 +244,7 @@ export default function MemberForm({
                 isLoading={isLoading}
                 selectedKeys={field.value ? [field.value] : []}
                 onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                placeholder="Seleccione un rol"
+                placeholder="Seleccione un rol principal"
                 className="input"
               >
                 {visibleRoles.map((role) => (
@@ -245,6 +256,31 @@ export default function MemberForm({
           {errors.roleName && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Roles adicionales</label>
+          <Controller
+            name="roleNames"
+            control={control}
+            render={({ field }) => (
+              <Select
+                isLoading={isLoading}
+                selectionMode="multiple"
+                selectedKeys={field.value || []}
+                onSelectionChange={(keys) => field.onChange(Array.from(keys))}
+                placeholder="Seleccione roles adicionales"
+                className="input"
+              >
+                {additionalRoles.map((role) => (
+                  <SelectItem key={role.name}>{role.name}</SelectItem>
+                ))}
+              </Select>
+            )}
+          />
+          <p className="mt-1 text-xs text-slate-500">Puedes seleccionar más de un rol para el acceso del miembro.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">Ruta de Crecimiento Espiritual</label>
           <Controller

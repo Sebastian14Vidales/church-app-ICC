@@ -3,7 +3,7 @@ import { Button, Card, CardBody, CardHeader, Input } from "@heroui/react";
 import { useMutation } from "@tanstack/react-query";
 import { LockKeyhole, LogIn, MailCheck, Shield } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { login } from "@/api/AuthAPI";
 import PasswordField from "@/components/auth/PasswordField";
 import { useAuth } from "@/lib/auth";
@@ -21,9 +21,11 @@ const initialValues: LoginFormData = {
 
 export default function Login() {
     const navigate = useNavigate()
+    const location = useLocation()
     const { login: loginSession } = useAuth()
     const [searchParams] = useSearchParams()
     const initialEmail = useMemo(() => searchParams.get("email") ?? "", [searchParams])
+    const notice = (location.state as { notice?: string } | null)?.notice
     const {
         register,
         handleSubmit,
@@ -163,6 +165,12 @@ export default function Login() {
                                 {loginMutation.isError && (
                                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                                         {loginMutation.error.message}
+                                    </div>
+                                )}
+
+                                {notice && (
+                                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                        {notice}
                                     </div>
                                 )}
 

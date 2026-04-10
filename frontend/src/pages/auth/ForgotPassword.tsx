@@ -2,7 +2,7 @@ import { Button, Card, CardBody, CardHeader, Input } from "@heroui/react"
 import { useMutation } from "@tanstack/react-query"
 import { KeyRound, Mail, ShieldCheck } from "lucide-react"
 import { useForm } from "react-hook-form"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { forgotPassword } from "@/api/AuthAPI"
 import PATHS from "@/utils/constants/routes"
 
@@ -11,6 +11,7 @@ type ForgotPasswordFormData = {
 }
 
 export default function ForgotPassword() {
+    const navigate = useNavigate()
     const {
         register,
         handleSubmit,
@@ -26,8 +27,15 @@ export default function ForgotPassword() {
     })
 
     const onSubmit = async (formData: ForgotPasswordFormData) => {
-        await forgotMutation.mutateAsync({
+        const message = await forgotMutation.mutateAsync({
             email: formData.email.trim().toLowerCase(),
+        })
+
+        navigate(PATHS.login, {
+            replace: true,
+            state: {
+                notice: message,
+            },
         })
     }
 

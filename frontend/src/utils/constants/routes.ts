@@ -14,6 +14,7 @@ export const PATHS = {
   offerings: "/offerings",
   lifeGroups: "/life-groups",
   reports: "/reports",
+  mySermons: "/mis-predicas",
 } as const;
 
 export default PATHS;

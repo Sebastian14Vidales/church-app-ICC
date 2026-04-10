@@ -51,6 +51,7 @@ const initialValues: MemberFormData = {
     ministryInterest: "",
     spiritualGrowthStage: "",
     roleName: "",
+    roleNames: [],
     email: "",
 };
 
@@ -87,6 +88,13 @@ const memberToFormData = (member: Member): MemberFormData => ({
     ministryInterest: member.servesInMinistry === false ? member.ministryInterest ?? "" : "",
     spiritualGrowthStage: member.spiritualGrowthStage ?? "",
     roleName: member.role.name as MemberFormData["roleName"],
+    roleNames: Array.from(
+        new Set<string>(
+            (member.user?.roles?.map((role) => role.name) ?? []).filter(
+                (roleName) => roleName !== member.role.name,
+            ),
+        ),
+    ) as MemberFormData["roleNames"],
     email: member.user?.email ?? "",
 });
 
@@ -105,9 +113,10 @@ export default function Members() {
         setValue,
     } = useForm<MemberFormData>({ defaultValues: initialValues });
     const selectedRole = watch("roleName");
+    const roleNames = watch("roleNames");
     const servesInMinistry = watch("servesInMinistry");
 
-    const { data: members = [], isLoading } = useQuery({
+    const { data: members = [], isLoading, isError, error } = useQuery({
         queryKey: ["members"],
         queryFn: getAllMembers,
     });
@@ -168,12 +177,13 @@ export default function Members() {
     });
 
     useEffect(() => {
-        const rolesWithAccess = ["Admin", "Superadmin", "Profesor", "Pastor"];
+        const rolesWithAccess = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
+        const selectedRoles = [selectedRole, ...(roleNames || [])].filter(Boolean);
 
-        if (!rolesWithAccess.includes(selectedRole)) {
+        if (!selectedRoles.some((role) => rolesWithAccess.includes(role))) {
             setValue("email", "");
         }
-    }, [selectedRole, setValue]);
+    }, [selectedRole, roleNames, setValue]);
 
     useEffect(() => {
         if (servesInMinistry === "true") {
@@ -232,6 +242,7 @@ export default function Members() {
     const hasActiveFilters = Boolean(filters.searchTerm || filters.bloodType || filters.baptized);
 
     if (isLoading) return <h1>Cargando miembros...</h1>;
+    if (isError) return <h1>{error.message}</h1>;
 
     return (
         <div>
@@ -307,11 +318,25 @@ export default function Members() {
                                         <h3 className="text-lg font-semibold">
                                             {formatFullName(member.firstName, member.lastName)}
                                         </h3>
-                                        <p
-                                            className={`inline-block rounded-full px-2 py-0.5 text-xs ${roleColors[member.role.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}
-                                        >
-                                            {roleLabels[member.role.name as keyof typeof roleLabels] ?? member.role.name}
-                                        </p>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p
+                                                className={`inline-block rounded-full px-2 py-0.5 text-xs ${roleColors[member.role.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}
+                                            >
+                                                {roleLabels[member.role.name as keyof typeof roleLabels] ?? member.role.name}
+                                            </p>
+                                            {member.user?.roles?.length ? (
+                                                member.user.roles
+                                                    .filter((role) => role.name !== member.role.name)
+                                                    .map((extraRole) => (
+                                                        <p
+                                                            key={extraRole._id}
+                                                            className={`inline-block rounded-full px-2 py-0.5 text-xs ${roleColors[extraRole.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}
+                                                        >
+                                                            {roleLabels[extraRole.name as keyof typeof roleLabels] ?? extraRole.name}
+                                                        </p>
+                                                    ))
+                                            ) : null}
+                                        </div>
                                     </div>
                                     <div className="flex min-h-5 items-center gap-2 text-sm text-gray-500">
                                         <Mail className="h-4 w-4 shrink-0 text-gray-400" />

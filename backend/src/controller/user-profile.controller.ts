@@ -5,6 +5,7 @@ import Role, { type IRole } from "../models/role.model";
 import User from "../models/user.model";
 import { sendConfirmationEmail } from "../services/access-email.service";
 import { emitRealtimeInvalidation } from "../realtime/socket";
+import { AuthenticatedRequest } from "../types/auth";
 import {
   buildUserName,
   createConfirmationToken,
@@ -33,13 +34,14 @@ const sendAccountConfirmation = async (email: string, name: string, userId: stri
 const MEMBER_QUERY_KEYS = [["members"], ["myCourses"], ["myAttendance"], ["courseAssignments"]];
 
 export class UserProfileController {
-  static create = async (req: Request, res: Response) => {
+  static create = async (req: AuthenticatedRequest, res: Response) => {
     let createdUserId: string | null = null;
     let createdProfileId: string | null = null;
 
     try {
       const {
         roleName,
+        roleNames,
         email,
         firstName,
         lastName,
@@ -51,12 +53,40 @@ export class UserProfileController {
         ...profileData
       } = req.body;
 
-      const role = await Role.findOne({ name: roleName });
-      if (!role) {
-        return res.status(400).json({ message: "Rol inválido" });
+      const selectedRoleNames = Array.isArray(roleNames)
+        ? roleNames
+        : roleName
+          ? [roleName]
+          : [];
+
+      if (!selectedRoleNames.length) {
+        return res.status(400).json({ message: "Debe seleccionar al menos un rol" });
       }
 
-      const requiresAccess = isLoginEnabledRole(role.name);
+      const isSupervisorOnly = Boolean(
+        req.auth?.roles.includes("Supervisor") &&
+          !req.auth.roles.some((role) => ["Admin", "Superadmin", "Profesor", "Pastor"].includes(role)),
+      );
+
+      if (isSupervisorOnly && selectedRoleNames.some((roleName: string) => !["Asistente", "Miembro"].includes(roleName))) {
+        return res.status(403).json({
+          message: "El supervisor solo puede registrar personas con rol Asistente o Miembro",
+        });
+      }
+
+      const selectedRoleDocs = await Role.find({ name: { $in: selectedRoleNames } });
+      const roleMap = new Map(selectedRoleDocs.map((roleDoc) => [roleDoc.name, roleDoc]));
+      const selectedRoles = selectedRoleNames
+        .map((name: string) => roleMap.get(name))
+        .filter((role): role is NonNullable<typeof selectedRoleDocs[number]> => role != null);
+
+      if (selectedRoles.length !== selectedRoleNames.length) {
+        return res.status(400).json({ message: "Uno o varios roles seleccionados son inválidos" });
+      }
+
+      const primaryRole = roleName ? roleMap.get(roleName) ?? selectedRoles[0] : selectedRoles[0];
+      const selectedRoleIds = selectedRoles.map((role) => role._id);
+      const requiresAccess = selectedRoles.some((role) => isLoginEnabledRole(role.name));
       let userId = undefined;
       let normalizedEmail: string | undefined;
       let createdUserName: string | undefined;
@@ -76,7 +106,7 @@ export class UserProfileController {
           password: await hashPassword(temporaryPassword),
           confirmed: false,
           active: true,
-          roles: [role._id],
+          roles: selectedRoleIds,
         });
 
         userId = createdUser._id;
@@ -87,7 +117,7 @@ export class UserProfileController {
         ...profileData,
         firstName,
         lastName,
-        role: role._id,
+        role: primaryRole._id,
         user: userId,
         ...(typeof baptized === "boolean" ? { baptized } : {}),
         ...(typeof servesInMinistry === "boolean" ? { servesInMinistry } : {}),
@@ -106,7 +136,7 @@ export class UserProfileController {
       }
 
       const createdProfile = await UserProfile.findById(profile._id)
-        .populate("user")
+        .populate({ path: "user", populate: { path: "roles" } })
         .populate("role");
 
       emitRealtimeInvalidation("members.changed", MEMBER_QUERY_KEYS);
@@ -140,7 +170,7 @@ export class UserProfileController {
   static findAll = async (_req: Request, res: Response) => {
     try {
       const profiles = await UserProfile.find()
-        .populate("user")
+        .populate({ path: "user", populate: { path: "roles" } })
         .populate("role");
       res.status(200).json(profiles);
     } catch (error) {
@@ -156,7 +186,7 @@ export class UserProfileController {
 
     try {
       const profile = await UserProfile.findById(id)
-        .populate("user")
+        .populate({ path: "user", populate: { path: "roles" } })
         .populate("role");
 
       if (!profile) {
@@ -172,7 +202,7 @@ export class UserProfileController {
     }
   };
 
-  static update = async (req: Request, res: Response) => {
+  static update = async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     let createdUserId: string | null = null;
 
@@ -184,6 +214,7 @@ export class UserProfileController {
 
       const {
         roleName,
+        roleNames,
         email,
         firstName = profile.firstName,
         lastName = profile.lastName,
@@ -194,6 +225,22 @@ export class UserProfileController {
         spiritualGrowthStage,
         ...updateData
       } = req.body;
+      const selectedRoleNames = Array.isArray(roleNames)
+        ? roleNames
+        : roleName
+          ? [roleName]
+          : [];
+
+      const isSupervisorOnly = Boolean(
+        req.auth?.roles.includes("Supervisor") &&
+          !req.auth.roles.some((role) => ["Admin", "Superadmin", "Profesor", "Pastor"].includes(role)),
+      );
+
+      if (selectedRoleNames.length > 0 && isSupervisorOnly && selectedRoleNames.some((selectedRoleName: string) => !["Asistente", "Miembro"].includes(selectedRoleName))) {
+        return res.status(403).json({
+          message: "El supervisor solo puede registrar personas con rol Asistente o Miembro",
+        });
+      }
       const normalizedEmail = email ? normalizeEmail(email) : undefined;
       const nextUserName = buildUserName(firstName, lastName);
       let confirmationEmailSent = false;
@@ -217,16 +264,26 @@ export class UserProfileController {
       }
 
       let role = profile.role;
-      if (roleName) {
-        const nextRole = await Role.findOne({ name: roleName });
-        if (!nextRole) {
-          return res.status(400).json({ message: "Rol inválido" });
+      let selectedRoles = [role] as IRole[];
+
+      if (selectedRoleNames.length > 0) {
+        const selectedRoleDocs = await Role.find({ name: { $in: selectedRoleNames } });
+        const roleMap = new Map(selectedRoleDocs.map((roleDoc) => [roleDoc.name, roleDoc]));
+        selectedRoles = selectedRoleNames
+          .map((name: string) => roleMap.get(name))
+          .filter((role): role is NonNullable<typeof selectedRoleDocs[number]> => role != null);
+
+        if (selectedRoles.length !== selectedRoleNames.length) {
+          return res.status(400).json({ message: "Uno o varios roles seleccionados son inválidos" });
         }
-        role = nextRole;
-        normalizedUpdateData.role = nextRole._id;
+
+        const primaryRole = roleName ? roleMap.get(roleName) ?? selectedRoles[0] : selectedRoles[0];
+        role = primaryRole;
+        normalizedUpdateData.role = primaryRole._id;
       }
 
-      const requiresAccess = isLoginEnabledRole(getRoleName(role));
+      const selectedRoleIds = selectedRoles.map((selectedRole) => selectedRole._id);
+      const requiresAccess = selectedRoles.some((roleItem) => isLoginEnabledRole(roleItem.name));
 
       if (requiresAccess) {
         if (!profile.user && !normalizedEmail) {
@@ -254,7 +311,7 @@ export class UserProfileController {
             ...(normalizedEmail ? { email: normalizedEmail } : {}),
             name: nextUserName,
             active: true,
-            roles: [role._id],
+            roles: selectedRoleIds,
           };
 
           if (shouldRefreshConfirmation) {
@@ -282,7 +339,7 @@ export class UserProfileController {
             password: await hashPassword(generateTemporaryPassword()),
             confirmed: false,
             active: true,
-            roles: [role._id],
+            roles: selectedRoleIds,
           });
           createdUserId = String(createdUser._id);
 
@@ -309,7 +366,7 @@ export class UserProfileController {
           new: true,
         },
       )
-        .populate("user")
+        .populate({ path: "user", populate: { path: "roles" } })
         .populate("role");
 
       emitRealtimeInvalidation("members.changed", MEMBER_QUERY_KEYS);

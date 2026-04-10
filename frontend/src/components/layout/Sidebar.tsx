@@ -18,23 +18,39 @@ import PATHS from "@/utils/constants/routes";
 export default function Sidebar() {
     const navigate = useNavigate()
     const { user, logout } = useAuth()
-    const hasCompactSidebar = user?.roles.some((role) => ["Profesor", "Pastor"].includes(role)) ?? false
-    const navigation = hasCompactSidebar
-        ? [
-              { name: "Dashboard", href: PATHS.dashboard, icon: Home },
-              { name: "Mis cursos", href: PATHS.myCourses, icon: BookOpen },
-              { name: "Asistencias", href: PATHS.attendance, icon: ClipboardCheck },
-              { name: "Miembros", href: PATHS.members, icon: Users },
-          ]
-        : [
-              { name: "Dashboard", href: PATHS.dashboard, icon: Home },
-              { name: "Cursos", href: PATHS.courses, icon: BookOpen },
-              { name: "Miembros", href: PATHS.members, icon: Users },
-              { name: "Eventos", href: PATHS.events, icon: Calendar, disabled: true },
-              { name: "Ofrendas", href: PATHS.offerings, icon: DollarSign, disabled: true },
-              { name: "Grupos de Vida", href: PATHS.lifeGroups, icon: Heart, disabled: true },
-              { name: "Reportes", href: PATHS.reports, icon: BarChart3, disabled: true },
-          ]
+    const isSupervisor = user?.roles.includes("Supervisor") ?? false
+    const isAdmin = user?.roles.includes("Admin") || user?.roles.includes("Superadmin")
+    const isProfessor = user?.roles.includes("Profesor") ?? false
+    const isPastor = user?.roles.includes("Pastor") ?? false
+
+    const baseNavigation = [
+        { name: "Dashboard", href: PATHS.dashboard, icon: Home },
+        { name: "Miembros", href: PATHS.members, icon: Users },
+    ];
+
+    const navigationItems: Array<{ name: string; href: string; icon: any; disabled?: boolean }> = [...baseNavigation];
+
+    if (isSupervisor) {
+        navigationItems.push({ name: "Mi cobertura", href: PATHS.lifeGroups, icon: Heart })
+    }
+
+    if (isProfessor) {
+        navigationItems.splice(1, 0, { name: "Mis cursos", href: PATHS.myCourses, icon: BookOpen });
+        navigationItems.splice(2, 0, { name: "Asistencias", href: PATHS.attendance, icon: ClipboardCheck });
+    }
+
+    if (isPastor) {
+        navigationItems.push({ name: "Mis predicas", href: PATHS.mySermons, icon: BookOpen });
+    }
+
+    if (isAdmin) {
+        navigationItems.push(
+            { name: "Cursos", href: PATHS.courses, icon: BookOpen },
+            { name: "Eventos", href: PATHS.events, icon: Calendar, disabled: true },
+            { name: "Ofrendas", href: PATHS.offerings, icon: DollarSign, disabled: true },
+            { name: "Reportes", href: PATHS.reports, icon: BarChart3, disabled: true },
+        );
+    }
 
     const userInitials = getInitials(user?.name ?? "Usuario")
     const userRoleLabel = user?.roles.join(", ") ?? "Sesión activa"
@@ -65,9 +81,9 @@ export default function Sidebar() {
 
                 <nav className="mt-8 flex flex-1 flex-col">
                     <ul className="space-y-2">
-                        {navigation.map((item) => (
+                        {navigationItems.map((item) => (
                             <li key={item.name}>
-                                {item.name === "Eventos" || item.name === "Ofrendas" || item.name === "Grupos de Vida" || item.name === "Reportes" ? (
+                                {item.disabled ? (
                                     <div
                                         className="group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-400 opacity-60 cursor-not-allowed select-none"
                                     >

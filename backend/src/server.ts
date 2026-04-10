@@ -7,6 +7,8 @@ import courseRoutes from "./routes/course.routes";
 import roleRoutes from "./routes/role.routes";
 import userRoutes from "./routes/user.routes";
 import userProfileRoutes from "./routes/user-profile.routes";
+import sermonRoutes from "./routes/sermon.routes";
+import lifeGroupRoutes from "./routes/life-group.routes";
 
 const app = express();
 app.use(express.json());
@@ -31,5 +33,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/members", userProfileRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/sermons", sermonRoutes);
+app.use("/api/life-groups", lifeGroupRoutes);
 
 export default app;

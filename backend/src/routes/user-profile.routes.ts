@@ -5,7 +5,7 @@ import { authenticate, authorizeRoles } from "../middleware/auth.middleware";
 import { handleInputErrors } from "../middleware/validation";
 import { MEMBER_MANAGER_ROLES } from "../utils/auth.utils";
 
-const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
+const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
 const MINISTRIES = [
   "Ministerio de Alabanza",
   "Ministerio de Danza (Niñas entre 7 y 14 años)",
@@ -94,7 +94,15 @@ router.post(
     .withMessage("El crecimiento espiritual es obligatorio")
     .isIn(SPIRITUAL_GROWTH_STAGES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
-  body("roleName").notEmpty().withMessage("El rol es obligatorio"),
+  body("roleName").optional().notEmpty().withMessage("El rol principal es obligatorio cuando no se seleccionan roles adicionales"),
+  body("roleNames")
+    .optional()
+    .isArray()
+    .withMessage("Los roles deben ser un arreglo"),
+  body("roleNames.*")
+    .optional()
+    .isIn(["Asistente", "Miembro", "Profesor", "Pastor", "Supervisor", "Admin", "Superadmin"])
+    .withMessage("Uno o varios roles seleccionados no son válidos"),
   body("email")
     .optional()
     .isEmail()
@@ -104,7 +112,10 @@ router.post(
     .isLength({ min: 8 })
     .withMessage("La contraseña debe tener al menos 8 caracteres"),
   body().custom((value) => {
-    if (LOGIN_ENABLED_ROLES.includes(value.roleName) && !value.email) {
+    const hasLoginRole = (value.roleNames || [value.roleName]).some((role: string) =>
+      LOGIN_ENABLED_ROLES.includes(role),
+    );
+    if (hasLoginRole && !value.email) {
       throw new Error("El correo es obligatorio para roles con acceso al login");
     }
     if (value.servesInMinistry === true && !value.ministry) {
@@ -165,7 +176,15 @@ router.put(
     .optional()
     .isIn(SPIRITUAL_GROWTH_STAGES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
-  body("roleName").optional().notEmpty().withMessage("El rol es obligatorio"),
+  body("roleName").optional().notEmpty().withMessage("El rol principal es obligatorio cuando no se seleccionan roles adicionales"),
+  body("roleNames")
+    .optional()
+    .isArray()
+    .withMessage("Los roles deben ser un arreglo"),
+  body("roleNames.*")
+    .optional()
+    .isIn(["Asistente", "Miembro", "Profesor", "Pastor", "Supervisor", "Admin", "Superadmin"])
+    .withMessage("Uno o varios roles seleccionados no son válidos"),
   body("email")
     .optional()
     .isEmail()

@@ -64,6 +64,28 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            element: <RequireAuth allowedRoles={["Supervisor", "Admin", "Superadmin"]} />,
+            children: [
+              {
+                path: PATHS.lifeGroups,
+                lazy: async () => ({
+                  Component: (await import("@/pages/coverage/MyCoverage")).default,
+                }),
+              },
+            ],
+          },
+          {
+            element: <RequireAuth allowedRoles={["Pastor"]} />,
+            children: [
+              {
+                path: PATHS.mySermons,
+                lazy: async () => ({
+                  Component: (await import("@/pages/MySermons")).default,
+                }),
+              },
+            ],
+          },
+          {
             element: <RequireAuth allowedRoles={["Admin", "Superadmin"]} />,
             children: [
               {
@@ -75,7 +97,7 @@ export const routes: RouteObject[] = [
             ],
           },
           {
-            element: <RequireAuth allowedRoles={["Profesor", "Pastor"]} />,
+            element: <RequireAuth allowedRoles={["Profesor"]} />,
             children: [
               {
                 path: PATHS.myCourses,

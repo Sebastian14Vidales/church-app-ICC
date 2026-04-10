@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Controller, useWatch, type Control, type FieldErrors, type UseFormSetValue } from "react-hook-form";
-import { Button, DatePicker, Select, SelectItem } from "@heroui/react";
+import { Button, DatePicker, Input, Select, SelectItem } from "@heroui/react";
 import { parseDate, today, getLocalTimeZone } from "@internationalized/date";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
@@ -157,10 +157,11 @@ export default function AssignCourseForm({
                         control={control}
                         rules={{ required: "Hora de inicio requerida" }}
                         render={({ field }) => (
-                            <input
+                            <Input
                                 type="time"
                                 {...field}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                classNames={{ inputWrapper: "border-none shadow-none" }}
+                                className="w-full"
                             />
                         )}
                     />

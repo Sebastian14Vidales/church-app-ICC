@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
     ArrowRight,
     BookOpen,
     CalendarDays,
     CheckCircle2,
     Clock3,
+    HeartHandshake,
     Mail,
     MapPin,
     Sparkles,
@@ -13,8 +14,14 @@ import {
     Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Textarea, Select, SelectItem } from "@heroui/react";
+import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
+import { getMyLifeGroups } from "@/api/LifeGroupAPI";
 import { getAllMembers } from "@/api/MemberAPI";
+import { createSermon, getAllSermons } from "@/api/SermonAPI";
 import { useAuth } from "@/lib/auth";
 import { COURSE_LEVEL_LABELS, COURSE_STATUS_LABELS } from "@/utils/constants/courses";
 import { getLocationNameById } from "@/utils/constants/locations";
@@ -27,9 +34,43 @@ const pluralize = (count: number, singular: string, plural: string) =>
 
 export default function Dashboard() {
     const { user } = useAuth()
-    const hasCompactSidebar = user?.roles.some((role) => ["Profesor", "Pastor"].includes(role)) ?? false
+    const isSupervisorOnly =
+        user?.roles.includes("Supervisor") &&
+        !user.roles.some((role) => ["Admin", "Superadmin", "Profesor", "Pastor"].includes(role))
+    const hasCompactSidebar = user?.roles.includes("Profesor") ?? false
     const coursesPath = hasCompactSidebar ? PATHS.myCourses : PATHS.courses
     const coursesLinkLabel = hasCompactSidebar ? "Ver mis cursos" : "Administrar cursos"
+    const isAdmin = user?.roles.includes("Admin") || user?.roles.includes("Superadmin");
+
+    const [isSermonModalOpen, setIsSermonModalOpen] = useState(false);
+
+    
+
+    const { register: registerSermon, handleSubmit: handleSubmitSermon, reset: resetSermon, formState: { errors: errorsSermon } } = useForm({
+        defaultValues: {
+            title: "",
+            date: "",
+            time: "",
+            pastor: "",
+            description: "",
+        },
+    });
+
+    const createSermonMutation = useMutation({
+        mutationFn: createSermon,
+        onSuccess: () => {
+            toast.success("Prédica programada exitosamente");
+            setIsSermonModalOpen(false);
+            resetSermon();
+        },
+        onError: (error: any) => {
+            toast.error(error.message || "Error al programar la prédica");
+        },
+    });
+
+    const onSubmitSermon = (data: any) => {
+        createSermonMutation.mutate(data);
+    };
     const { data: members = [] } = useQuery({
         queryKey: ["members"],
         queryFn: getAllMembers,
@@ -45,12 +86,30 @@ export default function Dashboard() {
         queryFn: getCourseAssignments,
     });
 
+    const { data: sermons = [] } = useQuery({
+        queryKey: ["sermons"],
+        queryFn: getAllSermons,
+        enabled: isAdmin,
+    });
+
+    const { data: lifeGroups = [] } = useQuery({
+        queryKey: ["lifeGroups"],
+        queryFn: getMyLifeGroups,
+        enabled: Boolean(isSupervisorOnly),
+    })
+
+    const pastors = members.filter((member) => member.role.name === "Pastor");
     const activeAssignments = assignments.filter((assignment) => assignment.status === "active");
     const professors = members.filter((member) => member.role.name === "Profesor");
     const professorsAvailable = professors.filter(
         (professor) => !activeAssignments.some((assignment) => assignment.professor._id === professor._id),
     );
     const baptizedMembers = members.filter((member) => member.baptized).length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const pendingSermons = sermons
+        .filter((sermon) => new Date(sermon.date).getTime() >= today.getTime())
+        .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime());
     const membersServing = members.filter((member) => member.servesInMinistry).length;
     const membersWithAccess = members.filter((member) => member.user?.email).length;
     const accessCoverage = members.length ? Math.round((membersWithAccess / members.length) * 100) : 0;
@@ -98,6 +157,125 @@ export default function Dashboard() {
             accent: "from-fuchsia-500 to-rose-500",
         },
     ];
+
+    if (isSupervisorOnly) {
+        const membersInCoverage = members.filter((member) =>
+            ["Asistente", "Miembro"].includes(member.role.name),
+        )
+
+        return (
+            <div className="space-y-8">
+                <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-7 text-white shadow-xl shadow-slate-300/40 sm:px-8">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.24),_transparent_32%),radial-gradient(circle_at_bottom_left,_rgba(249,115,22,0.2),_transparent_28%)]" />
+                    <div className="relative grid gap-8 xl:grid-cols-[1.25fr_0.75fr]">
+                        <div>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
+                                <Sparkles className="h-3.5 w-3.5" />
+                                Cobertura del supervisor
+                            </div>
+                            <h1 className="mt-4 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">
+                                Gestiona tu comunidad y acompaña cada grupo de vida con claridad.
+                            </h1>
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                                Desde aquí puedes registrar asistentes y miembros, y seguir tu cobertura.
+                            </p>
+
+                            <div className="mt-6 flex flex-wrap gap-3">
+                                <Link
+                                    to={PATHS.members}
+                                    className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
+                                >
+                                    Registrar personas
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                                <Link
+                                    to={PATHS.lifeGroups}
+                                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                                >
+                                    Ir a mi cobertura
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-3">
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Grupos de vida</p>
+                                <p className="mt-3 text-3xl font-bold">{lifeGroups.length}</p>
+                                <p className="mt-2 text-sm text-slate-300">
+                                    {lifeGroups.length === 1 ? "grupo bajo tu cuidado" : "grupos bajo tu cuidado"}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Personas registrables</p>
+                                <p className="mt-3 text-3xl font-bold">{membersInCoverage.length}</p>
+                                <p className="mt-2 text-sm text-slate-300">Asistentes y miembros disponibles</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                    Personas
+                                </p>
+                                <h2 className="mt-2 text-2xl font-bold text-slate-900">Registro permitido</h2>
+                            </div>
+                            <Users className="h-5 w-5 text-slate-400" />
+                        </div>
+                        <p className="mt-4 text-sm leading-6 text-slate-500">
+                            Como supervisor, puedes crear y editar únicamente perfiles con rol
+                            <span className="font-semibold text-slate-900"> Asistente </span>
+                            o
+                            <span className="font-semibold text-slate-900"> Miembro</span>.
+                        </p>
+                        <Link
+                            to={PATHS.members}
+                            className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        >
+                            Ir a miembros
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </article>
+
+                    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                    Mi cobertura
+                                </p>
+                                <h2 className="mt-2 text-2xl font-bold text-slate-900">Seguimiento rápido</h2>
+                            </div>
+                            <HeartHandshake className="h-5 w-5 text-slate-400" />
+                        </div>
+                        <div className="mt-6 space-y-4">
+                            {lifeGroups.length ? (
+                                lifeGroups.slice(0, 3).map((lifeGroup) => (
+                                    <div key={lifeGroup._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="font-semibold text-slate-900">{lifeGroup.name}</p>
+                                        <p className="mt-1 text-sm text-slate-500">{lifeGroup.neighborhood}</p>
+                                        <p className="mt-2 text-sm text-slate-600">{lifeGroup.address}</p>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-slate-500">Aún no has creado grupos de vida.</p>
+                            )}
+                        </div>
+                        <Link
+                            to={PATHS.lifeGroups}
+                            className="mt-6 inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                            Administrar cobertura
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </article>
+                </section>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-8">
@@ -179,6 +357,63 @@ export default function Dashboard() {
                     </article>
                 ))}
             </section>
+
+            {/* Programar Predicas - Solo para admins */}
+            {isAdmin && (
+                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                Ministerio
+                            </p>
+                            <h2 className="mt-2 text-2xl font-bold text-slate-900">Programar Predicas</h2>
+                        </div>
+                        <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white"
+                            startContent={<BookOpen className="h-4 w-4" />}
+                            onPress={() => setIsSermonModalOpen(true)}
+                        >
+                            Agendar Predica
+                        </Button>
+                    </div>
+
+                    <div className="mt-6">
+                        <p className="text-sm text-slate-500">
+                            Aqui puedes programar las prédicas para los pastores de la iglesia.
+                        </p>
+                    </div>
+
+                    <div className="mt-8">
+                        <h3 className="text-lg font-semibold text-slate-900">Prédicas pendientes</h3>
+                        {pendingSermons.length === 0 ? (
+                            <p className="mt-3 text-sm text-slate-500">No hay prédicas pendientes en la agenda.</p>
+                        ) : (
+                            <div className="mt-4 space-y-3">
+                                {pendingSermons.slice(0, 5).map((sermon) => (
+                                    <div key={sermon._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div>
+                                                <h4 className="font-semibold text-slate-900">{sermon.title}</h4>
+                                                <p className="text-sm text-slate-500">
+                                                    {new Date(sermon.date).toLocaleDateString("es-CO", {
+                                                        day: "2-digit",
+                                                        month: "long",
+                                                        year: "numeric",
+                                                    })} · {sermon.time}
+                                                </p>
+                                            </div>
+                                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                {sermon.pastor?.name ?? "Pastor"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.7fr]">
                 <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
@@ -382,7 +617,61 @@ export default function Dashboard() {
                     </div>
                 </article>
             </section>
+
+            {/* Modal para programar prédica */}
+            <Modal isOpen={isSermonModalOpen} onOpenChange={setIsSermonModalOpen}>
+                <ModalContent>
+                    <ModalHeader>Programar Predica</ModalHeader>
+                    <form onSubmit={handleSubmitSermon(onSubmitSermon)}>
+                        <ModalBody className="space-y-4">
+                            <Input
+                                label="Título de la prédica"
+                                {...registerSermon("title", { required: "El título es obligatorio" })}
+                                errorMessage={errorsSermon.title?.message}
+                            />
+                            <Input
+                                label="Fecha"
+                                type="date"
+                                {...registerSermon("date", { required: "La fecha es obligatoria" })}
+                                errorMessage={errorsSermon.date?.message}
+                            />
+                            <Input
+                                label="Hora"
+                                type="time"
+                                {...registerSermon("time", { required: "La hora es obligatoria" })}
+                                errorMessage={errorsSermon.time?.message}
+                            />
+                            <Select
+                                label="Pastor"
+                                {...registerSermon("pastor", { required: "Selecciona un pastor" })}
+                                errorMessage={errorsSermon.pastor?.message}
+                            >
+                                {pastors.map((pastor) => (
+                                    <SelectItem key={pastor.user?._id || pastor._id} >
+                                        {formatFullName(pastor.firstName, pastor.lastName)}
+                                    </SelectItem>
+                                ))}
+                            </Select>
+                            <Textarea
+                                label="Descripción (opcional)"
+                                {...registerSermon("description")}
+                            />
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant="light" onPress={() => setIsSermonModalOpen(false)}>
+                                Cancelar
+                            </Button>
+                            <Button
+                                type="submit"
+                                className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white"
+                                isLoading={createSermonMutation.isPending}
+                            >
+                                Programar
+                            </Button>
+                        </ModalFooter>
+                    </form>
+                </ModalContent>
+            </Modal>
         </div>
     );
 }
-

@@ -222,17 +222,19 @@ export default function Courses() {
     });
   };
 
-  const { data: courses = [], isLoading } = useQuery({
+  const { data: courses = [], isLoading, isError: isCoursesError, error: coursesError } = useQuery({
     queryKey: ["courses"],
     queryFn: getAllCourses,
   });
 
-  const { data: assignments = [] } = useQuery({
+  const { data: assignments = [], isError: isAssignmentsError, error: assignmentsError } = useQuery({
     queryKey: ["courseAssignments"],
     queryFn: getCourseAssignments,
   });
 
   if (isLoading) return <h1>Cargando cursos...</h1>;
+  if (isCoursesError) return <h1>{coursesError.message}</h1>;
+  if (isAssignmentsError) return <h1>{assignmentsError.message}</h1>;
 
   return (
     <div className="p-4">

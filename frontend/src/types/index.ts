@@ -40,6 +40,7 @@ export const memberRoleSchema = z.enum([
     "Miembro",
     "Profesor",
     "Pastor",
+    "Supervisor",
     "Admin",
     "Superadmin",
 ])
@@ -97,6 +98,7 @@ export const memberSchema = z.object({
         name: z.string(),
         confirmed: z.boolean().optional(),
         active: z.boolean().optional(),
+        roles: z.array(roleSchema).optional().default([]),
     }).nullable().default(null),
 })
 
@@ -151,6 +153,39 @@ export const messageResponseSchema = z.object({
     message: z.string(),
 })
 
+export const lifeGroupSchema = z.object({
+    _id: z.string(),
+    name: z.string(),
+    neighborhood: z.string(),
+    address: z.string(),
+    supervisor: memberSchema.pick({
+        _id: true,
+        firstName: true,
+        lastName: true,
+        documentID: true,
+        birthdate: true,
+        neighborhood: true,
+        phoneNumber: true,
+        bloodType: true,
+        baptized: true,
+        servesInMinistry: true,
+        ministry: true,
+        ministryInterest: true,
+        spiritualGrowthStage: true,
+        role: true,
+        user: true,
+    }),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+})
+
+export const lifeGroupsSchema = z.array(lifeGroupSchema)
+
+export const createLifeGroupResponseSchema = z.object({
+    message: z.string(),
+    lifeGroup: lifeGroupSchema,
+})
+
 export const authUserSchema = z.object({
     id: z.string(),
     email: z.string().email(),
@@ -178,6 +213,12 @@ export type AuthUser = z.infer<typeof authUserSchema>
 export type MemberRoleName = z.infer<typeof memberRoleSchema>
 export type MinistryName = z.infer<typeof ministrySchema>
 export type SpiritualGrowthStage = z.infer<typeof spiritualGrowthStageSchema>
+export type LifeGroup = z.infer<typeof lifeGroupSchema>
+export type LifeGroupFormData = {
+    name: string
+    neighborhood: string
+    address: string
+}
 export type MemberFormData = {
     firstName: string
     lastName: string
@@ -192,5 +233,6 @@ export type MemberFormData = {
     ministryInterest: MinistryName | ""
     spiritualGrowthStage: SpiritualGrowthStage | ""
     roleName: MemberRoleName | ""
+    roleNames: MemberRoleName[]
     email?: string
 }
