@@ -227,10 +227,17 @@ export default function Courses() {
     queryFn: getAllCourses,
   });
 
-  const { data: assignments = [], isError: isAssignmentsError, error: assignmentsError } = useQuery({
+  const {
+    data: assignments = [],
+    isError: isAssignmentsError,
+    error: assignmentsError
+  } = useQuery({
     queryKey: ["courseAssignments"],
     queryFn: getCourseAssignments,
   });
+
+  console.log(assignments);
+
 
   if (isLoading) return <h1>Cargando cursos...</h1>;
   if (isCoursesError) return <h1>{coursesError.message}</h1>;
@@ -439,7 +446,7 @@ export default function Courses() {
             </article>
           ))}
         </div>
-        
+
       ) : null}
     </div>
   );

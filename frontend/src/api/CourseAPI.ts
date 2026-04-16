@@ -34,7 +34,12 @@ export const createCourse = async (formData: CourseFormData): Promise<string> =>
 export const getAllCourses = async () => {
     try {
         const { data } = await api.get('/courses');
-        const response = dashboardCourseSchema.safeParse(data);
+        const normalizedData = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.courses)
+                ? data.courses
+                : data;
+        const response = dashboardCourseSchema.safeParse(normalizedData);
         if(response.success) {
             return response.data;
         }
@@ -48,7 +53,12 @@ export const getAllCourses = async () => {
 export const getCourseAssignments = async (): Promise<CourseAssigned[]> => {
     try {
         const { data } = await api.get('/courses/assignments');
-        const response = assignedCoursesSchema.safeParse(data);
+        const normalizedData = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.assignments)
+                ? data.assignments
+                : data;
+        const response = assignedCoursesSchema.safeParse(normalizedData);
 
         if (response.success) {
             return response.data;
@@ -64,7 +74,12 @@ export const getCourseAssignments = async (): Promise<CourseAssigned[]> => {
 export const getMyCourseAssignments = async (): Promise<CourseAssigned[]> => {
     try {
         const { data } = await api.get('/courses/my-courses');
-        const response = assignedCoursesSchema.safeParse(data);
+        const normalizedData = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.assignments)
+                ? data.assignments
+                : data;
+        const response = assignedCoursesSchema.safeParse(normalizedData);
 
         if (response.success) {
             return response.data;

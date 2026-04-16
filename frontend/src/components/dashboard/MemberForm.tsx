@@ -140,6 +140,7 @@ export default function MemberForm({
                 value={field.value ? parseDate(field.value) : null}
                 onChange={(value) => field.onChange(value ? value.toString() : "")}
                 maxValue={today(getLocalTimeZone())}
+                aria-label="Fecha de nacimiento"
                 className="w-full"
               />
             )}
@@ -198,6 +199,7 @@ export default function MemberForm({
                 selectedKeys={field.value ? [field.value] : []}
                 onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                 placeholder="Seleccione el tipo de sangre"
+                aria-label="Tipo de sangre"
                 className="input"
               >
                 {BLOOD_TYPES.map((bloodType) => (
@@ -220,6 +222,7 @@ export default function MemberForm({
                 selectedKeys={field.value ? [field.value] : []}
                 onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                 placeholder="Seleccione una opción"
+                aria-label="Bautizado"
                 className="input"
               >
                 {BOOLEAN_OPTIONS.map((option) => (
@@ -245,6 +248,7 @@ export default function MemberForm({
                 selectedKeys={field.value ? [field.value] : []}
                 onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                 placeholder="Seleccione un rol principal"
+                aria-label="Rol en la Iglesia"
                 className="input"
               >
                 {visibleRoles.map((role) => (
@@ -268,6 +272,7 @@ export default function MemberForm({
                 selectedKeys={field.value || []}
                 onSelectionChange={(keys) => field.onChange(Array.from(keys))}
                 placeholder="Seleccione roles adicionales"
+                aria-label="Roles adicionales"
                 className="input"
               >
                 {additionalRoles.map((role) => (
@@ -292,6 +297,7 @@ export default function MemberForm({
                 selectedKeys={field.value ? [field.value] : []}
                 onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                 placeholder="Seleccione una etapa"
+                aria-label="Ruta de Crecimiento Espiritual"
                 className="input"
               >
                 {SPIRITUAL_GROWTH_STAGES.map((stage) => (
@@ -318,6 +324,7 @@ export default function MemberForm({
                 selectedKeys={field.value ? [field.value] : []}
                 onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                 placeholder="Seleccione una opción"
+                aria-label="¿Sirve en algún ministerio?"
                 className="input"
               >
                 {BOOLEAN_OPTIONS.map((option) => (
@@ -344,6 +351,7 @@ export default function MemberForm({
                     selectedKeys={field.value ? [field.value] : []}
                     onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                     placeholder="Seleccione un ministerio"
+                    aria-label="¿En qué ministerio sirve?"
                     className="input"
                   >
                     {MINISTRIES.map((ministry) => (
@@ -369,6 +377,7 @@ export default function MemberForm({
                     selectedKeys={field.value ? [field.value] : []}
                     onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                     placeholder="Seleccione un ministerio"
+                    aria-label="¿En qué ministerio está interesado servir?"
                     className="input"
                   >
                     {MINISTRIES.map((ministry) => (

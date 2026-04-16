@@ -104,11 +104,31 @@ export const memberSchema = z.object({
 
 export const membersSchema = z.array(memberSchema)
 
+export const courseParticipantSchema = memberSchema.pick({
+    _id: true,
+    firstName: true,
+    lastName: true,
+    documentID: true,
+    birthdate: true,
+    neighborhood: true,
+    phoneNumber: true,
+    bloodType: true,
+    baptized: true,
+    servesInMinistry: true,
+    ministry: true,
+    ministryInterest: true,
+    spiritualGrowthStage: true,
+    role: true,
+    user: true,
+})
+
+export const courseParticipantsSchema = z.array(courseParticipantSchema)
+
 export const assignedCourseSchema = z.object({
     _id: z.string(),
     course: createCourseSchema,
-    professor: memberSchema,
-    members: membersSchema.default([]),
+    professor: courseParticipantSchema,
+    members: courseParticipantsSchema.default([]),
     startDate: z.string(),
     startTime: z.string(),
     totalClasses: z.number(),
@@ -121,7 +141,7 @@ export const assignedCoursesSchema = z.array(assignedCourseSchema)
 export type CourseAssigned = z.infer<typeof assignedCourseSchema>
 
 export const classAttendanceSchema = z.object({
-    student: memberSchema,
+    student: courseParticipantSchema,
     present: z.boolean(),
     notes: z.string().default(""),
 })

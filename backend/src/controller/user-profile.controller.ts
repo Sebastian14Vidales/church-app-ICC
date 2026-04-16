@@ -15,6 +15,7 @@ import {
   isLoginEnabledRole,
   normalizeEmail,
 } from "../utils/auth.utils";
+import CourseAssigned from "../models/course-assigned.model";
 
 type RoleReference = PopulatedDoc<IRole & Document>;
 
@@ -394,6 +395,18 @@ export class UserProfileController {
 
       if (!profile) {
         return res.status(404).json({ message: "Perfil no encontrado" });
+      }
+
+      // Verificar si el perfil es profesor y tiene cursos activos asignados
+      const activeCourses = await CourseAssigned.countDocuments({
+        professor: profile._id,
+        status: "active",
+      });
+
+      if (activeCourses > 0) {
+        return res.status(400).json({
+          message: `No se puede eliminar: tiene ${activeCourses} curso(s) activo(s). Complete o cancele los cursos primero.`,
+        });
       }
 
       await UserProfile.findByIdAndDelete(id);
