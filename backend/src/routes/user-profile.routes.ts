@@ -94,9 +94,10 @@ router.post(
     .withMessage("El crecimiento espiritual es obligatorio")
     .isIn(SPIRITUAL_GROWTH_STAGES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
-  body("roleName").optional().notEmpty().withMessage("El rol principal es obligatorio cuando no se seleccionan roles adicionales"),
   body("roleNames")
-    .optional()
+    .isArray({ min: 1 })
+    .withMessage("Debes seleccionar al menos un rol"),
+  body("roleNames")
     .isArray()
     .withMessage("Los roles deben ser un arreglo"),
   body("roleNames.*")
@@ -112,7 +113,7 @@ router.post(
     .isLength({ min: 8 })
     .withMessage("La contraseña debe tener al menos 8 caracteres"),
   body().custom((value) => {
-    const hasLoginRole = (value.roleNames || [value.roleName]).some((role: string) =>
+    const hasLoginRole = (value.roleNames || []).some((role: string) =>
       LOGIN_ENABLED_ROLES.includes(role),
     );
     if (hasLoginRole && !value.email) {
@@ -176,7 +177,6 @@ router.put(
     .optional()
     .isIn(SPIRITUAL_GROWTH_STAGES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
-  body("roleName").optional().notEmpty().withMessage("El rol principal es obligatorio cuando no se seleccionan roles adicionales"),
   body("roleNames")
     .optional()
     .isArray()

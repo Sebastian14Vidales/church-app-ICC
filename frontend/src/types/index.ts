@@ -252,7 +252,6 @@ export type MemberFormData = {
     ministry: MinistryName | ""
     ministryInterest: MinistryName | ""
     spiritualGrowthStage: SpiritualGrowthStage | ""
-    roleName: MemberRoleName | ""
     roleNames: MemberRoleName[]
     email?: string
 }

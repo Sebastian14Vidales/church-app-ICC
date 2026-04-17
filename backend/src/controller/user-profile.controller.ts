@@ -33,6 +33,23 @@ const sendAccountConfirmation = async (email: string, name: string, userId: stri
 };
 
 const MEMBER_QUERY_KEYS = [["members"], ["myCourses"], ["myAttendance"], ["courseAssignments"]];
+const PRIMARY_ROLE_PRIORITY = [
+  "Superadmin",
+  "Admin",
+  "Pastor",
+  "Supervisor",
+  "Profesor",
+  "Miembro",
+  "Asistente",
+] as const;
+
+const resolvePrimaryRole = <TRole extends { name: string }>(roles: TRole[]) => {
+  const prioritizedRole = PRIMARY_ROLE_PRIORITY
+    .map((roleName) => roles.find((role) => role.name === roleName))
+    .find(Boolean);
+
+  return prioritizedRole ?? roles[0];
+};
 
 export class UserProfileController {
   static create = async (req: AuthenticatedRequest, res: Response) => {
@@ -41,7 +58,6 @@ export class UserProfileController {
 
     try {
       const {
-        roleName,
         roleNames,
         email,
         firstName,
@@ -54,11 +70,7 @@ export class UserProfileController {
         ...profileData
       } = req.body;
 
-      const selectedRoleNames = Array.isArray(roleNames)
-        ? roleNames
-        : roleName
-          ? [roleName]
-          : [];
+      const selectedRoleNames = Array.isArray(roleNames) ? roleNames : [];
 
       if (!selectedRoleNames.length) {
         return res.status(400).json({ message: "Debe seleccionar al menos un rol" });
@@ -85,7 +97,7 @@ export class UserProfileController {
         return res.status(400).json({ message: "Uno o varios roles seleccionados son inválidos" });
       }
 
-      const primaryRole = roleName ? roleMap.get(roleName) ?? selectedRoles[0] : selectedRoles[0];
+      const primaryRole = resolvePrimaryRole(selectedRoles);
       const selectedRoleIds = selectedRoles.map((role) => role._id);
       const requiresAccess = selectedRoles.some((role) => isLoginEnabledRole(role.name));
       let userId = undefined;
@@ -214,7 +226,6 @@ export class UserProfileController {
       }
 
       const {
-        roleName,
         roleNames,
         email,
         firstName = profile.firstName,
@@ -226,11 +237,7 @@ export class UserProfileController {
         spiritualGrowthStage,
         ...updateData
       } = req.body;
-      const selectedRoleNames = Array.isArray(roleNames)
-        ? roleNames
-        : roleName
-          ? [roleName]
-          : [];
+      const selectedRoleNames = Array.isArray(roleNames) ? roleNames : [];
 
       const isSupervisorOnly = Boolean(
         req.auth?.roles.includes("Supervisor") &&
@@ -278,7 +285,7 @@ export class UserProfileController {
           return res.status(400).json({ message: "Uno o varios roles seleccionados son inválidos" });
         }
 
-        const primaryRole = roleName ? roleMap.get(roleName) ?? selectedRoles[0] : selectedRoles[0];
+        const primaryRole = resolvePrimaryRole(selectedRoles);
         role = primaryRole;
         normalizedUpdateData.role = primaryRole._id;
       }

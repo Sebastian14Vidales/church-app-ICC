@@ -23,14 +23,12 @@ const buildMemberPayload = (formData: MemberFormData) => {
     const selectedRoles = Array.from(
         new Set<string>([
             ...(formData.roleNames || []),
-            ...(formData.roleName ? [formData.roleName] : []),
         ]),
     );
 
     return {
         ...formData,
         roleNames: selectedRoles,
-        roleName: formData.roleName,
         baptized,
         servesInMinistry,
         ministry: servesInMinistry === true ? formData.ministry || undefined : undefined,

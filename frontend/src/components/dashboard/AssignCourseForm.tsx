@@ -67,9 +67,13 @@ export default function AssignCourseForm({
             .map((assignment) => assignment.professor._id),
     );
 
-    const professors = members.filter(
-        (member) => member.role.name === "Profesor" && !assignedProfessorIds.has(member._id),
-    );
+    const professors = members.filter((member) => {
+        const hasProfessorRole =
+            member.role.name === "Profesor" ||
+            member.user?.roles?.some((role) => role.name === "Profesor");
+
+        return hasProfessorRole && !assignedProfessorIds.has(member._id);
+    });
     const startDate = useWatch({ control, name: "startDate" });
     const totalClasses = useWatch({ control, name: "totalClasses" });
     const calculatedEndDate = calculateEndDate(startDate, totalClasses);

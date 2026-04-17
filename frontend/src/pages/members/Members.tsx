@@ -50,7 +50,6 @@ const initialValues: MemberFormData = {
     ministry: "",
     ministryInterest: "",
     spiritualGrowthStage: "",
-    roleName: "",
     roleNames: [],
     email: "",
 };
@@ -87,12 +86,9 @@ const memberToFormData = (member: Member): MemberFormData => ({
     ministry: member.servesInMinistry ? member.ministry ?? "" : "",
     ministryInterest: member.servesInMinistry === false ? member.ministryInterest ?? "" : "",
     spiritualGrowthStage: member.spiritualGrowthStage ?? "",
-    roleName: member.role.name as MemberFormData["roleName"],
     roleNames: Array.from(
         new Set<string>(
-            (member.user?.roles?.map((role) => role.name) ?? []).filter(
-                (roleName) => roleName !== member.role.name,
-            ),
+            [member.role.name, ...(member.user?.roles?.map((role) => role.name) ?? [])],
         ),
     ) as MemberFormData["roleNames"],
     email: member.user?.email ?? "",
@@ -112,7 +108,6 @@ export default function Members() {
         watch,
         setValue,
     } = useForm<MemberFormData>({ defaultValues: initialValues });
-    const selectedRole = watch("roleName");
     const roleNames = watch("roleNames");
     const servesInMinistry = watch("servesInMinistry");
 
@@ -178,12 +173,12 @@ export default function Members() {
 
     useEffect(() => {
         const rolesWithAccess = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
-        const selectedRoles = [selectedRole, ...(roleNames || [])].filter(Boolean);
+        const selectedRoles = roleNames || [];
 
         if (!selectedRoles.some((role) => rolesWithAccess.includes(role))) {
             setValue("email", "");
         }
-    }, [selectedRole, roleNames, setValue]);
+    }, [roleNames, setValue]);
 
     useEffect(() => {
         if (servesInMinistry === "true") {
@@ -285,7 +280,6 @@ export default function Members() {
                         register={register}
                         errors={errors}
                         control={control}
-                        selectedRole={selectedRole}
                     />
 
                     <input

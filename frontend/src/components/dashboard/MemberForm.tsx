@@ -43,14 +43,12 @@ type MemberFormProps = {
   register: UseFormRegister<MemberFormData>;
   errors: FieldErrors<MemberFormData>;
   control: Control<MemberFormData>;
-  selectedRole: MemberFormData["roleName"];
 };
 
 export default function MemberForm({
   register,
   errors,
   control,
-  selectedRole,
 }: MemberFormProps) {
   const { user } = useAuth();
   const { data: roles = [], isLoading } = useQuery({
@@ -60,7 +58,7 @@ export default function MemberForm({
 
   const servesInMinistry = useWatch({ control, name: "servesInMinistry" });
   const selectedRoleNames = useWatch({ control, name: "roleNames" }) || [];
-  const requiresAccess = [selectedRole, ...selectedRoleNames].some((role) =>
+  const requiresAccess = selectedRoleNames.some((role) =>
     LOGIN_ENABLED_ROLES.includes(role)
   );
   const isRestrictedMemberManager =
@@ -69,9 +67,8 @@ export default function MemberForm({
     if (isRestrictedMemberManager) {
       return ["Asistente", "Miembro"].includes(role.name);
     }
-    return !["Admin", "Superadmin"].includes(role.name) || role.name === selectedRole;
+    return !["Admin", "Superadmin"].includes(role.name);
   });
-  const additionalRoles = visibleRoles.filter((role) => role.name !== selectedRole);
 
   return (
     <div className="flex flex-col space-y-4">
@@ -237,18 +234,22 @@ export default function MemberForm({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Rol en la Iglesia</label>
+          <label className="block text-sm font-medium text-gray-700">Roles en la Iglesia</label>
           <Controller
-            name="roleName"
+            name="roleNames"
             control={control}
-            rules={{ required: true }}
+            rules={{
+              validate: (value) =>
+                Array.isArray(value) && value.length > 0 ? true : "Selecciona al menos un rol",
+            }}
             render={({ field }) => (
               <Select
                 isLoading={isLoading}
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                placeholder="Seleccione un rol principal"
-                aria-label="Rol en la Iglesia"
+                selectionMode="multiple"
+                selectedKeys={field.value || []}
+                onSelectionChange={(keys) => field.onChange(Array.from(keys))}
+                placeholder="Selecciona uno o varios roles"
+                aria-label="Roles en la Iglesia"
                 className="input"
               >
                 {visibleRoles.map((role) => (
@@ -257,31 +258,10 @@ export default function MemberForm({
               </Select>
             )}
           />
-          {errors.roleName && <span className="text-xs text-red-500">Este campo es requerido</span>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Roles adicionales</label>
-          <Controller
-            name="roleNames"
-            control={control}
-            render={({ field }) => (
-              <Select
-                isLoading={isLoading}
-                selectionMode="multiple"
-                selectedKeys={field.value || []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys))}
-                placeholder="Seleccione roles adicionales"
-                aria-label="Roles adicionales"
-                className="input"
-              >
-                {additionalRoles.map((role) => (
-                  <SelectItem key={role.name}>{role.name}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
-          <p className="mt-1 text-xs text-slate-500">Puedes seleccionar más de un rol para el acceso del miembro.</p>
+          {errors.roleNames && <span className="text-xs text-red-500">{errors.roleNames.message}</span>}
+          <p className="mt-1 text-xs text-slate-500">
+            Puedes seleccionar varios roles. El sistema definirá automáticamente el rol principal del perfil.
+          </p>
         </div>
       </div>
 
