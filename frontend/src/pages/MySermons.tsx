@@ -7,9 +7,9 @@ export default function MySermons() {
     const { user } = useAuth();
 
     const { data: sermons = [], isLoading } = useQuery({
-        queryKey: ["mySermons", user?.id],
-        queryFn: () => getSermonsByPastor(user!.id),
-        enabled: Boolean(user?.id),
+        queryKey: ["mySermons", user?.profileId ?? user?.id],
+        queryFn: () => getSermonsByPastor(user?.profileId ?? user!.id),
+        enabled: Boolean(user?.profileId ?? user?.id),
     });
 
     if (!user) {

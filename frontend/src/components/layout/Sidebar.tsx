@@ -46,7 +46,7 @@ export default function Sidebar() {
     if (isAdmin) {
         navigationItems.push(
             { name: "Cursos", href: PATHS.courses, icon: BookOpen },
-            { name: "Eventos", href: PATHS.events, icon: Calendar, disabled: true },
+            { name: "Eventos", href: PATHS.events, icon: Calendar },
             { name: "Ofrendas", href: PATHS.offerings, icon: DollarSign, disabled: true },
             { name: "Reportes", href: PATHS.reports, icon: BarChart3, disabled: true },
         );

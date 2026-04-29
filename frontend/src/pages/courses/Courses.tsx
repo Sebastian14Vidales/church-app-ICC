@@ -368,7 +368,7 @@ export default function Courses() {
                   <h3 className="text-lg font-bold text-gray-900">{assignment.course.name}</h3>
                   <p className="text-sm text-gray-500">{assignment.course.description}</p>
                 </div>
-                <div className="flex items-start gap-2">
+                <div className="flex flex-col items-center gap-2">
                   <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase text-green-700">
                     {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}
                   </span>

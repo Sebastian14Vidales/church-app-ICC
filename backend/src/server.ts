@@ -9,6 +9,7 @@ import userRoutes from "./routes/user.routes";
 import userProfileRoutes from "./routes/user-profile.routes";
 import sermonRoutes from "./routes/sermon.routes";
 import lifeGroupRoutes from "./routes/life-group.routes";
+import eventRoutes from "./routes/event.routes";
 
 const app = express();
 app.use(express.json());
@@ -35,5 +36,6 @@ app.use("/api/members", userProfileRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/sermons", sermonRoutes);
 app.use("/api/life-groups", lifeGroupRoutes);
+app.use("/api/events", eventRoutes);
 
 export default app;
