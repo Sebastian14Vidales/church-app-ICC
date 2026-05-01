@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   ArrowRight,
   BadgeDollarSign,
   BookOpen,
@@ -20,6 +21,9 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Textarea } from "@heroui/react";
+import type { Swiper as SwiperType } from "swiper";
+import { Autoplay } from "swiper/modules";
+import { Swiper, SwiperSlide } from "swiper/react";
 import { toast } from "react-toastify";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllEvents } from "@/api/EventAPI";
@@ -39,6 +43,7 @@ import { getLocationNameById } from "@/utils/constants/locations";
 import { roleLabels } from "@/utils/constants/roleColors";
 import PATHS from "@/utils/constants/routes";
 import { formatFullName } from "@/utils/text";
+import "swiper/css";
 
 const pluralize = (count: number, singular: string, plural: string) =>
   `${count} ${count === 1 ? singular : plural}`;
@@ -64,6 +69,9 @@ export default function Dashboard() {
 
   const [isSermonModalOpen, setIsSermonModalOpen] = useState(false);
   const [editingSermon, setEditingSermon] = useState<Sermon | null>(null);
+  const [eventSlideIndex, setEventSlideIndex] = useState(0);
+  const [coursesSwiper, setCoursesSwiper] = useState<SwiperType | null>(null);
+  const [courseSlideIndex, setCourseSlideIndex] = useState(0);
 
   const sermonForm = useForm<SermonFormValues>({
     defaultValues: {
@@ -192,17 +200,32 @@ export default function Dashboard() {
   const roleDistribution = Object.entries(roleSummary).sort((left, right) => right[1] - left[1]);
 
   const eventInsights = useMemo(() => {
-    const upcoming = events
-      .filter((event) => new Date(event.date).getTime() >= today.getTime())
-      .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime());
+    const sortedEvents = [...events].sort(
+      (left, right) => new Date(left.date).getTime() - new Date(right.date).getTime(),
+    );
 
     return {
-      upcoming: upcoming.slice(0, 4),
+      carouselEvents: sortedEvents,
       totalCollected: events.reduce((sum, event) => sum + event.summary.paidTotal, 0),
       totalPending: events.reduce((sum, event) => sum + event.summary.pendingTotal, 0),
       totalRegistrations: events.reduce((sum, event) => sum + event.summary.registeredCount, 0),
     };
   }, [events, today]);
+
+  const courseSlides = useMemo(() => {
+    const groupedCourses: typeof courses[] = [];
+
+    for (let index = 0; index < courses.length; index += 2) {
+      groupedCourses.push(courses.slice(index, index + 2));
+    }
+
+    return groupedCourses;
+  }, [courses]);
+
+  const hasMultipleUpcomingEvents = eventInsights.carouselEvents.length > 1;
+  const hasMultipleCourses = courseSlides.length > 1;
+  const activeDashboardEvent =
+    eventInsights.carouselEvents[eventSlideIndex] ?? eventInsights.carouselEvents[0] ?? null;
 
   const statCards = [
     {
@@ -705,26 +728,45 @@ export default function Dashboard() {
           <div className="mt-6 grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Inscritos</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{eventInsights.totalRegistrations}</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">
+                {activeDashboardEvent?.summary.registeredCount ?? 0}
+              </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Recaudado</p>
               <p className="mt-2 text-lg font-bold text-slate-900">
-                {CURRENCY_FORMATTER.format(eventInsights.totalCollected)}
+                {CURRENCY_FORMATTER.format(activeDashboardEvent?.summary.paidTotal ?? 0)}
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Pendiente</p>
               <p className="mt-2 text-lg font-bold text-rose-600">
-                {CURRENCY_FORMATTER.format(eventInsights.totalPending)}
+                {CURRENCY_FORMATTER.format(activeDashboardEvent?.summary.pendingTotal ?? 0)}
               </p>
             </div>
           </div>
 
           <div className="mt-6 space-y-4">
-            {eventInsights.upcoming.length ? (
-              eventInsights.upcoming.map((event) => (
-                <div key={event._id} className="rounded-2xl border border-slate-200 p-4">
+            {eventInsights.carouselEvents.length ? (
+              <Swiper
+                modules={[Autoplay]}
+                spaceBetween={16}
+                slidesPerView={1}
+                loop={hasMultipleUpcomingEvents}
+                speed={900}
+                onSlideChange={(swiper) => setEventSlideIndex(swiper.realIndex)}
+                autoplay={
+                  hasMultipleUpcomingEvents
+                    ? {
+                        delay: 2600,
+                        disableOnInteraction: false,
+                      }
+                    : false
+                }
+              >
+                {eventInsights.carouselEvents.map((event) => (
+                  <SwiperSlide key={event._id}>
+                    <div className="rounded-2xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-slate-900">{event.name}</p>
@@ -746,8 +788,10 @@ export default function Dashboard() {
                       {CURRENCY_FORMATTER.format(event.summary.paidTotal)} cobrados
                     </span>
                   </div>
-                </div>
-              ))
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
             ) : (
               <p className="text-sm text-slate-500">Aún no hay eventos próximos registrados.</p>
             )}
@@ -760,28 +804,72 @@ export default function Dashboard() {
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Formación</p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900">Catálogo de cursos</h2>
             </div>
-            <Link to={coursesPath} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
-              {hasCompactSidebar ? "Ir a mis cursos" : "Ir a cursos"}
-            </Link>
+            <div className="flex items-center gap-2">
+              {hasMultipleCourses ? (
+                <>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="flat"
+                    aria-label="Curso anterior"
+                    onPress={() => coursesSwiper?.slidePrev()}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="flat"
+                    aria-label="Siguiente curso"
+                    onPress={() => coursesSwiper?.slideNext()}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : null}
+              <Link to={coursesPath} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                {hasCompactSidebar ? "Ir a mis cursos" : "Ir a cursos"}
+              </Link>
+            </div>
           </div>
 
           <div className="mt-6 space-y-4">
-            {courses.length ? (
-              courses.slice(0, 5).map((course) => (
-                <div key={course._id} className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">{course.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {course.description.length > 90 ? `${course.description.slice(0, 90)}...` : course.description}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                      {COURSE_LEVEL_LABELS[course.level] ?? course.level}
-                    </span>
-                  </div>
-                </div>
-              ))
+            {courseSlides.length ? (
+              <>
+                <Swiper
+                  spaceBetween={16}
+                  slidesPerView={1}
+                  onSwiper={setCoursesSwiper}
+                  onSlideChange={(swiper) => setCourseSlideIndex(swiper.realIndex)}
+                >
+                  {courseSlides.map((courseGroup, groupIndex) => (
+                    <SwiperSlide key={`course-group-${groupIndex}`}>
+                      <div className="space-y-4">
+                        {courseGroup.map((course) => (
+                          <div key={course._id} className="rounded-2xl border border-slate-200 p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-slate-900">{course.name}</p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {course.description.length > 90 ? `${course.description.slice(0, 90)}...` : course.description}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                {COURSE_LEVEL_LABELS[course.level] ?? course.level}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+                {hasMultipleCourses ? (
+                  <p className="text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+                    {courseSlideIndex + 1} / {courseSlides.length}
+                  </p>
+                ) : null}
+              </>
             ) : (
               <p className="text-sm text-slate-500">No hay cursos creados.</p>
             )}

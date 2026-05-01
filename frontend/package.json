@@ -23,6 +23,7 @@
     "react-toastify": "^11.0.5",
     "socket.io-client": "^4.8.3",
     "sweetalert2": "^11.26.21",
+    "swiper": "^12.1.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
