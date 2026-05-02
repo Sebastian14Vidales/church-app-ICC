@@ -95,9 +95,21 @@ export const routes: RouteObject[] = [
                 }),
               },
               {
+                path: PATHS.sermons,
+                lazy: async () => ({
+                  Component: (await import("@/pages/sermons/Sermons")).default,
+                }),
+              },
+              {
                 path: PATHS.events,
                 lazy: async () => ({
                   Component: (await import("@/pages/Events")).default,
+                }),
+              },
+              {
+                path: PATHS.reports,
+                lazy: async () => ({
+                  Component: (await import("@/pages/reports/Reports")).default,
                 }),
               },
             ],

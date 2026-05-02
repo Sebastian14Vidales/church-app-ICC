@@ -2,6 +2,7 @@ export type MemberFiltersValue = {
     baptized: "" | "true" | "false";
     bloodType: string;
     searchTerm: string;
+    spiritualGrowthStage: string;
 };
 
 type MemberFiltersProps = {
@@ -11,6 +12,14 @@ type MemberFiltersProps = {
 };
 
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
+const SPIRITUAL_GROWTH_STAGES = [
+    "Consolidación",
+    "Discipulado básico",
+    "Carácter cristiano",
+    "Sanidad y propósito",
+    "Cosmovisión bíblica",
+    "Doctrina cristiana",
+];
 
 export default function MemberFilters({ filters, onChange, onClear }: MemberFiltersProps) {
     const handleFieldChange = (field: keyof MemberFiltersValue, value: string) => {
@@ -22,7 +31,7 @@ export default function MemberFilters({ filters, onChange, onClear }: MemberFilt
 
     return (
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <div>
                     <label htmlFor="member-search" className="mb-1 block text-sm font-medium text-gray-700">
                         Documento o nombre
@@ -51,6 +60,25 @@ export default function MemberFilters({ filters, onChange, onClear }: MemberFilt
                         {BLOOD_TYPES.map((bloodType) => (
                             <option key={bloodType} value={bloodType}>
                                 {bloodType}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label htmlFor="member-growth-stage" className="mb-1 block text-sm font-medium text-gray-700">
+                        Ruta espiritual
+                    </label>
+                    <select
+                        id="member-growth-stage"
+                        value={filters.spiritualGrowthStage}
+                        onChange={(event) => handleFieldChange("spiritualGrowthStage", event.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                        <option value="">Todas</option>
+                        {SPIRITUAL_GROWTH_STAGES.map((stage) => (
+                            <option key={stage} value={stage}>
+                                {stage}
                             </option>
                         ))}
                     </select>

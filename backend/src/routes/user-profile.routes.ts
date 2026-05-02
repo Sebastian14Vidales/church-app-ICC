@@ -57,9 +57,9 @@ router.post(
   body("documentID")
     .notEmpty()
     .withMessage("El documento es obligatorio")
-    .isLength({ min: 10, max: 10 })
-    .withMessage("El documento debe tener exactamente 10 dígitos")
-    .matches(/^\d{10}$/)
+    .isLength({ min: 6, max: 10 })
+    .withMessage("El documento debe tener entre 6 y 10 dígitos")
+    .matches(/^\d{6,10}$/)
     .withMessage("El documento debe contener solo números"),
   body("birthdate")
     .notEmpty()
@@ -145,9 +145,9 @@ router.put(
   body("lastName").optional().notEmpty().withMessage("El apellido es obligatorio"),
   body("documentID")
     .optional()
-    .isLength({ min: 10, max: 10 })
-    .withMessage("El documento debe tener exactamente 10 dígitos")
-    .matches(/^\d{10}$/)
+    .isLength({ min: 6, max: 10 })
+    .withMessage("El documento debe tener entre 6 y 10 dígitos")
+    .matches(/^\d{6,10}$/)
     .withMessage("El documento debe contener solo números"),
   body("phoneNumber")
     .optional()

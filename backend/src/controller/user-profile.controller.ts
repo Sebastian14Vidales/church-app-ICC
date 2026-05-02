@@ -76,6 +76,11 @@ export class UserProfileController {
         return res.status(400).json({ message: "Debe seleccionar al menos un rol" });
       }
 
+      const existingProfileWithDocument = await UserProfile.findOne({ documentID: profileData.documentID }).select("_id");
+      if (existingProfileWithDocument) {
+        return res.status(409).json({ message: "Ya existe un miembro con este número de documento" });
+      }
+
       const isSupervisorOnly = Boolean(
         req.auth?.roles.includes("Supervisor") &&
           !req.auth.roles.some((role) => ["Admin", "Superadmin", "Profesor", "Pastor"].includes(role)),
@@ -238,6 +243,17 @@ export class UserProfileController {
         ...updateData
       } = req.body;
       const selectedRoleNames = Array.isArray(roleNames) ? roleNames : [];
+
+      if (updateData.documentID) {
+        const existingProfileWithDocument = await UserProfile.findOne({
+          documentID: updateData.documentID,
+          _id: { $ne: id },
+        }).select("_id");
+
+        if (existingProfileWithDocument) {
+          return res.status(409).json({ message: "Ya existe un miembro con este número de documento" });
+        }
+      }
 
       const isSupervisorOnly = Boolean(
         req.auth?.roles.includes("Supervisor") &&

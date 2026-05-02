@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,34 +8,23 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
-  Edit3,
   HeartHandshake,
   Mail,
   MapPin,
   Sparkles,
-  Trash2,
   TrendingUp,
   UserCheck,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Textarea } from "@heroui/react";
 import type { Swiper as SwiperType } from "swiper";
+import { Button } from "@heroui/react";
 import { Autoplay } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { toast } from "react-toastify";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllEvents } from "@/api/EventAPI";
 import { getMyLifeGroups } from "@/api/LifeGroupAPI";
 import { getAllMembers } from "@/api/MemberAPI";
-import {
-  createSermon,
-  deleteSermon,
-  getAllSermons,
-  type CreateSermonData,
-  type Sermon,
-  updateSermon,
-} from "@/api/SermonAPI";
 import { useAuth } from "@/lib/auth";
 import { COURSE_LEVEL_LABELS, COURSE_STATUS_LABELS } from "@/utils/constants/courses";
 import { getLocationNameById } from "@/utils/constants/locations";
@@ -54,10 +42,8 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 0,
 });
 
-type SermonFormValues = CreateSermonData;
 
 export default function Dashboard() {
-  const queryClient = useQueryClient();
   const { user } = useAuth();
   const isSupervisorOnly =
     user?.roles.includes("Supervisor") &&
@@ -67,21 +53,10 @@ export default function Dashboard() {
   const coursesLinkLabel = hasCompactSidebar ? "Ver mis cursos" : "Administrar cursos";
   const isAdmin = user?.roles.includes("Admin") || user?.roles.includes("Superadmin");
 
-  const [isSermonModalOpen, setIsSermonModalOpen] = useState(false);
-  const [editingSermon, setEditingSermon] = useState<Sermon | null>(null);
   const [eventSlideIndex, setEventSlideIndex] = useState(0);
   const [coursesSwiper, setCoursesSwiper] = useState<SwiperType | null>(null);
   const [courseSlideIndex, setCourseSlideIndex] = useState(0);
 
-  const sermonForm = useForm<SermonFormValues>({
-    defaultValues: {
-      title: "",
-      date: "",
-      time: "",
-      pastor: "",
-      description: "",
-    },
-  });
 
   const { data: members = [] } = useQuery({
     queryKey: ["members"],
@@ -98,11 +73,6 @@ export default function Dashboard() {
     queryFn: getCourseAssignments,
   });
 
-  const { data: sermons = [] } = useQuery({
-    queryKey: ["sermons"],
-    queryFn: getAllSermons,
-    enabled: Boolean(isAdmin),
-  });
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
@@ -116,51 +86,6 @@ export default function Dashboard() {
     enabled: Boolean(isSupervisorOnly),
   });
 
-  const invalidateSermons = () => {
-    queryClient.invalidateQueries({ queryKey: ["sermons"] });
-    queryClient.invalidateQueries({ queryKey: ["mySermons"] });
-  };
-
-  const createSermonMutation = useMutation({
-    mutationFn: createSermon,
-    onSuccess: () => {
-      toast.success("Predica programada exitosamente");
-      sermonForm.reset();
-      setIsSermonModalOpen(false);
-      invalidateSermons();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Error al programar la predica");
-    },
-  });
-
-  const updateSermonMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateSermonData> }) =>
-      updateSermon(id, payload),
-    onSuccess: () => {
-      toast.success("Predica actualizada correctamente");
-      sermonForm.reset();
-      setEditingSermon(null);
-      setIsSermonModalOpen(false);
-      invalidateSermons();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "No se pudo actualizar la predica");
-    },
-  });
-
-  const deleteSermonMutation = useMutation({
-    mutationFn: deleteSermon,
-    onSuccess: () => {
-      toast.success("Predica eliminada correctamente");
-      invalidateSermons();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "No se pudo eliminar la predica");
-    },
-  });
-
-  const pastors = members.filter((member) => member.role.name === "Pastor" && member.user?._id);
   const activeAssignments = assignments.filter((assignment) => assignment.status === "active");
   const professors = members.filter((member) => member.role.name === "Profesor");
   const professorsAvailable = professors.filter(
@@ -171,21 +96,6 @@ export default function Dashboard() {
   const membersWithAccess = members.filter((member) => member.user?.email).length;
   const accessCoverage = members.length ? Math.round((membersWithAccess / members.length) * 100) : 0;
   const baptizedCoverage = members.length ? Math.round((baptizedMembers / members.length) * 100) : 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const pendingSermons = useMemo(
-    () =>
-      sermons
-        .filter((sermon) => new Date(sermon.date).getTime() >= today.getTime())
-        .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime()),
-    [sermons, today],
-  );
-  const scheduledSermons = useMemo(
-    () =>
-      [...sermons].sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()),
-    [sermons],
-  );
 
   const activeSchedule = [...activeAssignments]
     .sort((left, right) => new Date(left.startDate).getTime() - new Date(right.startDate).getTime())
@@ -210,7 +120,7 @@ export default function Dashboard() {
       totalPending: events.reduce((sum, event) => sum + event.summary.pendingTotal, 0),
       totalRegistrations: events.reduce((sum, event) => sum + event.summary.registeredCount, 0),
     };
-  }, [events, today]);
+  }, [events]);
 
   const courseSlides = useMemo(() => {
     const groupedCourses: typeof courses[] = [];
@@ -258,41 +168,6 @@ export default function Dashboard() {
     },
   ];
 
-  const openCreateSermonModal = () => {
-    setEditingSermon(null);
-    sermonForm.reset({
-      title: "",
-      date: "",
-      time: "",
-      pastor: "",
-      description: "",
-    });
-    setIsSermonModalOpen(true);
-  };
-
-  const openEditSermonModal = (sermon: Sermon) => {
-    setEditingSermon(sermon);
-    sermonForm.reset({
-      title: sermon.title,
-      date: sermon.date.slice(0, 10),
-      time: sermon.time,
-      pastor: sermon.pastor._id,
-      description: sermon.description ?? "",
-    });
-    setIsSermonModalOpen(true);
-  };
-
-  const submitSermon = sermonForm.handleSubmit((values) => {
-    if (editingSermon) {
-      updateSermonMutation.mutate({
-        id: editingSermon._id,
-        payload: values,
-      });
-      return;
-    }
-
-    createSermonMutation.mutate(values);
-  });
 
   if (isSupervisorOnly) {
     const membersInCoverage = members.filter((member) =>
@@ -489,114 +364,6 @@ export default function Dashboard() {
         ))}
       </section>
 
-      {isAdmin ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Ministerio</p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">Agenda de prédicas</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Aquí ves tanto las próximas prédicas como la lista general ya asignada.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white"
-              startContent={<BookOpen className="h-4 w-4" />}
-              onPress={openCreateSermonModal}
-            >
-              Agendar prédica
-            </Button>
-          </div>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-2">
-            <div>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-slate-900">Próximas prédicas</h3>
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                  {pendingSermons.length} pendientes
-                </span>
-              </div>
-              <div className="space-y-4">
-                {pendingSermons.length ? (
-                  pendingSermons.slice(0, 6).map((sermon) => (
-                    <div key={sermon._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h3 className="font-semibold text-slate-900">{sermon.title}</h3>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {new Date(sermon.date).toLocaleDateString("es-CO", {
-                              day: "2-digit",
-                              month: "long",
-                              year: "numeric",
-                            })}{" "}
-                            · {sermon.time}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                          {sermon.pastor?.name ?? "Pastor"}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm text-slate-600">{sermon.description || "Sin descripción adicional"}</p>
-                      <div className="mt-4 flex gap-2">
-                        <Button size="sm" variant="flat" startContent={<Edit3 className="h-4 w-4" />} onPress={() => openEditSermonModal(sermon)}>
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          color="danger"
-                          variant="light"
-                          startContent={<Trash2 className="h-4 w-4" />}
-                          onPress={() => deleteSermonMutation.mutate(sermon._id)}
-                          isLoading={deleteSermonMutation.isPending}
-                        >
-                          Borrar
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-slate-500">
-                    No hay prédicas futuras, pero abajo sigue visible la lista asignada.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-slate-900">Lista general asignada</h3>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  {scheduledSermons.length} registradas
-                </span>
-              </div>
-              <div className="space-y-3">
-                {scheduledSermons.length ? (
-                  scheduledSermons.slice(0, 8).map((sermon) => (
-                    <div key={`${sermon._id}-list`} className="rounded-2xl border border-slate-200 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-900">{sermon.title}</p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {new Date(sermon.date).toLocaleDateString("es-CO")} · {sermon.time}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {sermon.pastor?.name ?? "Pastor"}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-slate-500">
-                    Aún no hay prédicas registradas.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
@@ -877,56 +644,7 @@ export default function Dashboard() {
         </article>
       </section>
 
-      <Modal isOpen={isSermonModalOpen} onOpenChange={setIsSermonModalOpen}>
-        <ModalContent>
-          <form onSubmit={submitSermon}>
-            <ModalHeader>{editingSermon ? "Editar prédica" : "Programar prédica"}</ModalHeader>
-            <ModalBody className="space-y-3">
-              <input
-                className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                placeholder="Título de la prédica"
-                {...sermonForm.register("title", { required: true })}
-              />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input
-                  type="date"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                  {...sermonForm.register("date", { required: true })}
-                />
-                <input
-                  type="time"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                  {...sermonForm.register("time", { required: true })}
-                />
-              </div>
-              <select
-                className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                {...sermonForm.register("pastor", { required: true })}
-              >
-                <option value="">Selecciona un pastor</option>
-                {pastors.map((pastor) => (
-                  <option key={pastor.user!._id} value={pastor.user!._id}>
-                    {formatFullName(pastor.firstName, pastor.lastName)}
-                  </option>
-                ))}
-              </select>
-              <Textarea placeholder="Descripción opcional" {...sermonForm.register("description")} />
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="light" onPress={() => setIsSermonModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white"
-                isLoading={createSermonMutation.isPending || updateSermonMutation.isPending}
-              >
-                {editingSermon ? "Guardar cambios" : "Programar"}
-              </Button>
-            </ModalFooter>
-          </form>
-        </ModalContent>
-      </Modal>
     </div>
   );
 }
+

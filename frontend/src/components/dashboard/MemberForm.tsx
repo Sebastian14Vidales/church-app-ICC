@@ -109,9 +109,9 @@ export default function MemberForm({
             id="documentID"
             {...register("documentID", {
               required: true,
-              minLength: 10,
+              minLength: 6,
               maxLength: 10,
-              pattern: /^\d{10}$/,
+              pattern: /^\d{6,10}$/,
               onChange: (event) => {
                 event.target.value = event.target.value.replace(/\D/g, "").slice(0, 10);
               },
@@ -120,7 +120,7 @@ export default function MemberForm({
             classNames={{ inputWrapper: "border-none shadow-none" }}
           />
           {errors.documentID && (
-            <span className="text-xs text-red-500">Debe tener exactamente 10 dígitos</span>
+            <span className="text-xs text-red-500">Debe tener entre 6 y 10 dígitos</span>
           )}
         </div>
 

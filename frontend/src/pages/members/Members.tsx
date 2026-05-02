@@ -58,6 +58,7 @@ const initialFilters: MemberFiltersValue = {
     baptized: "",
     bloodType: "",
     searchTerm: "",
+    spiritualGrowthStage: "",
 };
 
 const getGrowthProgress = (stage?: SpiritualGrowthStage) => {
@@ -121,12 +122,15 @@ export default function Members() {
         const matchesSearch =
             !normalizedSearchTerm ||
             normalizeSearchText(`${member.firstName} ${member.lastName}`).includes(normalizedSearchTerm) ||
-            member.documentID.includes(filters.searchTerm.trim());
+            member.documentID.includes(filters.searchTerm.trim()) ||
+            normalizeSearchText(member.spiritualGrowthStage ?? "").includes(normalizedSearchTerm);
         const matchesBloodType = !filters.bloodType || member.bloodType === filters.bloodType;
+        const matchesGrowthStage =
+            !filters.spiritualGrowthStage || member.spiritualGrowthStage === filters.spiritualGrowthStage;
         const matchesBaptized =
             !filters.baptized || String(Boolean(member.baptized)) === filters.baptized;
 
-        return matchesSearch && matchesBloodType && matchesBaptized;
+        return matchesSearch && matchesBloodType && matchesGrowthStage && matchesBaptized;
     });
 
     const handleClose = () => {
@@ -234,7 +238,9 @@ export default function Members() {
     };
 
     const isSubmitting = createMutation.isPending || updateMutation.isPending;
-    const hasActiveFilters = Boolean(filters.searchTerm || filters.bloodType || filters.baptized);
+    const hasActiveFilters = Boolean(
+        filters.searchTerm || filters.bloodType || filters.baptized || filters.spiritualGrowthStage,
+    );
 
     if (isLoading) return <h1>Cargando miembros...</h1>;
     if (isError) return <h1>{error.message}</h1>;
