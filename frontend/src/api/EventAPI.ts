@@ -1,4 +1,5 @@
 import api from "@/lib/axios";
+import { extractDateOnly } from "@/utils/date";
 import { z } from "zod";
 
 const eventRegistrationProfileSchema = z.object({
@@ -22,10 +23,10 @@ const eventRegistrationProfileSchema = z.object({
     .default(null),
 });
 
-const eventRegistrationSchema = z.object({
+export const eventRegistrationSchema = z.object({
   _id: z.string(),
   status: z.enum(["registered", "cancelled"]),
-  paymentStatus: z.enum(["pending", "partial", "paid", "cancelled"]),
+  paymentStatus: z.enum(["paid", "partial", "pending", "cancelled"]),
   amountPaid: z.number(),
   balance: z.number(),
   notes: z.string().default(""),
@@ -65,10 +66,9 @@ export const eventSchema = z.object({
 
 const eventsSchema = z.array(eventSchema);
 const eventResponseSchema = z.object({
-  event: eventSchema,
+  event: eventSchema.nullable(),
   message: z.string(),
 });
-
 const messageResponseSchema = z.object({
   message: z.string(),
 });
@@ -86,27 +86,43 @@ export type EventFormData = {
   registrationDeadline?: string;
   registrationClosed: boolean;
 };
+
 export type EventRegistrationFormData = {
   profileId: string;
   status: "registered" | "cancelled";
   amountPaid: number;
   notes?: string;
 };
-export type EventRegistrationUpdateData = Omit<EventRegistrationFormData, "profileId">;
+
+const normalizeEvent = (event: Event): Event => ({
+  ...event,
+  date: extractDateOnly(event.date),
+  registrationDeadline: event.registrationDeadline ? extractDateOnly(event.registrationDeadline) : null,
+});
+
+const parseEventFromResponse = (data: unknown) => {
+  const parsed = eventResponseSchema.parse(data).event;
+
+  if (!parsed) {
+    throw new Error("La respuesta del evento llego vacia");
+  }
+
+  return normalizeEvent(parsed);
+};
 
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data } = await api.get("/events");
-  return eventsSchema.parse(data);
+  return eventsSchema.parse(data).map(normalizeEvent);
 };
 
 export const createEvent = async (payload: EventFormData): Promise<Event> => {
   const { data } = await api.post("/events", payload);
-  return eventResponseSchema.parse(data).event;
+  return parseEventFromResponse(data);
 };
 
 export const updateEvent = async (id: string, payload: EventFormData): Promise<Event> => {
   const { data } = await api.put(`/events/${id}`, payload);
-  return eventResponseSchema.parse(data).event;
+  return parseEventFromResponse(data);
 };
 
 export const deleteEvent = async (id: string): Promise<string> => {
@@ -119,22 +135,22 @@ export const upsertEventRegistration = async (
   payload: EventRegistrationFormData,
 ): Promise<Event> => {
   const { data } = await api.post(`/events/${eventId}/registrations`, payload);
-  return eventResponseSchema.parse(data).event;
+  return parseEventFromResponse(data);
 };
 
 export const updateEventRegistration = async (
   eventId: string,
   registrationId: string,
-  payload: EventRegistrationUpdateData,
+  payload: Omit<EventRegistrationFormData, "profileId">,
 ): Promise<Event> => {
-  const { data } = await api.patch(`/events/${eventId}/registrations/${registrationId}`, payload);
-  return eventResponseSchema.parse(data).event;
+  const { data } = await api.put(`/events/${eventId}/registrations/${registrationId}`, payload);
+  return parseEventFromResponse(data);
 };
 
 export const deleteEventRegistration = async (
   eventId: string,
   registrationId: string,
-): Promise<string> => {
+): Promise<Event> => {
   const { data } = await api.delete(`/events/${eventId}/registrations/${registrationId}`);
-  return messageResponseSchema.parse(data).message;
+  return parseEventFromResponse(data);
 };

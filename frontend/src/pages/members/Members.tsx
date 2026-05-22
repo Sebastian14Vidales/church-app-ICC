@@ -288,20 +288,14 @@ export default function Members() {
                         control={control}
                     />
 
-                    <input
+                    <Button
                         type="submit"
-                        value={
-                            isSubmitting
-                                ? editingMember
-                                    ? "Guardando..."
-                                    : "Creando..."
-                                : editingMember
-                                  ? "Guardar cambios"
-                                  : "Crear miembro"
-                        }
-                        disabled={isSubmitting}
-                        className="my-6 w-full cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-center text-sm font-bold uppercase text-white hover:bg-blue-700 disabled:bg-blue-300"
-                    />
+                        color="primary"
+                        isLoading={isSubmitting}
+                        className="my-6 w-full text-sm font-bold uppercase"
+                    >
+                        {editingMember ? "Guardar cambios" : "Crear miembro"}
+                    </Button>
                 </form>
             </ModalView>
 

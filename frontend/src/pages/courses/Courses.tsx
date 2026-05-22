@@ -275,11 +275,14 @@ export default function Courses() {
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <CourseForm register={register} errors={errors} control={control} />
 
-          <input
+          <Button
             type="submit"
-            value={editingCourse ? "Guardar Cambios" : "Crear Curso"}
-            className="my-6 w-full cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-center text-sm font-bold uppercase text-white hover:bg-blue-700"
-          />
+            color="primary"
+            className="my-6 w-full text-sm font-bold uppercase"
+            isLoading={createMutation.isPending || updateMutation.isPending}
+          >
+            {editingCourse ? "Guardar cambios" : "Crear curso"}
+          </Button>
         </form>
       </ModalView>
 

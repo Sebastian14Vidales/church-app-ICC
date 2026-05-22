@@ -3,7 +3,7 @@ import { body, param } from "express-validator";
 import { CourseController } from "../controller/course.controller";
 import { authenticate, authorizeRoles } from "../middleware/auth.middleware";
 import { handleInputErrors } from "../middleware/validation";
-import { ADMIN_ROLES, MY_COURSES_ROLES, SUPERADMIN_ROLES } from "../utils/auth.utils";
+import { ADMIN_ROLES, SUPERADMIN_ROLES, TEACHING_ROLES } from "../utils/auth.utils";
 
 const router = Router();
 
@@ -28,13 +28,13 @@ router.get("/assignments", CourseController.findAssignments);
 
 router.get(
   "/my-courses",
-  authorizeRoles(MY_COURSES_ROLES),
+  authorizeRoles(TEACHING_ROLES),
   CourseController.findMyAssignments,
 );
 
 router.get(
   "/my-attendance",
-  authorizeRoles(MY_COURSES_ROLES),
+  authorizeRoles(TEACHING_ROLES),
   CourseController.findMyAttendanceOverview,
 );
 
@@ -109,7 +109,7 @@ router.patch(
 
 router.patch(
   "/my-courses/:id/close",
-  authorizeRoles(["Profesor", "Admin", "Superadmin"]),
+  authorizeRoles([...TEACHING_ROLES, "Admin", "Superadmin"]),
   param("id").isMongoId().withMessage("La asignacion no es valida"),
   handleInputErrors,
   CourseController.closeMyAssignment,
@@ -117,7 +117,7 @@ router.patch(
 
 router.put(
   "/my-attendance/classes/:classNumber",
-  authorizeRoles(MY_COURSES_ROLES),
+  authorizeRoles(TEACHING_ROLES),
   param("classNumber")
     .isInt({ min: 1 })
     .withMessage("El numero de clase no es valido"),

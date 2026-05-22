@@ -1,3 +1,5 @@
+import { Button, Input, Select, SelectItem } from "@heroui/react";
+
 export type MemberFiltersValue = {
     baptized: "" | "true" | "false";
     bloodType: string;
@@ -36,13 +38,13 @@ export default function MemberFilters({ filters, onChange, onClear }: MemberFilt
                     <label htmlFor="member-search" className="mb-1 block text-sm font-medium text-gray-700">
                         Documento o nombre
                     </label>
-                    <input
+                    <Input
                         id="member-search"
                         type="text"
                         value={filters.searchTerm}
-                        onChange={(event) => handleFieldChange("searchTerm", event.target.value)}
+                        onValueChange={(value) => handleFieldChange("searchTerm", value)}
                         placeholder="Busca por documento o nombre"
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        classNames={{ inputWrapper: "border-none shadow-none" }}
                     />
                 </div>
 
@@ -50,66 +52,66 @@ export default function MemberFilters({ filters, onChange, onClear }: MemberFilt
                     <label htmlFor="member-blood-type" className="mb-1 block text-sm font-medium text-gray-700">
                         Tipo de sangre
                     </label>
-                    <select
+                    <Select
                         id="member-blood-type"
-                        value={filters.bloodType}
-                        onChange={(event) => handleFieldChange("bloodType", event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        selectedKeys={filters.bloodType ? [filters.bloodType] : []}
+                        onSelectionChange={(keys) => handleFieldChange("bloodType", String(Array.from(keys)[0] ?? ""))}
+                        placeholder="Todos"
                     >
-                        <option value="">Todos</option>
                         {BLOOD_TYPES.map((bloodType) => (
-                            <option key={bloodType} value={bloodType}>
+                            <SelectItem key={bloodType}>
                                 {bloodType}
-                            </option>
+                            </SelectItem>
                         ))}
-                    </select>
+                    </Select>
                 </div>
 
                 <div>
                     <label htmlFor="member-growth-stage" className="mb-1 block text-sm font-medium text-gray-700">
                         Ruta espiritual
                     </label>
-                    <select
+                    <Select
                         id="member-growth-stage"
-                        value={filters.spiritualGrowthStage}
-                        onChange={(event) => handleFieldChange("spiritualGrowthStage", event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        selectedKeys={filters.spiritualGrowthStage ? [filters.spiritualGrowthStage] : []}
+                        onSelectionChange={(keys) =>
+                            handleFieldChange("spiritualGrowthStage", String(Array.from(keys)[0] ?? ""))
+                        }
+                        placeholder="Todas"
                     >
-                        <option value="">Todas</option>
                         {SPIRITUAL_GROWTH_STAGES.map((stage) => (
-                            <option key={stage} value={stage}>
+                            <SelectItem key={stage}>
                                 {stage}
-                            </option>
+                            </SelectItem>
                         ))}
-                    </select>
+                    </Select>
                 </div>
 
                 <div>
                     <label htmlFor="member-baptized" className="mb-1 block text-sm font-medium text-gray-700">
                         Bautizado
                     </label>
-                    <select
+                    <Select
                         id="member-baptized"
-                        value={filters.baptized}
-                        onChange={(event) =>
-                            handleFieldChange("baptized", event.target.value as MemberFiltersValue["baptized"])
+                        selectedKeys={filters.baptized ? [filters.baptized] : []}
+                        onSelectionChange={(keys) =>
+                            handleFieldChange("baptized", String(Array.from(keys)[0] ?? "") as MemberFiltersValue["baptized"])
                         }
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        placeholder="Todos"
                     >
-                        <option value="">Todos</option>
-                        <option value="true">Si</option>
-                        <option value="false">No</option>
-                    </select>
+                        <SelectItem key="true">Si</SelectItem>
+                        <SelectItem key="false">No</SelectItem>
+                    </Select>
                 </div>
 
                 <div className="flex items-end">
-                    <button
+                    <Button
                         type="button"
                         onClick={onClear}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                        variant="bordered"
+                        className="w-full"
                     >
                         Limpiar filtros
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

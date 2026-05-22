@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { Select, SelectItem } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, BookOpen, CalendarDays, Coins, Users } from "lucide-react";
 import { getCourseAssignments } from "@/api/CourseAPI";
 import { getAllEvents } from "@/api/EventAPI";
 import { COURSE_STATUS_LABELS } from "@/utils/constants/courses";
+import { getStoredDateYear, parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("es-CO", {
@@ -30,7 +32,7 @@ export default function Reports() {
     });
 
     events.forEach((event) => {
-      years.add(new Date(event.date).getFullYear());
+      years.add(getStoredDateYear(event.date));
     });
 
     return Array.from(years).filter((year) => !Number.isNaN(year)).sort((a, b) => b - a);
@@ -49,7 +51,7 @@ export default function Reports() {
   );
 
   const eventsByYear = useMemo(
-    () => events.filter((event) => String(new Date(event.date).getFullYear()) === effectiveYear),
+    () => events.filter((event) => String(getStoredDateYear(event.date)) === effectiveYear),
     [events, effectiveYear],
   );
 
@@ -99,22 +101,22 @@ export default function Reports() {
           <label htmlFor="report-year" className="mb-1 block text-sm font-medium text-slate-700">
             Año
           </label>
-          <select
+          <Select
             id="report-year"
-            value={effectiveYear}
-            onChange={(event) => setSelectedYear(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            selectedKeys={effectiveYear ? [effectiveYear] : []}
+            onSelectionChange={(keys) => setSelectedYear(String(Array.from(keys)[0] ?? ""))}
+            placeholder="Selecciona un año"
           >
             {availableYears.length ? (
               availableYears.map((year) => (
-                <option key={year} value={year}>
+                <SelectItem key={String(year)}>
                   {year}
-                </option>
+                </SelectItem>
               ))
             ) : (
-              <option value={effectiveYear}>{effectiveYear}</option>
+              <SelectItem key={effectiveYear}>{effectiveYear}</SelectItem>
             )}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -255,7 +257,7 @@ export default function Reports() {
                     <div>
                       <p className="font-semibold text-slate-900">{event.name}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {new Date(event.date).toLocaleDateString("es-CO")} · {event.time}
+                        {parseStoredDate(event.date).toLocaleDateString("es-CO")} · {event.time}
                       </p>
                     </div>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">

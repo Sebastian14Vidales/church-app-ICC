@@ -30,6 +30,7 @@ import { COURSE_LEVEL_LABELS, COURSE_STATUS_LABELS } from "@/utils/constants/cou
 import { getLocationNameById } from "@/utils/constants/locations";
 import { roleLabels } from "@/utils/constants/roleColors";
 import PATHS from "@/utils/constants/routes";
+import { parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 import "swiper/css";
 
@@ -111,7 +112,7 @@ export default function Dashboard() {
 
   const eventInsights = useMemo(() => {
     const sortedEvents = [...events].sort(
-      (left, right) => new Date(left.date).getTime() - new Date(right.date).getTime(),
+      (left, right) => parseStoredDate(left.date).getTime() - parseStoredDate(right.date).getTime(),
     );
 
     return {
@@ -538,7 +539,7 @@ export default function Dashboard() {
                     <div>
                       <p className="font-semibold text-slate-900">{event.name}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {new Date(event.date).toLocaleDateString("es-CO")} · {event.time}
+                        {parseStoredDate(event.date).toLocaleDateString("es-CO")} · {event.time}
                       </p>
                     </div>
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">

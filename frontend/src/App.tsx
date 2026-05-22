@@ -11,7 +11,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <HeroUIProvider>
+        <HeroUIProvider locale="es-ES">
           <RealtimeBridge />
           <SessionOverlay />
           <RouterProvider router={router} />

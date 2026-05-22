@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { parseDate } from "@internationalized/date";
 import { BookOpen, CalendarDays, Clock, Edit3, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Textarea } from "@heroui/react";
-import { useForm } from "react-hook-form";
+import { Button, DatePicker, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Textarea } from "@heroui/react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import { useAuth } from "@/lib/auth";
@@ -13,6 +14,7 @@ import {
   type Sermon,
   updateSermon,
 } from "@/api/SermonAPI";
+import { extractDateOnly, parseStoredDate } from "@/utils/date";
 
 type SermonFormValues = Pick<CreateSermonData, "title" | "date" | "time" | "description">;
 
@@ -72,7 +74,7 @@ export default function MySermons() {
     setEditingSermon(sermon);
     sermonForm.reset({
       title: sermon.title,
-      date: sermon.date.slice(0, 10),
+      date: extractDateOnly(sermon.date),
       time: sermon.time,
       description: sermon.description ?? "",
     });
@@ -155,7 +157,7 @@ export default function MySermons() {
               <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-slate-400" />
-                  {new Date(sermon.date).toLocaleDateString("es-CO", {
+                  {parseStoredDate(sermon.date).toLocaleDateString("es-CO", {
                     day: "2-digit",
                     month: "long",
                     year: "numeric",
@@ -201,24 +203,48 @@ export default function MySermons() {
           <form onSubmit={onSubmit}>
             <ModalHeader>Editar predica</ModalHeader>
             <ModalBody className="space-y-3">
-              <input
-                className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              <Input
                 placeholder="Titulo de la predica"
+                classNames={{
+                  inputWrapper: "border-none shadow-none",
+                  input: "focus:outline-none focus:ring-0",
+                }}
                 {...sermonForm.register("title", { required: true })}
               />
               <div className="grid gap-3 sm:grid-cols-2">
-                <input
-                  type="date"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                  {...sermonForm.register("date", { required: true })}
+                <Controller
+                  name="date"
+                  control={sermonForm.control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <DatePicker
+                      className="w-full"
+                      classNames={{
+                        inputWrapper: "border-none shadow-none",
+                        input: "w-full rounded-xl focus:outline-none focus:ring-0",
+                      }}
+                      value={field.value ? parseDate(field.value) : null}
+                      onChange={(value) => field.onChange(value ? value.toString() : "")}
+                    />
+                  )}
                 />
-                <input
+                <Input
                   type="time"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  classNames={{
+                    inputWrapper: "border-none shadow-none",
+                    input: "focus:outline-none focus:ring-0",
+                  }}
                   {...sermonForm.register("time", { required: true })}
                 />
               </div>
-              <Textarea placeholder="Descripcion opcional" {...sermonForm.register("description")} />
+              <Textarea
+                placeholder="Descripcion opcional"
+                classNames={{
+                  inputWrapper: "border-none shadow-none",
+                  input: "focus:outline-none focus:ring-0",
+                }}
+                {...sermonForm.register("description")}
+              />
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={closeModal}>

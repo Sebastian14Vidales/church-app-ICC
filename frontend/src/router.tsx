@@ -52,16 +52,21 @@ export const routes: RouteObject[] = [
             }),
           },
           {
-            path: PATHS.members,
-            lazy: async () => ({
-              Component: (await import("@/pages/members/Members")).default,
-            }),
-          },
-          {
             path: PATHS.profile,
             lazy: async () => ({
               Component: (await import("@/pages/Profile")).default,
             }),
+          },
+          {
+            element: <RequireAuth allowedRoles={["Supervisor", "Admin", "Superadmin", "Profesor", "Pastor"]} />,
+            children: [
+              {
+                path: PATHS.members,
+                lazy: async () => ({
+                  Component: (await import("@/pages/members/Members")).default,
+                }),
+              },
+            ],
           },
           {
             element: <RequireAuth allowedRoles={["Supervisor", "Admin", "Superadmin"]} />,
@@ -123,6 +128,11 @@ export const routes: RouteObject[] = [
                   Component: (await import("@/pages/courses/MyCourses")).default,
                 }),
               },
+            ],
+          },
+          {
+            element: <RequireAuth allowedRoles={["Profesor"]} />,
+            children: [
               {
                 path: PATHS.attendance,
                 lazy: async () => ({

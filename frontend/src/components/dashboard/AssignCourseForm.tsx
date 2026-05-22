@@ -179,12 +179,13 @@ export default function AssignCourseForm({
                         control={control}
                         rules={{ required: "Total de clases requerido", min: 1 }}
                         render={({ field }) => (
-                            <input
+                            <Input
                                 type="number"
                                 min={1}
-                                value={field.value || ""}
-                                onChange={(event) => field.onChange(Number(event.target.value))}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                value={field.value ? String(field.value) : ""}
+                                onValueChange={(value) => field.onChange(Number(value))}
+                                className="w-full"
+                                classNames={{ inputWrapper: "border-none shadow-none" }}
                             />
                         )}
                     />

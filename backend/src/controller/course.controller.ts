@@ -29,6 +29,43 @@ const calculateClassDate = (startDateValue: Date | string, classNumber: number) 
   return classDate;
 };
 
+const hasProfessorRole = (profile: unknown) => {
+  if (!profile) {
+    return false;
+  }
+
+  const profileWithRelations = profile as {
+    role?: { name?: string } | null;
+    user?: { roles?: Array<{ name?: string } | null> } | null;
+  };
+
+  const primaryRoleName =
+    profileWithRelations.role &&
+    typeof profileWithRelations.role === "object" &&
+    typeof profileWithRelations.role.name === "string"
+      ? profileWithRelations.role.name
+      : null;
+
+  if (primaryRoleName === "Profesor") {
+    return true;
+  }
+
+  const linkedUserRoles =
+    profileWithRelations.user &&
+    typeof profileWithRelations.user === "object" &&
+    Array.isArray(profileWithRelations.user.roles)
+      ? profileWithRelations.user.roles
+      : [];
+
+  return linkedUserRoles.some(
+    (role) =>
+      role &&
+      typeof role === "object" &&
+      "name" in role &&
+      role.name === "Profesor",
+  );
+};
+
 export class CourseController {
   private static memberPopulate = {
     path: "members",
@@ -75,8 +112,14 @@ export class CourseController {
       .populate(CourseController.memberPopulate)
       .populate(CourseController.professorPopulate);
 
-  private static buildMyAssignmentQuery = (profileId: string) =>
+  private static buildMyProfessorAssignmentQuery = (profileId: string) =>
     CourseAssigned.find({ professor: profileId })
+      .populate("course")
+      .populate(CourseController.memberPopulate)
+      .populate(CourseController.professorPopulate);
+
+  private static buildMyStudentAssignmentQuery = (profileId: string) =>
+    CourseAssigned.find({ members: profileId })
       .populate("course")
       .populate(CourseController.memberPopulate)
       .populate(CourseController.professorPopulate);
@@ -216,7 +259,9 @@ export class CourseController {
         return res.status(200).json([]);
       }
 
-      const assignments = await CourseController.buildMyAssignmentQuery(profileId);
+      const assignments = req.auth?.roles.includes("Profesor")
+        ? await CourseController.buildMyProfessorAssignmentQuery(profileId)
+        : await CourseController.buildMyStudentAssignmentQuery(profileId);
 
       return res.status(200).json(assignments);
     } catch (error) {
@@ -259,12 +304,19 @@ export class CourseController {
         return res.status(404).json({ message: "Curso no encontrado" });
       }
 
-      const professorProfile = await UserProfile.findById(professor).populate("role");
+      const professorProfile = await UserProfile.findById(professor)
+        .populate("role")
+        .populate({
+          path: "user",
+          populate: {
+            path: "roles",
+          },
+        });
       if (!professorProfile) {
         return res.status(404).json({ message: "Profesor no encontrado" });
       }
 
-      if ("name" in professorProfile.role && professorProfile.role.name !== "Profesor") {
+      if (!hasProfessorRole(professorProfile)) {
         return res.status(400).json({ message: "El miembro seleccionado no tiene rol de profesor" });
       }
 
@@ -344,12 +396,19 @@ export class CourseController {
         return res.status(404).json({ message: "Curso no encontrado" });
       }
 
-      const professorProfile = await UserProfile.findById(professor).populate("role");
+      const professorProfile = await UserProfile.findById(professor)
+        .populate("role")
+        .populate({
+          path: "user",
+          populate: {
+            path: "roles",
+          },
+        });
       if (!professorProfile) {
         return res.status(404).json({ message: "Profesor no encontrado" });
       }
 
-      if ("name" in professorProfile.role && professorProfile.role.name !== "Profesor") {
+      if (!hasProfessorRole(professorProfile)) {
         return res.status(400).json({ message: "El miembro seleccionado no tiene rol de profesor" });
       }
 

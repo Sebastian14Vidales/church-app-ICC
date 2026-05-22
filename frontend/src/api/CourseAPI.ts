@@ -10,6 +10,26 @@ import {
     type Course,
 } from '@/types/index';
 import api from '@/lib/axios';
+import axios from "axios";
+
+const getApiErrorMessage = (error: unknown, fallbackMessage: string) => {
+    if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data as
+            | { message?: string; errors?: Array<{ msg?: string }> }
+            | undefined;
+
+        if (responseData?.message) {
+            return responseData.message;
+        }
+
+        const firstValidationError = responseData?.errors?.[0]?.msg;
+        if (firstValidationError) {
+            return firstValidationError;
+        }
+    }
+
+    return fallbackMessage;
+};
 
 export const createCourse = async (formData: CourseFormData): Promise<string> => {
     try {
@@ -27,7 +47,7 @@ export const createCourse = async (formData: CourseFormData): Promise<string> =>
         throw new Error("Respuesta de creacion de curso invalida");
     } catch (error) {
         console.error("Error creating course:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudo crear el curso"));
     }
 }
 
@@ -46,7 +66,7 @@ export const getAllCourses = async () => {
         throw new Error("Respuesta de cursos inválida");
     } catch (error) {
         console.error("Error retrieving courses:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudieron obtener los cursos"));
     }
 }
 
@@ -67,7 +87,7 @@ export const getCourseAssignments = async (): Promise<CourseAssigned[]> => {
         throw new Error("Respuesta de asignaciones de cursos invalida");
     } catch (error) {
         console.error("Error retrieving course assignments:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudieron obtener las asignaciones"));
     }
 }
 
@@ -88,7 +108,7 @@ export const getMyCourseAssignments = async (): Promise<CourseAssigned[]> => {
         throw new Error("Respuesta de mis cursos invalida");
     } catch (error) {
         console.error("Error retrieving my course assignments:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudieron obtener tus cursos"));
     }
 }
 
@@ -104,7 +124,7 @@ export const getMyAttendanceOverview = async (): Promise<AttendanceOverview> => 
         throw new Error("Respuesta de asistencias invalida");
     } catch (error) {
         console.error("Error retrieving attendance overview:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudo obtener la asistencia"));
     }
 }
 
@@ -123,7 +143,7 @@ export const updateCourse = async (courseId: Course['_id'], formData: CourseForm
         throw new Error("Respuesta de actualizacion de curso invalida");
     } catch (error) {
         console.error("Error updating course:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudo actualizar el curso"));
     }
 }
 
@@ -139,7 +159,7 @@ export const deleteCourse = async (courseId: Course['_id']): Promise<string> => 
         throw new Error("Respuesta de eliminacion de curso invalida");
     } catch (error) {
         console.error("Error deleting course:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudo eliminar el curso"));
     }
 }
 
@@ -155,7 +175,7 @@ export const assignCourse = async (formData: CourseAssignedFormData) => {
         throw new Error("Respuesta de asignacion de curso invalida");
     } catch (error) {
         console.error("Error assigning course:", error);
-        throw error;
+        throw new Error(getApiErrorMessage(error, "No se pudo asignar el curso"));
     }
 }
 
@@ -174,7 +194,7 @@ export const updateCourseAssignment = async (
         throw new Error("Respuesta de actualizacion de asignacion invalida")
     } catch (error) {
         console.error("Error updating course assignment:", error)
-        throw error
+        throw new Error(getApiErrorMessage(error, "No se pudo actualizar la asignacion"))
     }
 }
 
@@ -190,7 +210,7 @@ export const deleteCourseAssignment = async (assignmentId: CourseAssigned["_id"]
         throw new Error("Respuesta de eliminacion de asignacion invalida")
     } catch (error) {
         console.error("Error deleting course assignment:", error)
-        throw error
+        throw new Error(getApiErrorMessage(error, "No se pudo eliminar la asignacion"))
     }
 }
 
@@ -209,7 +229,7 @@ export const updateCourseMembers = async (
         throw new Error("Respuesta de actualizacion de miembros invalida")
     } catch (error) {
         console.error("Error updating course members:", error)
-        throw error
+        throw new Error(getApiErrorMessage(error, "No se pudieron actualizar los miembros del curso"))
     }
 }
 
@@ -225,7 +245,7 @@ export const closeMyCourseAssignment = async (assignmentId: CourseAssigned["_id"
         throw new Error("Respuesta de cierre de curso invalida")
     } catch (error) {
         console.error("Error closing my course assignment:", error)
-        throw error
+        throw new Error(getApiErrorMessage(error, "No se pudo cerrar el curso"))
     }
 }
 
@@ -244,6 +264,6 @@ export const saveMyClassAttendance = async (
         throw new Error("Respuesta de guardado de asistencia invalida")
     } catch (error) {
         console.error("Error saving class attendance:", error)
-        throw error
+        throw new Error(getApiErrorMessage(error, "No se pudo guardar la asistencia"))
     }
 }

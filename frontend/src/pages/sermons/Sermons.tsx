@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { parseDate } from "@internationalized/date";
 import { CalendarDays, Clock3, Edit3, Plus, Trash2, UserRound } from "lucide-react";
-import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Textarea } from "@heroui/react";
+import { Button, DatePicker, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Select, SelectItem, Textarea } from "@heroui/react";
 import { toast } from "react-toastify";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import { getAllMembers } from "@/api/MemberAPI";
@@ -14,6 +15,7 @@ import {
   type Sermon,
   updateSermon,
 } from "@/api/SermonAPI";
+import { extractDateOnly, parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 
 type SermonFormValues = CreateSermonData;
@@ -52,12 +54,12 @@ export default function Sermons() {
     today.setHours(0, 0, 0, 0);
 
     return sermons
-      .filter((sermon) => new Date(sermon.date).getTime() >= today.getTime())
-      .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime());
+      .filter((sermon) => parseStoredDate(sermon.date).getTime() >= today.getTime())
+      .sort((left, right) => parseStoredDate(left.date).getTime() - parseStoredDate(right.date).getTime());
   }, [sermons]);
 
   const sortedSermons = useMemo(
-    () => [...sermons].sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()),
+    () => [...sermons].sort((left, right) => parseStoredDate(right.date).getTime() - parseStoredDate(left.date).getTime()),
     [sermons],
   );
 
@@ -118,7 +120,7 @@ export default function Sermons() {
     setEditingSermon(sermon);
     sermonForm.reset({
       title: sermon.title,
-      date: sermon.date.slice(0, 10),
+      date: extractDateOnly(sermon.date),
       time: sermon.time,
       pastor: sermon.pastor._id,
       description: sermon.description ?? "",
@@ -210,7 +212,7 @@ export default function Sermons() {
                   <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-slate-400" />
-                      {new Date(sermon.date).toLocaleDateString("es-CO")}
+                      {parseStoredDate(sermon.date).toLocaleDateString("es-CO")}
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock3 className="h-4 w-4 text-slate-400" />
@@ -266,7 +268,7 @@ export default function Sermons() {
                     <div>
                       <p className="font-semibold text-slate-900">{sermon.title}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {new Date(sermon.date).toLocaleDateString("es-CO", {
+                        {parseStoredDate(sermon.date).toLocaleDateString("es-CO", {
                           day: "2-digit",
                           month: "long",
                           year: "numeric",
@@ -294,35 +296,66 @@ export default function Sermons() {
           <form onSubmit={onSubmit}>
             <ModalHeader>{editingSermon ? "Editar predica" : "Crear predica"}</ModalHeader>
             <ModalBody className="space-y-3">
-              <input
-                className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              <Input
                 placeholder="Titulo de la predica"
+                classNames={{
+                  inputWrapper: "border-none shadow-none",
+                  input: "focus:outline-none focus:ring-0",
+                }}
                 {...sermonForm.register("title", { required: true })}
               />
               <div className="grid gap-3 sm:grid-cols-2">
-                <input
-                  type="date"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                  {...sermonForm.register("date", { required: true })}
+                <Controller
+                  name="date"
+                  control={sermonForm.control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <DatePicker
+                      className="w-full"
+                      classNames={{
+                        inputWrapper: "border-none shadow-none",
+                        input: "w-full rounded-xl focus:outline-none focus:ring-0",
+                      }}
+                      value={field.value ? parseDate(field.value) : null}
+                      onChange={(value) => field.onChange(value ? value.toString() : "")}
+                    />
+                  )}
                 />
-                <input
+                <Input
                   type="time"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  classNames={{
+                    inputWrapper: "border-none shadow-none",
+                    input: "focus:outline-none focus:ring-0",
+                  }}
                   {...sermonForm.register("time", { required: true })}
                 />
               </div>
-              <select
-                className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                {...sermonForm.register("pastor", { required: true })}
-              >
-                <option value="">Selecciona un pastor</option>
-                {pastors.map((pastor) => (
-                  <option key={pastor.user!._id} value={pastor.user!._id}>
-                    {formatFullName(pastor.firstName, pastor.lastName)}
-                  </option>
-                ))}
-              </select>
-              <Textarea placeholder="Descripcion opcional" {...sermonForm.register("description")} />
+              <Controller
+                name="pastor"
+                control={sermonForm.control}
+                rules={{ required: true }}
+                render={({ field }) => (
+                  <Select
+                    selectedKeys={field.value ? [field.value] : []}
+                    onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                    placeholder="Selecciona un pastor"
+                  >
+                    {pastors.map((pastor) => (
+                      <SelectItem key={pastor.user!._id}>
+                        {formatFullName(pastor.firstName, pastor.lastName)}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                )}
+              />
+              <Textarea
+                placeholder="Descripcion opcional"
+                classNames={{
+                  inputWrapper: "border-none shadow-none",
+                  input: "focus:outline-none focus:ring-0",
+                }}
+                {...sermonForm.register("description")}
+              />
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={closeModal}>
