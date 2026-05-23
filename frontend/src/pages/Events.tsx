@@ -17,6 +17,8 @@ import {
   XCircle,
 } from "lucide-react";
 import {
+  Autocomplete,
+  AutocompleteItem,
   Button,
   DatePicker,
   Input,
@@ -25,8 +27,6 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
   Textarea,
 } from "@heroui/react";
 import { toast } from "react-toastify";
@@ -97,6 +97,7 @@ export default function Events() {
   const [editingRegistration, setEditingRegistration] = useState<EventRegistration | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [memberDocumentFilter, setMemberDocumentFilter] = useState("");
 
   const eventForm = useForm<EventFormData>({ defaultValues: initialEventValues });
   const registrationForm = useForm<EventRegistrationFormData>({ defaultValues: initialRegistrationValues });
@@ -115,6 +116,19 @@ export default function Events() {
     () => members.filter((member) => ["Asistente", "Miembro"].includes(member.role.name)),
     [members],
   );
+
+  const filteredMembers = useMemo(() => {
+    const normalizedFilter = memberDocumentFilter.trim().toLowerCase();
+
+    if (!normalizedFilter) {
+      return availableMembers;
+    }
+
+    return availableMembers.filter((member) => {
+      const fullName = formatFullName(member.firstName, member.lastName).toLowerCase();
+      return member.documentID.toLowerCase().includes(normalizedFilter) || fullName.includes(normalizedFilter);
+    });
+  }, [availableMembers, memberDocumentFilter]);
 
   const selectedEvent = events.find((event) => event._id === selectedEventId) ?? events[0] ?? null;
 
@@ -179,6 +193,7 @@ export default function Events() {
       setIsRegistrationModalOpen(false);
       setEditingRegistration(null);
       registrationForm.reset(initialRegistrationValues);
+      setMemberDocumentFilter("");
       invalidateEvents();
     },
     onError: (error: Error) => toast.error(error.message || "No se pudo guardar la inscripción"),
@@ -224,6 +239,7 @@ export default function Events() {
   const openCreateRegistrationModal = () => {
     setEditingRegistration(null);
     registrationForm.reset(initialRegistrationValues);
+    setMemberDocumentFilter("");
     setIsRegistrationModalOpen(true);
   };
 
@@ -231,10 +247,11 @@ export default function Events() {
     setEditingRegistration(registration);
     registrationForm.reset({
       profileId: registration.profile?._id ?? "",
-      status: registration.status,
+      status: "registered",
       amountPaid: registration.amountPaid,
       notes: registration.notes ?? "",
     });
+    setMemberDocumentFilter(registration.profile?.documentID ?? "");
     setIsRegistrationModalOpen(true);
   };
 
@@ -309,11 +326,10 @@ export default function Events() {
                   key={event._id}
                   type="button"
                   onClick={() => setSelectedEventId(event._id)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedEvent?._id === event._id
+                  className={`w-full rounded-2xl border p-4 text-left transition ${selectedEvent?._id === event._id
                       ? "border-blue-500 bg-blue-50 shadow-sm"
                       : "border-slate-200 bg-slate-50 hover:border-slate-300"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -485,31 +501,55 @@ export default function Events() {
           <form onSubmit={onSubmitEvent}>
             <ModalHeader>{editingEvent ? "Editar evento" : "Crear evento"}</ModalHeader>
             <ModalBody className="space-y-4">
-              <Input placeholder="Nombre del evento" {...eventForm.register("name", { required: true })} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input type="number" min={1} placeholder="Cupos" {...eventForm.register("capacity", { valueAsNumber: true, required: true })} />
-                <Input type="number" min={0} placeholder="Valor" {...eventForm.register("price", { valueAsNumber: true, required: true })} />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Nombre del evento</label>
+                <Input placeholder="Nombre del evento" {...eventForm.register("name", { required: true })} />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Cupos</label>
+                  <Input type="number" min={1} placeholder="Cupos" {...eventForm.register("capacity", { valueAsNumber: true, required: true })} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Valor</label>
+                  <Input type="number" min={0} placeholder="Valor" {...eventForm.register("price", { valueAsNumber: true, required: true })} />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Fecha</label>
+                  <Controller
+                    name="date"
+                    control={eventForm.control}
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <DatePicker value={field.value ? parseDate(field.value) : null} onChange={(value) => field.onChange(value ? value.toString() : "")} />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Hora</label>
+                  <Input type="time" {...eventForm.register("time", { required: true })} />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Lugar</label>
+                <Input placeholder="Lugar" {...eventForm.register("place", { required: true })} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Fecha límite de inscripción</label>
                 <Controller
-                  name="date"
+                  name="registrationDeadline"
                   control={eventForm.control}
-                  rules={{ required: true }}
                   render={({ field }) => (
                     <DatePicker value={field.value ? parseDate(field.value) : null} onChange={(value) => field.onChange(value ? value.toString() : "")} />
                   )}
                 />
-                <Input type="time" {...eventForm.register("time", { required: true })} />
               </div>
-              <Input placeholder="Lugar" {...eventForm.register("place", { required: true })} />
-              <Controller
-                name="registrationDeadline"
-                control={eventForm.control}
-                render={({ field }) => (
-                  <DatePicker value={field.value ? parseDate(field.value) : null} onChange={(value) => field.onChange(value ? value.toString() : "")} />
-                )}
-              />
-              <Textarea placeholder="Descripción" {...eventForm.register("description")} />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Descripción</label>
+                <Textarea placeholder="Descripción" {...eventForm.register("description")} />
+              </div>
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={() => setIsEventModalOpen(false)}>Cancelar</Button>
@@ -526,41 +566,46 @@ export default function Events() {
           <form onSubmit={onSubmitRegistration}>
             <ModalHeader>{editingRegistration ? "Editar inscripción" : "Registrar persona en el evento"}</ModalHeader>
             <ModalBody className="space-y-4">
-              <Controller
-                name="profileId"
-                control={registrationForm.control}
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <Select
-                    selectedKeys={field.value ? [field.value] : []}
-                    onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                    placeholder="Selecciona una persona"
-                    isDisabled={Boolean(editingRegistration)}
-                  >
-                    {availableMembers.map((member) => (
-                      <SelectItem key={member._id}>
-                        {formatFullName(member.firstName, member.lastName)} · {member.documentID}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                )}
-              />
-              <Controller
-                name="status"
-                control={registrationForm.control}
-                render={({ field }) => (
-                  <Select
-                    selectedKeys={field.value ? [field.value] : []}
-                    onSelectionChange={(keys) => field.onChange((Array.from(keys)[0] as EventRegistration["status"]) ?? "registered")}
-                    placeholder="Estado"
-                  >
-                    <SelectItem key="registered">Registrado</SelectItem>
-                    <SelectItem key="cancelled">Cancelado</SelectItem>
-                  </Select>
-                )}
-              />
-              <Input type="number" min={0} placeholder="Valor pagado" {...registrationForm.register("amountPaid", { valueAsNumber: true, required: true })} />
-              <Textarea placeholder="Observaciones" {...registrationForm.register("notes")} />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Persona por ID</label>
+                <Controller
+                  name="profileId"
+                  control={registrationForm.control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Autocomplete
+                      items={filteredMembers}
+                      inputValue={memberDocumentFilter}
+                      onInputChange={setMemberDocumentFilter}
+                      selectedKey={field.value || null}
+                      onSelectionChange={(key) => {
+                        field.onChange(key);
+
+                        const selectedOption = filteredMembers.find((member) => member._id === key);
+                        setMemberDocumentFilter(
+                          selectedOption ? formatFullName(selectedOption.firstName, selectedOption.lastName) : "",
+                        );
+                      }}
+                      placeholder="Busca por nombre o ID"
+                      isDisabled={Boolean(editingRegistration)}
+                    >
+                      {filteredMembers.map((member) => (
+                        <AutocompleteItem key={member._id}>
+                          {formatFullName(member.firstName, member.lastName)} · {member.documentID}
+                        </AutocompleteItem>
+                      ))}
+                    </Autocomplete>
+                  )}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Valor pagado</label>
+                <Input type="number" min={0} placeholder="Valor pagado" {...registrationForm.register("amountPaid", { valueAsNumber: true, required: true })} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Observaciones</label>
+                <Textarea placeholder="Observaciones" {...registrationForm.register("notes")} />
+              </div>
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={() => setIsRegistrationModalOpen(false)}>Cancelar</Button>
