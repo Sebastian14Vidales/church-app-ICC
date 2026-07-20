@@ -50,7 +50,9 @@ const initialValues: MemberFormData = {
     ministry: "",
     ministryInterest: "",
     spiritualGrowthStage: "",
+    encounterStage: "",
     roleNames: [],
+    profession: "",
     email: "",
 };
 
@@ -87,9 +89,13 @@ const memberToFormData = (member: Member): MemberFormData => ({
     ministry: member.servesInMinistry ? member.ministry ?? "" : "",
     ministryInterest: member.servesInMinistry === false ? member.ministryInterest ?? "" : "",
     spiritualGrowthStage: member.spiritualGrowthStage ?? "",
+    encounterStage: member.encounterStage ?? "",
+    profession: member.profession ?? "",
     roleNames: Array.from(
         new Set<string>(
-            [member.role.name, ...(member.user?.roles?.map((role) => role.name) ?? [])],
+            [member.role.name, ...(member.user?.roles?.map((role) => role.name) ?? [])].filter(
+                (roleName) => roleName !== "Asistente" && roleName !== "Miembro",
+            ),
         ),
     ) as MemberFormData["roleNames"],
     email: member.user?.email ?? "",
@@ -111,6 +117,7 @@ export default function Members() {
     } = useForm<MemberFormData>({ defaultValues: initialValues });
     const roleNames = watch("roleNames");
     const servesInMinistry = watch("servesInMinistry");
+    const baptized = watch("baptized");
 
     const { data: members = [], isLoading, isError, error } = useQuery({
         queryKey: ["members"],
@@ -193,6 +200,13 @@ export default function Members() {
             setValue("ministry", "");
         }
     }, [servesInMinistry, setValue]);
+
+    useEffect(() => {
+        if (baptized === "false" && roleNames.length > 0) {
+            setValue("roleNames", []);
+            setValue("email", "");
+        }
+    }, [baptized, roleNames, setValue]);
 
     const handleCreateMember = () => {
         setEditingMember(null);
@@ -394,6 +408,11 @@ export default function Members() {
                                 <div className="flex items-center text-sm text-gray-600">
                                     <Church className="mr-2 h-4 w-4 text-gray-400" />
                                     <span>Bautizado: {member.baptized ? "Si" : "No"}</span>
+                                </div>
+
+                                <div className="flex items-center text-sm text-gray-600">
+                                    <Church className="mr-2 h-4 w-4 text-gray-400" />
+                                    <span>Encuentro/Reencuentro: {member.encounterStage ?? "Sin definir"}</span>
                                 </div>
                             </div>
 

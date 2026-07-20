@@ -20,20 +20,31 @@ const parseOptionalBoolean = (value: MemberFormData["baptized"]) => {
 const buildMemberPayload = (formData: MemberFormData) => {
     const baptized = parseOptionalBoolean(formData.baptized);
     const servesInMinistry = parseOptionalBoolean(formData.servesInMinistry);
-    const selectedRoles = Array.from(
-        new Set<string>([
-            ...(formData.roleNames || []),
-        ]),
-    );
+    const baseRole = baptized === true ? "Miembro" : baptized === false ? "Asistente" : undefined;
+    const selectedRoles =
+        baptized === true
+            ? Array.from(
+                  new Set<string>(
+                      (formData.roleNames || []).filter(
+                          (roleName) => roleName !== "Asistente" && roleName !== "Miembro",
+                      ),
+                  ),
+              )
+            : [];
+    const roleNames = baseRole
+        ? Array.from(new Set<string>([...selectedRoles, baseRole]))
+        : selectedRoles;
 
     return {
         ...formData,
-        roleNames: selectedRoles,
+        roleNames,
         baptized,
         servesInMinistry,
         ministry: servesInMinistry === true ? formData.ministry || undefined : undefined,
         ministryInterest: servesInMinistry === false ? formData.ministryInterest || undefined : undefined,
         spiritualGrowthStage: formData.spiritualGrowthStage || undefined,
+        encounterStage: formData.encounterStage || undefined,
+        profession: formData.profession || undefined,
         email: formData.email || undefined,
     };
 };

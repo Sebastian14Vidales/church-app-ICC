@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { type MemberFormData } from "@/types/index";
 
 const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
+const PROFESSION_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 const BOOLEAN_OPTIONS = [
   { key: "true", label: "Sí" },
@@ -38,6 +39,7 @@ const SPIRITUAL_GROWTH_STAGES = [
   "Cosmovisión bíblica",
   "Doctrina cristiana",
 ];
+const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"] as const;
 
 type MemberFormProps = {
   register: UseFormRegister<MemberFormData>;
@@ -57,16 +59,28 @@ export default function MemberForm({
   });
 
   const servesInMinistry = useWatch({ control, name: "servesInMinistry" });
+  const baptized = useWatch({ control, name: "baptized" });
+  const encounterStage = useWatch({ control, name: "encounterStage" });
   const selectedRoleNames = useWatch({ control, name: "roleNames" }) || [];
   const requiresAccess = selectedRoleNames.some((role) =>
     LOGIN_ENABLED_ROLES.includes(role)
   );
   const isRestrictedMemberManager =
     user?.roles.includes("Profesor") || user?.roles.includes("Pastor") || user?.roles.includes("Supervisor");
+  const isCreatingAsPastorOrProfesor = user?.roles.includes("Profesor") || user?.roles.includes("Pastor");
+  const showChurchRoles = !isCreatingAsPastorOrProfesor;
+  const showProfession =
+    selectedRoleNames.some((role) => PROFESSION_ENABLED_ROLES.includes(role)) ||
+    Boolean(user?.roles.some((role) => PROFESSION_ENABLED_ROLES.includes(role)));
   const visibleRoles = roles.filter((role) => {
-    if (isRestrictedMemberManager) {
-      return ["Asistente", "Miembro"].includes(role.name);
+    if (["Asistente", "Miembro"].includes(role.name)) {
+      return false;
     }
+
+    if (isRestrictedMemberManager) {
+      return false;
+    }
+
     return !["Admin", "Superadmin"].includes(role.name);
   });
 
@@ -232,38 +246,69 @@ export default function MemberForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Roles en la Iglesia</label>
-          <Controller
-            name="roleNames"
-            control={control}
-            rules={{
-              validate: (value) =>
-                Array.isArray(value) && value.length > 0 ? true : "Selecciona al menos un rol",
-            }}
-            render={({ field }) => (
-              <Select
-                isLoading={isLoading}
-                selectionMode="multiple"
-                selectedKeys={field.value || []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys))}
-                placeholder="Selecciona uno o varios roles"
-                aria-label="Roles en la Iglesia"
-                className="input"
-              >
-                {visibleRoles.map((role) => (
-                  <SelectItem key={role.name}>{role.name}</SelectItem>
-                ))}
-              </Select>
+      {showChurchRoles && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Roles en la Iglesia</label>
+            {baptized === "false" ? (
+              <>
+                <Input
+                  isDisabled
+                  value="Asistente"
+                  aria-label="Rol derivado por bautizado"
+                  classNames={{ inputWrapper: "border-none shadow-none" }}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Los asistentes no tienen roles en la iglesia. El sistema lo registrará automáticamente como
+                  asistente.
+                </p>
+              </>
+            ) : (
+              <>
+                <Controller
+                  name="roleNames"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      isLoading={isLoading}
+                      selectionMode="multiple"
+                      selectedKeys={field.value || []}
+                      onSelectionChange={(keys) => field.onChange(Array.from(keys))}
+                      placeholder="Selecciona roles adicionales si aplica"
+                      aria-label="Roles en la Iglesia"
+                      className="input"
+                      isDisabled={baptized !== "true" || visibleRoles.length === 0}
+                    >
+                      {visibleRoles.map((role) => (
+                        <SelectItem key={role.name}>{role.name}</SelectItem>
+                      ))}
+                    </Select>
+                  )}
+                />
+                {errors.roleNames && <span className="text-xs text-red-500">{errors.roleNames.message}</span>}
+                <p className="mt-1 text-xs text-slate-500">
+                  Si está bautizado será miembro automáticamente. Los roles son opcionales y solo aplican a cargos
+                  dentro de la iglesia.
+                </p>
+              </>
             )}
-          />
-          {errors.roleNames && <span className="text-xs text-red-500">{errors.roleNames.message}</span>}
-          <p className="mt-1 text-xs text-slate-500">
-            Puedes seleccionar varios roles. El sistema definirá automáticamente el rol principal del perfil.
-          </p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {showProfession && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Profesión</label>
+            <Input
+              id="profession"
+              {...register("profession")}
+              placeholder="Ingrese la profesión"
+              classNames={{ inputWrapper: "border-none shadow-none" }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
@@ -288,6 +333,38 @@ export default function MemberForm({
           />
           {errors.spiritualGrowthStage && (
             <span className="text-xs text-red-500">Este campo es requerido</span>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Encuentro y Reencuentro</label>
+          <Controller
+            name="encounterStage"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Select
+                selectedKeys={field.value ? [field.value] : []}
+                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                placeholder="Seleccione una opción"
+                aria-label="Encuentro y Reencuentro"
+                className="input"
+              >
+                {ENCOUNTER_STAGES.map((stage) => (
+                  <SelectItem key={stage}>{stage}</SelectItem>
+                ))}
+              </Select>
+            )}
+          />
+          {errors.encounterStage && <span className="text-xs text-red-500">Este campo es requerido</span>}
+          {encounterStage === "Ninguno" && (
+            <p className="mt-1 text-xs text-slate-500">La persona aún no ha ido ni a Encuentro ni a Reencuentro.</p>
+          )}
+          {encounterStage === "Encuentro" && (
+            <p className="mt-1 text-xs text-amber-600">Ya fue a Encuentro y le falta asistir a Reencuentro.</p>
+          )}
+          {encounterStage === "Reencuentro" && (
+            <p className="mt-1 text-xs text-emerald-600">Si fue a Reencuentro, se entiende que ya completó Encuentro.</p>
           )}
         </div>
       </div>
@@ -413,3 +490,5 @@ export default function MemberForm({
     </div>
   );
 }
+
+

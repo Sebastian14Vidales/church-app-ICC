@@ -26,6 +26,7 @@ const SPIRITUAL_GROWTH_STAGES = [
   "Cosmovisión bíblica",
   "Doctrina cristiana",
 ];
+const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];
 
 const parseBooleanField = (value: unknown) => {
   if (typeof value === "boolean") {
@@ -94,6 +95,11 @@ router.post(
     .withMessage("El crecimiento espiritual es obligatorio")
     .isIn(SPIRITUAL_GROWTH_STAGES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
+  body("encounterStage")
+    .notEmpty()
+    .withMessage("El campo de Encuentro y Reencuentro es obligatorio")
+    .isIn(ENCOUNTER_STAGES)
+    .withMessage("La opción de Encuentro y Reencuentro no es válida"),
   body("roleNames")
     .isArray({ min: 1 })
     .withMessage("Debes seleccionar al menos un rol"),
@@ -177,6 +183,10 @@ router.put(
     .optional()
     .isIn(SPIRITUAL_GROWTH_STAGES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
+  body("encounterStage")
+    .optional()
+    .isIn(ENCOUNTER_STAGES)
+    .withMessage("La opción de Encuentro y Reencuentro no es válida"),
   body("roleNames")
     .optional()
     .isArray()

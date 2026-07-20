@@ -8,7 +8,6 @@ import {
     CheckCircle2,
     ClipboardCheck,
     Download,
-    Eye,
     Search,
     TrendingUp,
     Users,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react"
 import { toast } from "react-toastify"
 import { showSweetAlert } from "@/components/alert/SweetAlert"
+import SavedAttendanceSummaryTable from "@/components/courses/SavedAttendanceSummaryTable"
 import StudentQuickViewModal from "@/components/courses/StudentQuickViewModal"
 import { closeMyCourseAssignment, getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
 import { type ClassSession, type CourseAssigned } from "@/types/index"
@@ -116,11 +116,6 @@ export default function AttendanceView() {
         () => (assignment ? buildStudentAttendanceSummaries(assignment, sessions) : []),
         [assignment, sessions],
     )
-
-    const filteredStudentSummaries = useMemo(() => {
-        const filteredMemberIds = new Set(filteredMembers.map((member) => member._id))
-        return studentSummaries.filter((summary) => filteredMemberIds.has(summary.member._id))
-    }, [filteredMembers, studentSummaries])
 
     const courseMetrics = useMemo(
         () => (assignment ? buildCourseAttendanceMetrics(assignment, sessions, studentSummaries) : null),
@@ -625,100 +620,6 @@ export default function AttendanceView() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                            Historial por estudiante
-                        </p>
-                        <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                            Rendimiento individual del curso
-                        </h2>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Consulta rapidamente quienes necesitan seguimiento y abre su vista detallada.
-                        </p>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                        {filteredStudentSummaries.length} estudiante{filteredStudentSummaries.length === 1 ? "" : "s"} visible{filteredStudentSummaries.length === 1 ? "" : "s"}
-                    </span>
-                </div>
-
-                {!assignment.members.length ? (
-                    <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                        Cuando registres estudiantes en el curso, aqui veras su rendimiento individual.
-                    </div>
-                ) : filteredStudentSummaries.length ? (
-                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {filteredStudentSummaries.map((summary) => (
-                            <article
-                                key={summary.member._id}
-                                className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <h3 className="text-lg font-semibold text-slate-900">
-                                            {formatFullName(summary.member.firstName, summary.member.lastName)}
-                                        </h3>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            {summary.member.documentID}
-                                        </p>
-                                    </div>
-                                    <span
-                                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                            summary.attendanceRate >= 70
-                                                ? "bg-emerald-100 text-emerald-700"
-                                                : "bg-amber-100 text-amber-700"
-                                        }`}
-                                    >
-                                        {summary.attendanceRate}%
-                                    </span>
-                                </div>
-
-                                <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                                    <div className="rounded-2xl bg-white px-3 py-3">
-                                        <p className="text-slate-500">Asiste</p>
-                                        <p className="mt-1 text-xl font-bold text-emerald-700">
-                                            {summary.presentCount}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-2xl bg-white px-3 py-3">
-                                        <p className="text-slate-500">Falla</p>
-                                        <p className="mt-1 text-xl font-bold text-rose-700">
-                                            {summary.absentCount}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <p className="mt-4 text-sm text-slate-500">
-                                    Ultimo registro:{" "}
-                                    <span className="font-medium text-slate-900">
-                                        {summary.lastRecordedStatus === null
-                                            ? "Sin historial"
-                                            : summary.lastRecordedStatus
-                                              ? "Asistio"
-                                              : "Falto"}
-                                    </span>
-                                </p>
-
-                                <Button
-                                    className="mt-4 w-full"
-                                    color="primary"
-                                    variant="flat"
-                                    onPress={() => setSelectedStudentId(summary.member._id)}
-                                >
-                                    <Eye className="h-4 w-4" />
-                                    Abrir vista rapida
-                                </Button>
-                            </article>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                        No encontramos estudiantes con ese nombre o cedula.
-                    </div>
-                )}
-            </section>
-
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
                             Historial del curso
                         </p>
                         <h2 className="mt-2 text-2xl font-bold text-slate-900">
@@ -730,57 +631,11 @@ export default function AttendanceView() {
                     </span>
                 </div>
 
-                {savedSessions.length ? (
-                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {savedSessions.map((session) => {
-                            const presentCount = session.attendance.filter((entry) => entry.present).length
-                            const absentCount = session.attendance.length - presentCount
-                            const attendanceRate = session.attendance.length
-                                ? Math.round((presentCount / session.attendance.length) * 100)
-                                : 0
-
-                            return (
-                                <article
-                                    key={session.classNumber}
-                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-slate-900">
-                                                Clase {session.classNumber}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                {new Date(session.date).toLocaleDateString("es-CO")}
-                                            </p>
-                                        </div>
-                                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                            {attendanceRate}%
-                                        </span>
-                                    </div>
-
-                                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                        <div className="rounded-2xl bg-white px-3 py-3">
-                                            <p className="text-slate-500">Asistieron</p>
-                                            <p className="mt-1 text-xl font-bold text-emerald-700">
-                                                {presentCount}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-2xl bg-white px-3 py-3">
-                                            <p className="text-slate-500">Fallaron</p>
-                                            <p className="mt-1 text-xl font-bold text-rose-700">
-                                                {absentCount}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </article>
-                            )
-                        })}
-                    </div>
-                ) : (
-                    <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                        Aun no hay clases con asistencia guardada en este curso.
-                    </div>
-                )}
+                <SavedAttendanceSummaryTable
+                    assignment={assignment}
+                    savedSessions={savedSessions}
+                    onOpenStudentQuickView={setSelectedStudentId}
+                />
             </section>
 
             <StudentQuickViewModal

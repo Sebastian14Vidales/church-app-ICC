@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Button, Input } from "@heroui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CalendarDays, CheckCircle2, ClipboardCheck, Download, Search, XCircle } from "lucide-react"
+import SavedAttendanceSummaryTable from "@/components/courses/SavedAttendanceSummaryTable"
 import { getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
 import { type CourseAssigned, type ClassSession } from "@/types/index"
 import { downloadAttendancePdfReport } from "@/utils/attendanceReport"
@@ -390,58 +391,9 @@ export default function Attendance() {
                     </span>
                 </div>
 
-                {savedSessions.length ? (
-                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {savedSessions.map((session) => {
-                            const presentCount = session.attendance.filter((entry) => entry.present).length
-                            const absentCount = session.attendance.length - presentCount
-                            const attendanceRate = session.attendance.length
-                                ? Math.round((presentCount / session.attendance.length) * 100)
-                                : 0
-
-                            return (
-                                <article
-                                    key={session.classNumber}
-                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-slate-900">
-                                                Clase {session.classNumber}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                {new Date(session.date).toLocaleDateString("es-CO")}
-                                            </p>
-                                        </div>
-                                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                            {attendanceRate}%
-                                        </span>
-                                    </div>
-
-                                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                        <div className="rounded-2xl bg-white px-3 py-3">
-                                            <p className="text-slate-500">Asistieron</p>
-                                            <p className="mt-1 text-xl font-bold text-emerald-700">
-                                                {presentCount}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-2xl bg-white px-3 py-3">
-                                            <p className="text-slate-500">Fallaron</p>
-                                            <p className="mt-1 text-xl font-bold text-rose-700">
-                                                {absentCount}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </article>
-                            )
-                        })}
-                    </div>
-                ) : (
-                    <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                        Aún no hay clases con asistencia guardada en este curso.
-                    </div>
-                )}
+                <SavedAttendanceSummaryTable assignment={assignment} savedSessions={savedSessions} />
             </section>
         </div>
     )
 }
+

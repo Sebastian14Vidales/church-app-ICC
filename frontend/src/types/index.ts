@@ -77,6 +77,12 @@ export const spiritualGrowthStageSchema = z.enum([
     "Doctrina cristiana",
 ])
 
+export const encounterStageSchema = z.enum([
+    "Ninguno",
+    "Encuentro",
+    "Reencuentro",
+])
+
 export const memberSchema = z.object({
     _id: z.string(),
     firstName: z.string(),
@@ -91,6 +97,8 @@ export const memberSchema = z.object({
     ministry: ministrySchema.optional().nullable(),
     ministryInterest: ministrySchema.optional().nullable(),
     spiritualGrowthStage: spiritualGrowthStageSchema.optional(),
+    encounterStage: encounterStageSchema.optional(),
+    profession: z.string().optional().nullable(),
     role: roleSchema,
     user: z.object({
         _id: z.string(),
@@ -233,6 +241,7 @@ export type AuthUser = z.infer<typeof authUserSchema>
 export type MemberRoleName = z.infer<typeof memberRoleSchema>
 export type MinistryName = z.infer<typeof ministrySchema>
 export type SpiritualGrowthStage = z.infer<typeof spiritualGrowthStageSchema>
+export type EncounterStage = z.infer<typeof encounterStageSchema>
 export type LifeGroup = z.infer<typeof lifeGroupSchema>
 export type LifeGroupFormData = {
     name: string
@@ -252,6 +261,8 @@ export type MemberFormData = {
     ministry: MinistryName | ""
     ministryInterest: MinistryName | ""
     spiritualGrowthStage: SpiritualGrowthStage | ""
+    encounterStage: EncounterStage | ""
     roleNames: MemberRoleName[]
+    profession?: string
     email?: string
 }

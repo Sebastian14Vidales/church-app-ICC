@@ -67,6 +67,7 @@ export class UserProfileController {
         ministry,
         ministryInterest,
         spiritualGrowthStage,
+        encounterStage,
         ...profileData
       } = req.body;
 
@@ -142,6 +143,7 @@ export class UserProfileController {
         ...(servesInMinistry === true && ministry ? { ministry } : {}),
         ...(servesInMinistry === false && ministryInterest ? { ministryInterest } : {}),
         ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
+        ...(encounterStage ? { encounterStage } : {}),
       };
 
       const profile = new UserProfile(profilePayload);
@@ -240,6 +242,7 @@ export class UserProfileController {
         ministry,
         ministryInterest,
         spiritualGrowthStage,
+        encounterStage,
         ...updateData
       } = req.body;
       const selectedRoleNames = Array.isArray(roleNames) ? roleNames : [];
@@ -274,6 +277,7 @@ export class UserProfileController {
         ...(typeof baptized === "boolean" ? { baptized } : {}),
         ...(typeof servesInMinistry === "boolean" ? { servesInMinistry } : {}),
         ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
+        ...(encounterStage ? { encounterStage } : {}),
       } as Record<string, unknown>;
       const unsetFields: Record<string, "" | 1> = {};
 
