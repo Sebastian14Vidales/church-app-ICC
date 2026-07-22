@@ -112,12 +112,17 @@ router.post(
   CourseAssignmentController.addMembers,
 );
 
-// TODO[RATELIMIT-PENDING] ( D-32, AGENTS.md §8 ): endpoint sensible de mutación de
-// estado. Requiere rate-limit específico (sugerido: `express-rate-limit` con
-// `windowMs: 60_000, max: 20` por IP) más restrictivo que el rate-limit general
-// del server. NO instalado aún — la dep `express-rate-limit` no existe en
-// `backend/package.json`; AGENTS.md §6 prohíbe introducirla sin ADR previo
-// del `chief-architect`. El patrón a aplicar (una vez aprobada la dep):
+// TODO[RATELIMIT-PENDING] ( D-32, AGENTS.md §8, ADR-0003 §D4 ): endpoint sensible
+// de mutación de estado que requiere rate-limit específico más restrictivo que
+// el `generalLimiter` de `server.ts` (este último ya cubre /api/* con
+// 100 req/min por IP vía commit 62eeeec, cerrando la parte trasversal de ET-2).
+// La dep `express-rate-limit` YA está instalada en `backend/package.json`
+// (`^8.6.0`, aprobada en ADR-0003 §D1). El siguiente paso (pendiente del
+// `auth-security-engineer`, ADR-0003 "Cierre de ET-2 / tareas pendientes") es
+// montar el limiter específico `assignmentStateLimiter` (max: 20/min) en
+// `/assignments/:id/close` y `/assignments/:id/reopen`, ANTES de
+// `authorizeRoles(...)` para short-circuitar 429 antes de procesar JWT/rol, y
+// entonces retirar ambos bloques `TODO[RATELIMIT-PENDING]`. Patrón contratado:
 //
 //   import rateLimit from "express-rate-limit";
 //   const assignmentStateLimiter = rateLimit({
@@ -130,13 +135,11 @@ router.post(
 //   router.post("/assignments/:id/close",  assignmentStateLimiter, authorizeRoles(...), ...);
 //   router.post("/assignments/:id/reopen", assignmentStateLimiter, authorizeRoles(...), ...);
 //
-// El valor `max: 20/min` se justifica: el cierre/reabertura es una acción
+// `max: 20/min` se justifica: el cierre/reabertura es una acción
 // administrativa rara (1 vez por curso al finalizar / eventual corrección); un
 // mismo operador razonablemente no ejecuta más de 20 mutaciones/minuto ni bajo
 // carga legítima. Más restrictivo que el limit general para reducir abuso de
-// reaberturas (Superadmin-only pero defensa en profundidad). Bloqueante para
-// cumplimiento AGENTS.md §8 hasta que `devops-engineer`/`chief-architect`
-// aprueben la dep vía mini-ADR.
+// reaberturas (Superadmin-only pero defensa en profundidad).
 router.post(
   "/assignments/:id/close",
   authorizeRoles([...TEACHING_ROLES, "Admin", "Superadmin"]),
@@ -146,7 +149,8 @@ router.post(
 );
 
 // TODO[RATELIMIT-PENDING]: aplicar `assignmentStateLimiter` aquí también (ver
-// bloque de comentario anterior). Endpoints de mutación de estado sensibles.
+// el bloque de comentario anterior). Endpoints de mutación de estado sensibles
+// (ADR-0003 §D4); pendiente del `auth-security-engineer`.
 router.post(
   "/assignments/:id/reopen",
   authorizeRoles(SUPERADMIN_ROLES),
