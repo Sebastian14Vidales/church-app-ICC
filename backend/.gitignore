@@ -1,3 +1,6 @@
 # Node dependencies and build artifacts
 node_modules
 .env
+
+# Test coverage reports (regenerable via `npm run test:coverage`)
+coverage

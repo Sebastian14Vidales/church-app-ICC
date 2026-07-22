@@ -112,6 +112,31 @@ router.post(
   CourseAssignmentController.addMembers,
 );
 
+// TODO[RATELIMIT-PENDING] ( D-32, AGENTS.md §8 ): endpoint sensible de mutación de
+// estado. Requiere rate-limit específico (sugerido: `express-rate-limit` con
+// `windowMs: 60_000, max: 20` por IP) más restrictivo que el rate-limit general
+// del server. NO instalado aún — la dep `express-rate-limit` no existe en
+// `backend/package.json`; AGENTS.md §6 prohíbe introducirla sin ADR previo
+// del `chief-architect`. El patrón a aplicar (una vez aprobada la dep):
+//
+//   import rateLimit from "express-rate-limit";
+//   const assignmentStateLimiter = rateLimit({
+//     windowMs: 60_000,
+//     max: 20,
+//     standardHeaders: true,
+//     legacyHeaders: false,
+//     message: { message: "Demasiadas solicitudes de cambio de estado. Intenta más tarde." },
+//   });
+//   router.post("/assignments/:id/close",  assignmentStateLimiter, authorizeRoles(...), ...);
+//   router.post("/assignments/:id/reopen", assignmentStateLimiter, authorizeRoles(...), ...);
+//
+// El valor `max: 20/min` se justifica: el cierre/reabertura es una acción
+// administrativa rara (1 vez por curso al finalizar / eventual corrección); un
+// mismo operador razonablemente no ejecuta más de 20 mutaciones/minuto ni bajo
+// carga legítima. Más restrictivo que el limit general para reducir abuso de
+// reaberturas (Superadmin-only pero defensa en profundidad). Bloqueante para
+// cumplimiento AGENTS.md §8 hasta que `devops-engineer`/`chief-architect`
+// aprueben la dep vía mini-ADR.
 router.post(
   "/assignments/:id/close",
   authorizeRoles([...TEACHING_ROLES, "Admin", "Superadmin"]),
@@ -120,6 +145,8 @@ router.post(
   CourseAssignmentController.close,
 );
 
+// TODO[RATELIMIT-PENDING]: aplicar `assignmentStateLimiter` aquí también (ver
+// bloque de comentario anterior). Endpoints de mutación de estado sensibles.
 router.post(
   "/assignments/:id/reopen",
   authorizeRoles(SUPERADMIN_ROLES),
