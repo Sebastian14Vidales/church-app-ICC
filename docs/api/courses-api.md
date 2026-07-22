@@ -31,9 +31,18 @@ shapes definidos aquí.
   - `backend/src/routes/attendance.routes.ts` → `my-attendance` (se conserva el prefijo
     `/api/courses` para no romper contrato público, ADR §D1).
   > En `server.ts`/`index.ts` los tres routers se montan todos bajo `/api/courses`. Es
-  > responsabilidad del `backend-engineer` garantizar que **no haya colisión de rutas**
-  > (orden de montaje: catálogo primero para que `GET /:id` no haga sombra a `/assignments`,
-  > `/my-courses`, `/my-attendance`).
+  > responsabilidad del `backend-engineer` garantizar que **no haya colisión de rutas**.
+  > **Orden de montaje (ratificado por el `chief-architect` tras el paso 5)**: los routers
+  > estáticos van primero (`course-assignment.routes` → `attendance.routes`) y el de
+  > **catálogo al final**. Razón técnica: Express evalúa `app.use` en orden y, dentro de
+  > cada router, las rutas en el orden declarado; si el catálogo (que declara `GET /:id`)
+  > se montara primero, su `GET /:id`interceptaría cualquier subrecurso no declarado en
+  > los routers anteriores — capturaría `/assignments`, `/my-courses`, `/my-attendance`
+  > como `id`. Montando catálogo último, las rutas estáticas ya despachadas por los otros
+  > routers nunca llegan al `GET /:id` del catálogo, y un id Mongo real cae correctamente
+  > ahí. Dentro de cada router, las rutas estáticas se declaran antes que las paramétricas
+  > (`/assignments/history` antes que `/assignments/:id`; `/my-courses` antes que
+  > `/my-courses/history`).
 - Autenticación: todos los endpoints exigen `authenticate` (JWT). Los roles se enumeran por
   endpoint usando las constantes de `backend/src/utils/auth.utils.ts`:
   - `ADMIN_ROLES = ["Admin", "Superadmin"]`

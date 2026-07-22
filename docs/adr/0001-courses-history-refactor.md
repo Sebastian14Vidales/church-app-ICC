@@ -328,9 +328,37 @@ mismo cambio del paso 3.
 
 ## Apertura de excepciones temporales
 
-Ninguna adicional. E-2 fue rechazada (no aplica). E-1, E-3, E-4 y E-5 son aceptadas y
-quedan registradas arriba; ninguna es "temporal" con caducidad, salvo E-1 que tendrá
-revisión cuando la cardinalidad histórica crezca.
+### ET-1 — Auditoría ausente (`[AUDIT-PENDING]` temporal)
+
+- **Vigencia**: desde el paso 5 del Plan de ejecución del ADR-0001 hasta que se
+  implemente el módulo de auditoría transversal (épica aparte, por definir).
+- **Alcance**: tres mutaciones sensibles del módulo de Cursos requieren registro de
+  auditoría (AC7.4 y EAC-9):
+  - `course.assignment.delete` (ctx `{ assignmentId }`) en
+    `backend/src/services/course-assignment.service.ts :: softDeleteAssignment`.
+  - `course.assignment.close` (ctx `{ assignmentId, professorId }`) en
+    `closeAssignment`.
+  - `course.reopen` (ctx `{ assignmentId, oldStatus, newStatus, totalClasses }`) en
+    `reopenAssignment`.
+- **Estado actual**: el `backend-engineer` hace `grep` exhaustivo y confirma que **no
+  existe módulo de auditoría** en `backend/src/` (ni `service`, ni `util`, ni
+  `middleware`). Por `AGENTS.md §5` ("Auditoría... via el módulo de auditoría; no
+  reimplementar") no se introduce un módulo de auditoría ad-hoc en esta épica.
+- **Mitigación**: cada uno de los 3 sitios marca con comentario `TODO[AUDIT-PENDING]`
+  indicando acción + contexto a persistir. La auditoría entra cuando el `chief-architect`
+  abra la épica de auditoría (p. ej. `EPC-AUDIT-001`) y designe un dueño (probablemente
+  un nuevo agent `audit-engineer`, o iteración de `backend-engineer` con scope acotado).
+- **Compromiso**: cuando el módulo exista, se eliminan los 3 `TODO[AUDIT-PENDING]` en
+  el mismo PR que introduce el módulo, completando así HU-07 AC7.4 y EAC-9. Mientras
+  tanto, **las acciones sensibles se ejecutan funcionalmente** (sin registro), pero el
+  código deja rastro de dónde auditar.
+
+### Otras excepciones ya ratificadas
+
+E-1, E-3, E-4 y E-5 son aceptadas (ver sección anterior "Excepciones ratificadas por el
+`chief-architect` tras el paso 3"). E-2 fue rechazada (no aplica). Ninguna adicional
+	temporal con caducidad, salvo la ET-1 anterior y la revisión futura de E-1 cuando la
+cardinalidad histórica crezca.
 
 ## Referencias
 
