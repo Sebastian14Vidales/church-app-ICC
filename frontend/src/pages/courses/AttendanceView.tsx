@@ -60,7 +60,14 @@ export default function AttendanceView() {
     })
 
     const assignment = data?.assignment ?? null
-    const sessions = data?.sessions ?? []
+    // `sessions` se envuelve en useMemo propio para evitar recrear la
+    // referencia del array en cada render y resolver el warning
+    // `react-hooks/exhaustive-deps` derivado en `savedSessions`, `effects`
+    // y `studentSummaries/courseMetrics`.
+    const sessions = useMemo(
+        () => data?.sessions ?? [],
+        [data?.sessions],
+    )
     const savedSessions = useMemo(
         () => sessions.filter((session) => Boolean(session._id)),
         [sessions],
@@ -265,17 +272,20 @@ export default function AttendanceView() {
                                 color="warning"
                                 variant="flat"
                                 isLoading={closeCourseMutation.isPending}
+                                isDisabled={!canCloseCourse}
+                                aria-disabled={!canCloseCourse}
+                                title={canCloseCourse ? undefined : "Debes registrar todas las clases antes de cerrar el curso"}
                                 onPress={handleCloseCourse}
                             >
                                 Cerrar curso
                             </Button>
                         </div>
                         {!canCloseCourse ? (
-                            <p className="mt-3 text-sm text-amber-200">
+                            <p role="status" aria-live="polite" className="mt-3 text-sm text-amber-200">
                                 Para cerrar el curso debes registrar las {assignment.totalClasses} clases programadas.
                             </p>
                         ) : (
-                            <p className="mt-3 text-sm text-emerald-200">
+                            <p role="status" aria-live="polite" className="mt-3 text-sm text-emerald-200">
                                 El curso ya esta listo para cerrarse.
                             </p>
                         )}
@@ -457,7 +467,9 @@ export default function AttendanceView() {
                                     key={session.classNumber}
                                     type="button"
                                     onClick={() => setSelectedClassNumber(session.classNumber)}
-                                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                                    aria-pressed={isSelected}
+                                    aria-label={`Clase ${session.classNumber}, ${session._id ? "asistencia guardada" : "pendiente por registrar"}`}
+                                    className={`w-full rounded-2xl border px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
                                         isSelected
                                             ? "border-blue-300 bg-blue-50 shadow-sm"
                                             : "border-slate-200 bg-white hover:border-slate-300"
@@ -469,15 +481,17 @@ export default function AttendanceView() {
                                                 Clase {session.classNumber}
                                             </p>
                                             <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
-                                                <CalendarDays className="h-4 w-4 text-slate-400" />
+                                                <CalendarDays className="h-4 w-4 text-slate-400" aria-hidden="true" />
                                                 {new Date(session.date).toLocaleDateString("es-CO")}
                                             </p>
                                         </div>
                                         <span
+                                            role="status"
+                                            aria-label={session._id ? "Estado: asistencia guardada" : "Estado: pendiente por registrar"}
                                             className={`rounded-full px-3 py-1 text-xs font-semibold ${
                                                 session._id
-                                                    ? "bg-emerald-100 text-emerald-700"
-                                                    : "bg-amber-100 text-amber-700"
+                                                    ? "bg-emerald-100 text-emerald-800"
+                                                    : "bg-amber-200 text-amber-900"
                                             }`}
                                         >
                                             {session._id ? "Guardada" : "Pendiente"}
@@ -581,13 +595,21 @@ export default function AttendanceView() {
                         )}
 
                         {pendingMembersCount ? (
-                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            <div
+                                role="status"
+                                aria-live="polite"
+                                className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                            >
                                 Te faltan {pendingMembersCount} estudiante{pendingMembersCount === 1 ? "" : "s"} por marcar en esta clase.
                             </div>
                         ) : null}
 
                         {attendanceMutation.isError ? (
-                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            <div
+                                role="alert"
+                                aria-live="assertive"
+                                className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                            >
                                 {attendanceMutation.error.message}
                             </div>
                         ) : null}

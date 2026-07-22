@@ -9,18 +9,18 @@ type StudentQuickViewModalProps = {
 
 const getStatusBadgeStyles = (present: boolean | null, isRecorded: boolean) => {
     if (!isRecorded) {
-        return "bg-slate-100 text-slate-600"
+        return "bg-slate-200 text-slate-700"
     }
 
     if (present === true) {
-        return "bg-emerald-100 text-emerald-700"
+        return "bg-emerald-100 text-emerald-800"
     }
 
     if (present === false) {
-        return "bg-rose-100 text-rose-700"
+        return "bg-rose-100 text-rose-800"
     }
 
-    return "bg-amber-100 text-amber-700"
+    return "bg-amber-200 text-amber-900"
 }
 
 const getStatusLabel = (present: boolean | null, isRecorded: boolean) => {

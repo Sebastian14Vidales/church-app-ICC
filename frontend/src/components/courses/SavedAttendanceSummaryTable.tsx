@@ -42,21 +42,30 @@ export default function SavedAttendanceSummaryTable({
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse text-sm">
+                    <caption className="sr-only">
+                        Resumen de asistencias guardadas por estudiante y clase del curso{" "}
+                        {assignment.course.name}. Cada celda muestra si el estudiante asistio,
+                        falto o aun no tiene registro para esa clase.
+                    </caption>
                     <thead>
                         <tr className="bg-slate-100 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-600">
-                            <th className="sticky left-0 z-10 min-w-64 border-b border-r border-slate-200 bg-slate-100 px-4 py-3">
+                            <th
+                                scope="col"
+                                className="sticky left-0 z-10 min-w-64 border-b border-r border-slate-200 bg-slate-100 px-4 py-3"
+                            >
                                 Estudiante
                             </th>
                             {classNumbers.map((classNumber) => (
                                 <th
                                     key={classNumber}
+                                    scope="col"
                                     className="min-w-24 border-b border-r border-slate-200 px-3 py-3 text-center last:border-r-0"
                                 >
                                     Clase {classNumber}
                                 </th>
                             ))}
                             {onOpenStudentQuickView ? (
-                                <th className="min-w-36 border-b border-slate-200 px-3 py-3 text-center">
+                                <th scope="col" className="min-w-36 border-b border-slate-200 px-3 py-3 text-center">
                                     Vista rápida
                                 </th>
                             ) : null}
@@ -65,7 +74,10 @@ export default function SavedAttendanceSummaryTable({
                     <tbody>
                         {assignment.members.map((member) => (
                             <tr key={member._id} className="odd:bg-white even:bg-slate-50/70">
-                                <th className="sticky left-0 z-10 border-b border-r border-slate-200 bg-inherit px-4 py-3 text-left font-semibold text-slate-900">
+                                <th
+                                    scope="row"
+                                    className="sticky left-0 z-10 border-b border-r border-slate-200 bg-inherit px-4 py-3 text-left font-semibold text-slate-900"
+                                >
                                     <span className="block">
                                         {formatFullName(member.firstName, member.lastName)}
                                     </span>
@@ -87,23 +99,29 @@ export default function SavedAttendanceSummaryTable({
                                             {attendance ? (
                                                 attendance.present ? (
                                                     <span
+                                                        role="img"
                                                         className="inline-flex items-center justify-center rounded-full bg-emerald-100 p-1 text-emerald-700"
-                                                        title="Asistió"
-                                                        aria-label="Asistió"
+                                                        title={`Asistio a la clase ${classNumber}`}
+                                                        aria-label={`${formatFullName(member.firstName, member.lastName)} asistio a la clase ${classNumber}`}
                                                     >
-                                                        <CheckCircle2 className="h-5 w-5" />
+                                                        <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                                                     </span>
                                                 ) : (
                                                     <span
+                                                        role="img"
                                                         className="inline-flex items-center justify-center rounded-full bg-rose-100 p-1 text-rose-700"
-                                                        title="Falló"
-                                                        aria-label="Falló"
+                                                        title={`Fallo a la clase ${classNumber}`}
+                                                        aria-label={`${formatFullName(member.firstName, member.lastName)} fallo a la clase ${classNumber}`}
                                                     >
-                                                        <XCircle className="h-5 w-5" />
+                                                        <XCircle className="h-5 w-5" aria-hidden="true" />
                                                     </span>
                                                 )
                                             ) : (
-                                                <span className="text-slate-300" title="Sin registrar">
+                                                <span
+                                                    className="text-slate-400"
+                                                    title="Sin registrar"
+                                                    aria-label={`Sin registrar en la clase ${classNumber}`}
+                                                >
                                                     —
                                                 </span>
                                             )}
@@ -116,9 +134,10 @@ export default function SavedAttendanceSummaryTable({
                                             size="sm"
                                             color="primary"
                                             variant="flat"
+                                            aria-label={`Ver detalle de ${formatFullName(member.firstName, member.lastName)}`}
                                             onPress={() => onOpenStudentQuickView(member._id)}
                                         >
-                                            <Eye className="h-4 w-4" />
+                                            <Eye className="h-4 w-4" aria-hidden="true" />
                                             Abrir
                                         </Button>
                                     </td>
@@ -130,11 +149,11 @@ export default function SavedAttendanceSummaryTable({
             </div>
             <div className="flex flex-wrap gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
                 <span className="inline-flex items-center gap-1">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
                     Asistió
                 </span>
                 <span className="inline-flex items-center gap-1">
-                    <XCircle className="h-4 w-4 text-rose-600" />
+                    <XCircle className="h-4 w-4 text-rose-600" aria-hidden="true" />
                     Falló
                 </span>
                 <span>— Sin registrar</span>

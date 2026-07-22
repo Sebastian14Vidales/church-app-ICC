@@ -68,65 +68,73 @@ export default function MyCoursesStudent() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-                <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+                <article
+                    aria-labelledby="student-current-title"
+                    className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70"
+                >
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Curso actual</p>
-                            <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                            <h2 id="student-current-title" className="mt-2 text-2xl font-bold text-slate-900">
                                 {currentAssignment ? currentAssignment.course.name : "Sin curso activo"}
                             </h2>
                         </div>
-                        <Award className="h-5 w-5 text-slate-400" />
+                        <Award className="h-5 w-5 text-slate-400" aria-hidden="true" />
                     </div>
 
                     {currentAssignment ? (
                         <div className="mt-5 space-y-3 text-sm text-slate-600">
                             <p className="font-medium text-slate-900">{currentAssignment.course.description}</p>
                             <p className="flex items-center gap-2">
-                                <CalendarDays className="h-4 w-4 text-slate-400" />
+                                <CalendarDays className="h-4 w-4 text-slate-400" aria-hidden="true" />
                                 {formatAssignmentDate(currentAssignment.startDate)} a {formatAssignmentDate(currentAssignment.endDate)}
                             </p>
                             <p className="flex items-center gap-2">
-                                <Clock3 className="h-4 w-4 text-slate-400" />
+                                <Clock3 className="h-4 w-4 text-slate-400" aria-hidden="true" />
                                 {currentAssignment.startTime} · {currentAssignment.totalClasses} clases
                             </p>
                             <p className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-slate-400" />
+                                <MapPin className="h-4 w-4 text-slate-400" aria-hidden="true" />
                                 {getLocationNameById(currentAssignment.location)}
                             </p>
                             <p className="flex items-center gap-2">
-                                <BookOpen className="h-4 w-4 text-slate-400" />
+                                <BookOpen className="h-4 w-4 text-slate-400" aria-hidden="true" />
                                 Nivel {COURSE_LEVEL_LABELS[currentAssignment.course.level] ?? currentAssignment.course.level}
                             </p>
                         </div>
                     ) : (
-                        <p className="mt-5 text-sm text-slate-500">
+                        <p role="status" aria-live="polite" className="mt-5 text-sm text-slate-500">
                             Aun no tienes un curso activo asignado.
                         </p>
                     )}
                 </article>
 
-                <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+                <article
+                    aria-labelledby="student-trophies-title"
+                    className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70"
+                >
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Trofeos</p>
-                            <h2 className="mt-2 text-2xl font-bold text-slate-900">Cursos completados</h2>
+                            <h2 id="student-trophies-title" className="mt-2 text-2xl font-bold text-slate-900">Cursos completados</h2>
                         </div>
-                        <Trophy className="h-5 w-5 text-amber-500" />
+                        <Trophy className="h-5 w-5 text-amber-500" aria-hidden="true" />
                     </div>
 
                     <div className="mt-5 space-y-3">
                         {trophies.length ? (
-                            trophies.map((assignment) => (
-                                <div key={assignment._id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                    <p className="font-semibold text-slate-900">{assignment.course.name}</p>
-                                    <p className="mt-1 text-sm text-slate-600">
-                                        Completado · {formatAssignmentDate(assignment.endDate)}
-                                    </p>
-                                </div>
-                            ))
+                            <ul role="list" aria-label="Cursos completados" className="space-y-3">
+                                {trophies.map((assignment) => (
+                                    <li key={assignment._id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                        <p className="font-semibold text-slate-900">{assignment.course.name}</p>
+                                        <p className="mt-1 text-sm text-slate-600">
+                                            Completado · {formatAssignmentDate(assignment.endDate)}
+                                        </p>
+                                    </li>
+                                ))}
+                            </ul>
                         ) : (
-                            <p className="text-sm text-slate-500">
+                            <p role="status" aria-live="polite" className="text-sm text-slate-500">
                                 Aun no has completado cursos. Aqui apareceran tus trofeos.
                             </p>
                         )}
@@ -134,24 +142,33 @@ export default function MyCoursesStudent() {
                 </article>
             </section>
 
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+            <section
+                aria-labelledby="student-missing-title"
+                className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70"
+            >
                 <div className="flex items-center justify-between gap-3">
                     <div>
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Ruta pendiente</p>
-                        <h2 className="mt-2 text-2xl font-bold text-slate-900">Cursos faltantes</h2>
+                        <h2 id="student-missing-title" className="mt-2 text-2xl font-bold text-slate-900">Cursos faltantes</h2>
                     </div>
                 </div>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-5">
                     {missingCourses.length ? (
-                        missingCourses.map((course) => (
-                            <div key={course._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <p className="font-semibold text-slate-900">{course.name}</p>
-                                <p className="mt-2 text-sm text-slate-600">{course.description}</p>
-                            </div>
-                        ))
+                        <ul
+                            role="list"
+                            aria-label="Cursos pendientes del catalogo"
+                            className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+                        >
+                            {missingCourses.map((course) => (
+                                <li key={course._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="font-semibold text-slate-900">{course.name}</p>
+                                    <p className="mt-2 text-sm text-slate-600">{course.description}</p>
+                                </li>
+                            ))}
+                        </ul>
                     ) : (
-                        <p className="text-sm text-slate-500">
+                        <p role="status" aria-live="polite" className="text-sm text-slate-500">
                             Ya recorriste todos los cursos del catalogo actual.
                         </p>
                     )}

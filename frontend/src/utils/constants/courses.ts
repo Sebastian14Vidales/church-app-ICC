@@ -18,9 +18,15 @@ export const COURSE_STATUS_LABELS: Partial<Record<CourseAssignedStatus, string>>
     completed: "Finalizado",
 }
 
+/**
+ * Chips de estado de CourseAssigned accesibles WCAG AA (ADR-0001 §AC4.7).
+ * Se usan tonos `*-600/700` con texto blanco y borde del mismo tono:
+ * el estado NO se comunica solo por color (el texto lo acompana) y el
+ * contraste cumple >= 4.5:1 para texto normal/bold pequeno (>= 3:1 UI).
+ */
 export const COURSE_STATUS_BADGE_STYLES: Partial<Record<CourseAssignedStatus, string>> = {
-    active: "bg-emerald-100 text-emerald-800",
-    completed: "bg-slate-200 text-slate-800",
+    active: "bg-emerald-600 text-white border border-emerald-700",
+    completed: "bg-slate-500 text-white border border-slate-600",
 }
 
 export const COURSE_LEVEL_OPTIONS: Array<{ value: CourseLevel; label: string }> = [
@@ -29,8 +35,15 @@ export const COURSE_LEVEL_OPTIONS: Array<{ value: CourseLevel; label: string }> 
     { value: "advanced", label: COURSE_LEVEL_LABELS.advanced },
 ]
 
+/**
+ * Chips de nivel de curso accesibles WCAG AA (ADR-0001 §AC4.7).
+ * Tonos `sky/amber/rose` en ``-600/-700`` con texto blanco y borde:
+ * evita colores crudos (green-400/yellow-400/red-400) que con ``-800``
+ * no alcanzaban contraste AA. El nivel tambien se lee en el texto del
+ * chip (`COURSE_LEVEL_LABELS`), por lo que el color no es el unico canal.
+ */
 export const COURSE_LEVEL_BADGE_STYLES: Record<CourseLevel, string> = {
-    basic: "bg-green-400 text-green-800",
-    intermediate: "bg-yellow-400 text-yellow-800",
-    advanced: "bg-red-400 text-red-800",
+    basic: "bg-sky-600 text-white border border-sky-700",
+    intermediate: "bg-amber-600 text-white border border-amber-700",
+    advanced: "bg-rose-700 text-white border border-rose-800",
 }

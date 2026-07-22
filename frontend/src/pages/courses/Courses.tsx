@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Input, Select, SelectItem } from "@heroui/react";
 import { BadgePlus, BookOpenCheck, CalendarDays, History, MapPin, NotebookPen, Pencil, Timer, Trash2, UserRound } from "lucide-react";
@@ -44,6 +44,60 @@ const TABS: Array<{ id: Tab; label: string }> = [
     { id: "active", label: "Asignaciones vigentes" },
     { id: "history", label: "Historial" },
 ];
+
+// Patron tabs ARIA APG (roving tabindex + flechas/Home/End). La navegacion
+// se resuelve por DOM (padre -> botones[role="tab"]) en lugar de refs, para
+// no tocar `ref.current` en render (regla `react-hooks/refs` del React
+// Compiler). Si se reutiliza en mas paginas, mover `<Tabs>` a
+// `frontend/src/components/ui/Tabs.tsx` requiere ADR del `chief-architect`
+// (AGENTS.md §2).
+const TAB_FOCUSABLE_KEYS = new Set([
+    "ArrowRight", "Right",
+    "ArrowLeft", "Left",
+    "Home", "End",
+]);
+
+const handleTabKeyDown =
+    <T extends string>(tabs: Array<{ id: T }>, onChange: (id: T) => void) =>
+    (event: KeyboardEvent<HTMLButtonElement>) => {
+        if (!TAB_FOCUSABLE_KEYS.has(event.key)) return;
+        const parent = event.currentTarget.parentElement;
+        if (!parent) return;
+        const buttons = Array.from(
+            parent.querySelectorAll<HTMLButtonElement>('button[role="tab"]'),
+        );
+        const count = buttons.length;
+        if (count === 0) return;
+        const currentIndex = buttons.indexOf(event.currentTarget);
+        if (currentIndex < 0) return;
+        let nextIndex = currentIndex;
+        switch (event.key) {
+            case "ArrowRight":
+            case "Right":
+                nextIndex = (currentIndex + 1) % count;
+                break;
+            case "ArrowLeft":
+            case "Left":
+                nextIndex = (currentIndex - 1 + count) % count;
+                break;
+            case "Home":
+                nextIndex = 0;
+                break;
+            case "End":
+                nextIndex = count - 1;
+                break;
+            default:
+                return;
+        }
+        event.preventDefault();
+        const target = buttons[nextIndex];
+        if (!target) return;
+        const targetId = target.id.replace(/^tab-/, "");
+        const matched = tabs.find((tab) => tab.id === targetId);
+        if (!matched) return;
+        onChange(matched.id);
+        target.focus();
+    };
 
 const emptyCourseForm: CourseFormData = { name: "", description: "", level: "basic" };
 
@@ -241,10 +295,11 @@ export default function Courses() {
                 </p>
             </div>
 
-            {/* Tablist accesible */}
+            {/* Tablist accesible (ARIA APG: roving tabindex + flechas/Home/End) */}
             <div
                 role="tablist"
                 aria-label="Secciones de cursos"
+                aria-orientation="horizontal"
                 className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm"
             >
                 {TABS.map(({ id, label }) => {
@@ -257,8 +312,10 @@ export default function Courses() {
                             aria-selected={selected}
                             aria-controls={`tabpanel-${id}`}
                             id={`tab-${id}`}
+                            tabIndex={selected ? 0 : -1}
                             onClick={() => setTab(id)}
-                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                            onKeyDown={handleTabKeyDown(TABS, setTab)}
+                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
                                 selected
                                     ? "bg-blue-600 text-white shadow"
                                     : "text-slate-600 hover:bg-slate-100"
@@ -340,7 +397,9 @@ export default function Courses() {
                                     <div className="flex items-center justify-between gap-2">
                                         <h3 className="text-lg font-bold text-slate-900">{course.name}</h3>
                                         <span
-                                            className={`rounded px-2.5 py-0.5 text-xs font-medium ${COURSE_LEVEL_BADGE_STYLES[course.level]}`}
+                                            role="img"
+                                            aria-label={`Nivel ${COURSE_LEVEL_LABELS[course.level]}`}
+                                            className={`rounded px-2.5 py-0.5 text-xs font-semibold ${COURSE_LEVEL_BADGE_STYLES[course.level]}`}
                                         >
                                             {COURSE_LEVEL_LABELS[course.level]}
                                         </span>
@@ -349,10 +408,12 @@ export default function Courses() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span
-                                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                        role="status"
+                                        aria-label={course.isActive ? "Curso activo" : "Curso inactivo"}
+                                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                                             course.isActive
-                                                ? "bg-emerald-100 text-emerald-700"
-                                                : "bg-slate-200 text-slate-600"
+                                                ? "bg-emerald-600 text-white border border-emerald-700"
+                                                : "bg-slate-500 text-white border border-slate-600"
                                         }`}
                                     >
                                         {course.isActive ? "Activo" : "Inactivo"}
@@ -450,6 +511,8 @@ export default function Courses() {
                                             <p className="text-sm text-slate-500">{assignment.course.description}</p>
                                         </div>
                                         <span
+                                            role="status"
+                                            aria-label={`Estado: ${COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}`}
                                             className={`rounded-full px-3 py-1 text-xs font-semibold ${COURSE_STATUS_BADGE_STYLES[assignment.status] ?? ""}`}
                                         >
                                             {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}
@@ -616,6 +679,8 @@ export default function Courses() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span
+                                            role="status"
+                                            aria-label={`Estado: ${COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}`}
                                             className={`rounded-full px-3 py-1 text-xs font-semibold ${COURSE_STATUS_BADGE_STYLES[assignment.status] ?? ""}`}
                                         >
                                             {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { Button, Checkbox, Input } from "@heroui/react";
 import { BookOpen, CalendarDays, ClipboardCheck, Clock3, GraduationCap, MapPin, Search, Trophy } from "lucide-react";
@@ -27,6 +27,58 @@ const TABS: Array<{ id: Tab; label: string }> = [
     { id: "current", label: "Curso actual" },
     { id: "history", label: "Historial" },
 ];
+
+// Patron tabs ARIA APG (roving tabindex + flechas/Home/End). Misma
+// implementacion que en Courses.tsx (navegacion por DOM, sin refs). Mover el
+// componente a components/ui/ requeriria ADR del `chief-architect`
+// (AGENTS.md §2).
+const TAB_FOCUSABLE_KEYS = new Set([
+    "ArrowRight", "Right",
+    "ArrowLeft", "Left",
+    "Home", "End",
+]);
+
+const handleTabKeyDown =
+    <T extends string>(tabs: Array<{ id: T }>, onChange: (id: T) => void) =>
+    (event: KeyboardEvent<HTMLButtonElement>) => {
+        if (!TAB_FOCUSABLE_KEYS.has(event.key)) return;
+        const parent = event.currentTarget.parentElement;
+        if (!parent) return;
+        const buttons = Array.from(
+            parent.querySelectorAll<HTMLButtonElement>('button[role="tab"]'),
+        );
+        const count = buttons.length;
+        if (count === 0) return;
+        const currentIndex = buttons.indexOf(event.currentTarget);
+        if (currentIndex < 0) return;
+        let nextIndex = currentIndex;
+        switch (event.key) {
+            case "ArrowRight":
+            case "Right":
+                nextIndex = (currentIndex + 1) % count;
+                break;
+            case "ArrowLeft":
+            case "Left":
+                nextIndex = (currentIndex - 1 + count) % count;
+                break;
+            case "Home":
+                nextIndex = 0;
+                break;
+            case "End":
+                nextIndex = count - 1;
+                break;
+            default:
+                return;
+        }
+        event.preventDefault();
+        const target = buttons[nextIndex];
+        if (!target) return;
+        const targetId = target.id.replace(/^professor-tab-/, "");
+        const matched = tabs.find((tab) => tab.id === targetId);
+        if (!matched) return;
+        onChange(matched.id);
+        target.focus();
+    };
 
 const formatAssignmentDate = (value: string) =>
     new Date(value).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
@@ -185,6 +237,7 @@ export default function MyCoursesProfessor() {
             <div
                 role="tablist"
                 aria-label="Secciones de mis cursos"
+                aria-orientation="horizontal"
                 className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm"
             >
                 {TABS.map(({ id, label }) => {
@@ -197,8 +250,10 @@ export default function MyCoursesProfessor() {
                             aria-selected={selected}
                             aria-controls={`professor-tabpanel-${id}`}
                             id={`professor-tab-${id}`}
+                            tabIndex={selected ? 0 : -1}
                             onClick={() => setTab(id)}
-                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                            onKeyDown={handleTabKeyDown(TABS, setTab)}
+                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
                                 selected ? "bg-blue-600 text-white shadow" : "text-slate-600 hover:bg-slate-100"
                             }`}
                         >
@@ -228,7 +283,11 @@ export default function MyCoursesProfessor() {
                                 <h2 className="mt-2 text-2xl font-bold text-slate-900">{activeAssignment.course.name}</h2>
                                 <p className="mt-2 text-sm leading-6 text-slate-500">{activeAssignment.course.description}</p>
                             </div>
-                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                            <span
+                            role="img"
+                            aria-label={`Nivel ${COURSE_LEVEL_LABELS[activeAssignment.course.level] ?? activeAssignment.course.level}`}
+                            className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-200"
+                        >
                                 Nivel {COURSE_LEVEL_LABELS[activeAssignment.course.level] ?? activeAssignment.course.level}
                             </span>
                         </div>
@@ -246,7 +305,11 @@ export default function MyCoursesProfessor() {
                                 <MapPin className="h-4 w-4 text-slate-400" />
                                 {getLocationNameById(activeAssignment.location)}
                             </p>
-                            <p className="flex items-center gap-2">
+                            <p
+                                role="status"
+                                aria-label={`Progreso de sesiones: ${recordedSessions.length} de ${activeAssignment.totalClasses} clases registradas`}
+                                className="flex items-center gap-2"
+                            >
                                 <BookOpen className="h-4 w-4 text-slate-400" />
                                 Progreso de sesiones: {sessionsProgress}
                             </p>
@@ -297,12 +360,18 @@ export default function MyCoursesProfessor() {
                                 variant="flat"
                                 isLoading={closeCourse.isPending}
                                 isDisabled={!canClose}
+                                aria-disabled={!canClose}
+                                title={canClose ? undefined : "Debes registrar todas las clases antes de cerrar el curso"}
                                 onPress={handleCloseCourse}
                             >
                                 Cerrar curso
                             </Button>
                             {!canClose ? (
-                                <p className="self-center text-sm text-amber-600">
+                                <p
+                                    role="status"
+                                    aria-live="polite"
+                                    className="self-center text-sm text-amber-700"
+                                >
                                     Para cerrar el curso debes registrar las {activeAssignment.totalClasses} clases programadas.
                                 </p>
                             ) : null}
@@ -349,8 +418,12 @@ export default function MyCoursesProfessor() {
                                     <button
                                         type="button"
                                         onClick={() => setExpandedHistoryId(isExpanded ? null : assignment._id)}
-                                        className="flex w-full items-center justify-between gap-3 text-left"
+                                        className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                                         aria-expanded={isExpanded}
+                                        aria-controls={`professor-history-detail-${assignment._id}`}
+                                        aria-label={isExpanded
+                                            ? `Ocultar detalle de ${assignment.course.name}`
+                                            : `Ver detalle de ${assignment.course.name}`}
                                     >
                                         <div>
                                             <p className="text-base font-bold text-slate-900">{assignment.course.name}</p>
@@ -365,7 +438,12 @@ export default function MyCoursesProfessor() {
                                     </button>
 
                                     {isExpanded ? (
-                                        <div className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4">
+                                        <div
+                                            id={`professor-history-detail-${assignment._id}`}
+                                            role="region"
+                                            aria-label={`Detalle del curso ${assignment.course.name}`}
+                                            className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4"
+                                        >
                                             {historyDetail.isLoading ? (
                                                 <p className="text-sm text-slate-500">Cargando sesiones...</p>
                                             ) : historyDetail.isError ? (
@@ -393,7 +471,7 @@ export default function MyCoursesProfessor() {
                         })}
                     </div>
                 ) : (
-                    <p className="text-sm text-slate-500">Aun no has completado cursos.</p>
+                    <p role="status" aria-live="polite" className="text-sm text-slate-500">Aun no has completado cursos.</p>
                 )}
             </section>
 
@@ -435,7 +513,12 @@ export default function MyCoursesProfessor() {
                                         checked ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
                                     }`}
                                 >
-                                    <Checkbox isSelected={checked} onValueChange={() => toggleMember(member._id)} className="mt-1" />
+                                    <Checkbox
+                                        isSelected={checked}
+                                        onValueChange={() => toggleMember(member._id)}
+                                        aria-label={`Seleccionar a ${formatFullName(member.firstName, member.lastName)}`}
+                                        className="mt-1"
+                                    />
                                     <div>
                                         <p className="font-medium text-slate-900">{formatFullName(member.firstName, member.lastName)}</p>
                                         <p className="text-sm text-slate-500">{member.role.name} · {member.documentID}</p>
