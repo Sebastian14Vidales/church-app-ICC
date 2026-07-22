@@ -1,21 +1,25 @@
-import { useEffect } from "react";
 import { Controller, useWatch, type Control, type FieldErrors, type UseFormSetValue } from "react-hook-form";
 import { Button, DatePicker, Input, Select, SelectItem } from "@heroui/react";
 import { parseDate, today, getLocalTimeZone } from "@internationalized/date";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllMembers } from "@/api/MemberAPI";
-import { type CourseAssignedFormData } from "@/types/index";
+import { type CourseAssignmentCreateBody } from "@/types/index";
 import { LOCATIONS } from "@/utils/constants/locations";
 import { formatFullName } from "@/utils/text";
 
 export type AssignCourseFormProps = {
-    control: Control<CourseAssignedFormData>;
-    errors: FieldErrors<CourseAssignedFormData>;
-    setValue: UseFormSetValue<CourseAssignedFormData>;
+    control: Control<CourseAssignmentCreateBody>;
+    errors: FieldErrors<CourseAssignmentCreateBody>;
+    setValue: UseFormSetValue<CourseAssignmentCreateBody>;
     currentAssignmentId?: string | null;
 };
 
+/**
+ * Fecha final estimada (solo informativa en UI; el backend calcula y persiste
+ * `endDate` a partir de `startDate` + `(totalClasses-1)*7 dias`). Contract 2.3
+ * no permite enviar `endDate` en el body.
+ */
 const calculateEndDate = (startDate: string, totalClasses: number) => {
     if (!startDate || !totalClasses || totalClasses < 1) return "";
 
@@ -46,10 +50,11 @@ export default function AssignCourseForm({
     setValue,
     currentAssignmentId = null,
 }: AssignCourseFormProps) {
-    const { data: courses = [] } = useQuery({
+    const { data: coursesData } = useQuery({
         queryKey: ["courses"],
-        queryFn: getAllCourses,
+        queryFn: () => getAllCourses(),
     });
+    const courses = coursesData?.items ?? [];
 
     const { data: members = [] } = useQuery({
         queryKey: ["members"],
@@ -78,9 +83,9 @@ export default function AssignCourseForm({
     const totalClasses = useWatch({ control, name: "totalClasses" });
     const calculatedEndDate = calculateEndDate(startDate, totalClasses);
 
-    useEffect(() => {
-        setValue("endDate", calculatedEndDate);
-    }, [calculatedEndDate, setValue]);
+    // `setValue` queda reservado por el contrato del form (-compatible con quien
+    // use el modal en edicion futura); el body no envia `endDate`.
+    void setValue;
 
     return (
         <div className="space-y-4">
@@ -194,7 +199,7 @@ export default function AssignCourseForm({
             </div>
 
             <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
-                <p className="text-sm font-medium text-blue-900">Fecha final calculada</p>
+                <p className="text-sm font-medium text-blue-900">Fecha final estimada</p>
                 <p className="text-sm text-blue-700">
                     {calculatedEndDate ? formatDisplayDate(calculatedEndDate) : "Selecciona una fecha de inicio y el numero de clases"}
                 </p>

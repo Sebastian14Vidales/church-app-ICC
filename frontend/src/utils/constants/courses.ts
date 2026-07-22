@@ -6,10 +6,21 @@ export const COURSE_LEVEL_LABELS: Record<CourseLevel, string> = {
     advanced: "Avanzado",
 }
 
-export const COURSE_STATUS_LABELS: Record<CourseAssignedStatus, string> = {
+/**
+ * Etiquetas de estado de CourseAssigned (contract §5.2, ADR-0001 §D2).
+ * `cancelled` se eliminó del enum. Se usa `Partial<Record<...>>` para mantener
+ * compatibilidad transitoria con tipos legacy (`CourseAssignedStatus` aún
+ * incluye `cancelled` mientras `quality-engineer` no cierre la limpieza); el
+ * consumidor hace fallback a `assignment.status`.
+ */
+export const COURSE_STATUS_LABELS: Partial<Record<CourseAssignedStatus, string>> = {
     active: "Activo",
-    completed: "Completado",
-    cancelled: "Cancelado",
+    completed: "Finalizado",
+}
+
+export const COURSE_STATUS_BADGE_STYLES: Partial<Record<CourseAssignedStatus, string>> = {
+    active: "bg-emerald-100 text-emerald-800",
+    completed: "bg-slate-200 text-slate-800",
 }
 
 export const COURSE_LEVEL_OPTIONS: Array<{ value: CourseLevel; label: string }> = [

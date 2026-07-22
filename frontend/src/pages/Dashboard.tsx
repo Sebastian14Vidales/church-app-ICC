@@ -64,10 +64,11 @@ export default function Dashboard() {
     queryFn: getAllMembers,
   });
 
-  const { data: courses = [] } = useQuery({
+const { data: coursesData } = useQuery({
     queryKey: ["courses"],
-    queryFn: getAllCourses,
+    queryFn: () => getAllCourses(),
   });
+  const courses = coursesData?.items ?? [];
 
   const { data: assignments = [] } = useQuery({
     queryKey: ["courseAssignments"],

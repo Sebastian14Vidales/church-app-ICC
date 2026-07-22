@@ -27,12 +27,21 @@ export type CourseFormData = Omit<Course, "_id">
 // `courseAssignedSchema` below, then delete this block as part of the cleanup
 // step performed by the `quality-engineer`. Do NOT add new usages of these
 // legacy exports.
+/**
+ * @deprecated ADR-0001 §D2 / contract §5.2. Usa `courseAssignedStatusSchema`
+ * (sin `cancelled`). Eliminado por `quality-engineer` al cierre de la épica.
+ */
 export const CourseAssignedStatus = z.enum(["active", "completed", "cancelled"]);
 export type CourseAssignedStatus = z.infer<typeof CourseAssignedStatus>;
 
+/**
+ * @deprecated ADR-0001 §D10 / contract §5.2. Usa `courseAssignedCanonicalSchema`
+ * (incluye `_id`, `endedAt`, `deletedAt`, `members[]`). Eliminado por
+ * `quality-engineer` al cierre de la épica.
+ */
 export const CourseAssignedSchema = z.object({
     course: z.string(),
-    professor: z.string(), 
+    professor: z.string(),
     startDate: z.string(),
     startTime: z.string(),
     totalClasses: z.number(),
@@ -79,130 +88,6 @@ export type CourseCatalog = z.infer<typeof courseCatalogSchema>;
 
 export const paginatedCoursesSchema = paginatedResponseSchema(courseCatalogSchema);
 export type PaginatedCourses = z.infer<typeof paginatedCoursesSchema>;
-
-/**
- * `CourseAssigned` canónica (§5.2). Reemplaza a `assignedCourseSchema` una vez
- * el `frontend-engineer` haya migrado los usos. Incluye `endedAt` y `deletedAt`
- * opcionales/nullable (ADR §D3, §D6).
- */
-export const courseAssignedCanonicalSchema = z.object({
-    _id: z.string(),
-    course: courseCatalogSchema,
-    professor: courseParticipantSchema,
-    members: z.array(courseParticipantSchema).default([]),
-    startDate: z.string().datetime(),
-    startTime: z.string(),
-    totalClasses: z.number().int().nonnegative(),
-    endDate: z.string().datetime(),
-    endedAt: z.string().datetime().nullable().default(null),
-    location: z.string(),
-    status: courseAssignedStatusSchema,
-    deletedAt: z.string().datetime().nullable().default(null),
-    createdAt: z.string().datetime().optional(),
-    updatedAt: z.string().datetime().optional(),
-});
-export type CourseAssignedCanonical = z.infer<typeof courseAssignedCanonicalSchema>;
-
-export const courseAssignedArraySchema = z.array(courseAssignedCanonicalSchema);
-export const paginatedCourseAssignedSchema =
-    paginatedResponseSchema(courseAssignedCanonicalSchema);
-export type PaginatedCourseAssignments = z.infer<typeof paginatedCourseAssignedSchema>;
-
-/** Sub-schema de asistencia consolidada en el detalle de historial (§5.3). */
-export const courseAssignedHistoryAttendanceSchema = z.object({
-    member: courseParticipantSchema,
-    present: z.boolean(),
-    notes: z.string().default(""),
-});
-
-/** Sub-schema de sesión consolidada en el detalle de historial (§5.3). */
-export const courseAssignedHistorySessionSchema = z.object({
-    classNumber: z.number().int().positive(),
-    date: z.string().datetime(),
-    completedAt: z.string().datetime().nullable(),
-    topic: z.string().default(""),
-    observations: z.string().default(""),
-    attendance: z.array(courseAssignedHistoryAttendanceSchema).default([]),
-});
-
-/** Variante con `sessions` consolidadas para el detalle de historial (§2.4, §5.3). */
-export const courseAssignedHistoryItemSchema = courseAssignedCanonicalSchema.extend({
-    sessions: z.array(courseAssignedHistorySessionSchema),
-});
-export type CourseAssignedHistoryItem = z.infer<typeof courseAssignedHistoryItemSchema>;
-
-/** Query params de `GET /api/courses/assignments/history` (§5.4). */
-export const courseAssignmentHistoryQuerySchema = z.object({
-    professor: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
-    location: z.string().optional(),
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-export type CourseAssignmentHistoryQuery = z.infer<typeof courseAssignmentHistoryQuerySchema>;
-
-/** Query params de `GET /api/courses` (§5.4). */
-export const courseListQuerySchema = z.object({
-    name: z.string().optional(),
-    level: courseLevelSchema.optional(),
-    isActive: z.coerce.boolean().optional(),
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-export type CourseListQuery = z.infer<typeof courseListQuerySchema>;
-
-/** Query params de `GET /api/courses/assignments` (§5.4). */
-export const courseAssignmentListQuerySchema = z.object({
-    status: z.enum(["active", "completed"]).optional().default("active"),
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-export type CourseAssignmentListQuery = z.infer<typeof courseAssignmentListQuerySchema>;
-
-/** Body de `POST /api/courses/assignments` y base para `PUT` (§5.5). */
-export const courseAssignmentCreateBodySchema = z.object({
-    course: z.string().regex(/^[0-9a-fA-F]{24}$/),
-    professor: z.string().regex(/^[0-9a-fA-F]{24}$/),
-    startDate: z.string(),
-    startTime: z.string().min(1),
-    totalClasses: z.number().int().min(1),
-    location: z.string().min(1),
-    status: courseAssignedStatusSchema.optional().default("active"),
-});
-export type CourseAssignmentCreateBody = z.infer<typeof courseAssignmentCreateBodySchema>;
-
-export const courseAssignmentUpdateBodySchema = courseAssignmentCreateBodySchema.partial();
-export type CourseAssignmentUpdateBody = z.infer<typeof courseAssignmentUpdateBodySchema>;
-
-/** Body de `POST /api/courses/assignments/:id/reopen` (§5.5). */
-export const reopenAssignmentBodySchema = z.object({
-    totalClasses: z.number().int().min(1).optional(),
-});
-export type ReopenAssignmentBody = z.infer<typeof reopenAssignmentBodySchema>;
-
-/** Body de `PUT /api/courses/my-attendance/classes/:classNumber` (§5.5). */
-export const saveAttendanceBodySchema = z.object({
-    attendance: z.array(z.object({
-        studentId: z.string().regex(/^[0-9a-fA-F]{24}$/),
-        present: z.boolean(),
-        notes: z.string().optional(),
-    })),
-    topic: z.string().optional(),
-    observations: z.string().optional(),
-});
-export type SaveAttendanceBody = z.infer<typeof saveAttendanceBodySchema>;
-
-/** Body de `POST /api/courses/assignments/:id/members` (§5.5). */
-export const assignmentMembersBodySchema = z.object({
-    memberIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)),
-});
-export type AssignmentMembersBody = z.infer<typeof assignmentMembersBodySchema>;
-
-/** Respuesta envuelta de mutación de asignación con `assignment` (§5.6). */
-export const assignmentMutationResponseSchema = z.object({
-    message: z.string(),
-    assignment: courseAssignedCanonicalSchema,
-});
-export type AssignmentMutationResponse = z.infer<typeof assignmentMutationResponseSchema>;
 
 // Roles
 export const memberRoleSchema = z.enum([
@@ -302,6 +187,143 @@ export const courseParticipantSchema = memberSchema.pick({
 
 export const courseParticipantsSchema = z.array(courseParticipantSchema)
 
+// ============================================================================
+// cursos-api formal contract (EPC-COURSES-001, ADR-0001 §D10)
+// Source of truth: docs/api/courses-api.md. Do not deviate here.
+// The frontend-engineer materializes these; new views MUST use these schemas.
+// (Bloque movido para declararse despues de `courseParticipantSchema`.)
+// ============================================================================
+
+/**
+ * `CourseAssigned` canónica (§5.2). Reemplaza a `assignedCourseSchema` una vez
+ * el `frontend-engineer` haya migrado los usos. Incluye `endedAt` y `deletedAt`
+ * opcionales/nullable (ADR §D3, §D6).
+ */
+export const courseAssignedCanonicalSchema = z.object({
+    _id: z.string(),
+    course: courseCatalogSchema,
+    professor: courseParticipantSchema,
+    members: z.array(courseParticipantSchema).default([]),
+    startDate: z.string().datetime(),
+    startTime: z.string(),
+    totalClasses: z.number().int().nonnegative(),
+    endDate: z.string().datetime(),
+    endedAt: z.string().datetime().nullable().default(null),
+    location: z.string(),
+    status: courseAssignedStatusSchema,
+    deletedAt: z.string().datetime().nullable().default(null),
+    createdAt: z.string().datetime().optional(),
+    updatedAt: z.string().datetime().optional(),
+});
+export type CourseAssignedCanonical = z.infer<typeof courseAssignedCanonicalSchema>;
+
+export const courseAssignedArraySchema = z.array(courseAssignedCanonicalSchema);
+export const paginatedCourseAssignedSchema =
+    paginatedResponseSchema(courseAssignedCanonicalSchema);
+export type PaginatedCourseAssignments = z.infer<typeof paginatedCourseAssignedSchema>;
+
+/** Sub-schema de asistencia consolidada en el detalle de historial (§5.3). */
+export const courseAssignedHistoryAttendanceSchema = z.object({
+    member: courseParticipantSchema,
+    present: z.boolean(),
+    notes: z.string().default(""),
+});
+
+/** Sub-schema de sesion consolidada en el detalle de historial (§5.3). */
+export const courseAssignedHistorySessionSchema = z.object({
+    classNumber: z.number().int().positive(),
+    date: z.string().datetime(),
+    completedAt: z.string().datetime().nullable(),
+    topic: z.string().default(""),
+    observations: z.string().default(""),
+    attendance: z.array(courseAssignedHistoryAttendanceSchema).default([]),
+});
+
+/** Variante con `sessions` consolidadas para el detalle de historial (§2.4, §5.3). */
+export const courseAssignedHistoryItemSchema = courseAssignedCanonicalSchema.extend({
+    sessions: z.array(courseAssignedHistorySessionSchema),
+});
+export type CourseAssignedHistoryItem = z.infer<typeof courseAssignedHistoryItemSchema>;
+
+/** Query params de `GET /api/courses/assignments/history` (§5.4). */
+export const courseAssignmentHistoryQuerySchema = z.object({
+    professor: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+    location: z.string().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type CourseAssignmentHistoryQuery = z.infer<typeof courseAssignmentHistoryQuerySchema>;
+
+/** Query params de `GET /api/courses` (§5.4). */
+export const courseListQuerySchema = z.object({
+    name: z.string().optional(),
+    level: courseLevelSchema.optional(),
+    isActive: z.coerce.boolean().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type CourseListQuery = z.infer<typeof courseListQuerySchema>;
+
+/** Query params de `GET /api/courses/assignments` (§5.4). */
+export const courseAssignmentListQuerySchema = z.object({
+    status: z.enum(["active", "completed"]).optional().default("active"),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type CourseAssignmentListQuery = z.infer<typeof courseAssignmentListQuerySchema>;
+
+/** Body de `POST /api/courses/assignments` y base para `PUT` (§5.5). */
+export const courseAssignmentCreateBodySchema = z.object({
+    course: z.string().regex(/^[0-9a-fA-F]{24}$/),
+    professor: z.string().regex(/^[0-9a-fA-F]{24}$/),
+    startDate: z.string(),
+    startTime: z.string().min(1),
+    totalClasses: z.number().int().min(1),
+    location: z.string().min(1),
+    status: courseAssignedStatusSchema.optional().default("active"),
+});
+export type CourseAssignmentCreateBody = z.infer<typeof courseAssignmentCreateBodySchema>;
+
+export const courseAssignmentUpdateBodySchema = courseAssignmentCreateBodySchema.partial();
+export type CourseAssignmentUpdateBody = z.infer<typeof courseAssignmentUpdateBodySchema>;
+
+/** Body de `POST /api/courses/assignments/:id/reopen` (§5.5). */
+export const reopenAssignmentBodySchema = z.object({
+    totalClasses: z.number().int().min(1).optional(),
+});
+export type ReopenAssignmentBody = z.infer<typeof reopenAssignmentBodySchema>;
+
+/** Body de `PUT /api/courses/my-attendance/classes/:classNumber` (§5.5). */
+export const saveAttendanceBodySchema = z.object({
+    attendance: z.array(z.object({
+        studentId: z.string().regex(/^[0-9a-fA-F]{24}$/),
+        present: z.boolean(),
+        notes: z.string().optional(),
+    })),
+    topic: z.string().optional(),
+    observations: z.string().optional(),
+});
+export type SaveAttendanceBody = z.infer<typeof saveAttendanceBodySchema>;
+
+/** Body de `POST /api/courses/assignments/:id/members` (§5.5). */
+export const assignmentMembersBodySchema = z.object({
+    memberIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)),
+});
+export type AssignmentMembersBody = z.infer<typeof assignmentMembersBodySchema>;
+
+/** Respuesta envuelta de mutacion de asignacion con `assignment` (§5.6). */
+export const assignmentMutationResponseSchema = z.object({
+    message: z.string(),
+    assignment: courseAssignedCanonicalSchema,
+});
+export type AssignmentMutationResponse = z.infer<typeof assignmentMutationResponseSchema>;
+
+/**
+ * @deprecated ADR-0001 §D10 / contract §5.2. Usa `courseAssignedCanonicalSchema`
+ * (incluye `endedAt`, `deletedAt` y `course` con `isActive`). Se conserva por
+ * compatibilidad transitoria con vistas no migradas (AttendanceView,
+ * Attendance.tsx, Dashboard, Reports). Lo elimina `quality-engineer` al cierre.
+ */
 export const assignedCourseSchema = z.object({
     _id: z.string(),
     course: createCourseSchema,
@@ -315,7 +337,9 @@ export const assignedCourseSchema = z.object({
     status: CourseAssignedStatus,
 })
 
+/** @deprecated Usa `courseAssignedArraySchema` del contrato formal. */
 export const assignedCoursesSchema = z.array(assignedCourseSchema)
+/** @deprecated Usa `CourseAssignedCanonical` del contrato formal. */
 export type CourseAssigned = z.infer<typeof assignedCourseSchema>
 
 export const classAttendanceSchema = z.object({

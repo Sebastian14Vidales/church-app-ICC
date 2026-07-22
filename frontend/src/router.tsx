@@ -125,18 +125,24 @@ export const routes: RouteObject[] = [
               {
                 path: PATHS.myCourses,
                 lazy: async () => ({
-                  Component: (await import("@/pages/courses/MyCourses")).default,
+                  Component: (await import("@/pages/courses/MyCoursesProfessor")).default,
+                }),
+              },
+              {
+                path: PATHS.attendance,
+                lazy: async () => ({
+                  Component: (await import("@/pages/courses/AttendanceView")).default,
                 }),
               },
             ],
           },
           {
-            element: <RequireAuth allowedRoles={["Profesor"]} />,
+            element: <RequireAuth allowedRoles={["Asistente", "Miembro"]} />,
             children: [
               {
-                path: PATHS.attendance,
+                path: PATHS.myCoursesStudent,
                 lazy: async () => ({
-                  Component: (await import("@/pages/courses/AttendanceView")).default,
+                  Component: (await import("@/pages/courses/MyCoursesStudent")).default,
                 }),
               },
             ],

@@ -17,7 +17,7 @@ import { toast } from "react-toastify"
 import { showSweetAlert } from "@/components/alert/SweetAlert"
 import SavedAttendanceSummaryTable from "@/components/courses/SavedAttendanceSummaryTable"
 import StudentQuickViewModal from "@/components/courses/StudentQuickViewModal"
-import { closeMyCourseAssignment, getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
+import { closeCourseAssignment, getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
 import { type ClassSession, type CourseAssigned } from "@/types/index"
 import { downloadAttendancePdfReport } from "@/utils/attendanceReport"
 import { buildCourseAttendanceMetrics, buildStudentAttendanceSummaries } from "@/utils/attendanceInsights"
@@ -155,12 +155,13 @@ export default function AttendanceView() {
     })
 
     const closeCourseMutation = useMutation({
-        mutationFn: (assignmentId: string) => closeMyCourseAssignment(assignmentId),
+        mutationFn: (assignmentId: string) => closeCourseAssignment(assignmentId),
         onSuccess: (message) => {
             toast.success(message)
             queryClient.invalidateQueries({ queryKey: ["myAttendance"] })
             queryClient.invalidateQueries({ queryKey: ["myCourses"] })
             queryClient.invalidateQueries({ queryKey: ["courseAssignments"] })
+            queryClient.invalidateQueries({ queryKey: ["courseHistory"] })
             navigate(PATHS.myCourses)
         },
         onError: (error) => {

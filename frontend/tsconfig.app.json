@@ -17,7 +17,8 @@
       "@/constants/*": ["constants/*"],
       "@/types/*": ["types/*"],
       "@/lib/*": ["lib/*"],
-      "@/api/*": ["api/*"]
+      "@/api/*": ["api/*"],
+      "@/hooks/*": ["hooks/*"]
     },
 
     /* Bundler mode */

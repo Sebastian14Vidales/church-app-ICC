@@ -9,6 +9,7 @@ export const PATHS = {
   courses: "/courses",
   sermons: "/predicas",
   myCourses: "/my-courses",
+  myCoursesStudent: "/my-courses/student",
   attendance: "/attendance",
   members: "/members",
   events: "/events",
