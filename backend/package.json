@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts,json --exec ts-node src/index.ts",
     "dev:api": "nodemon --exec ts-node src/index.ts --api",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "migrate:courses-cancelled": "ts-node src/config/migrations/20260721-courses-cancelled-to-completed.ts",
     "migrate:courses-indexes": "ts-node src/config/migrations/20260721-courses-indexes.ts"
   },
@@ -29,8 +31,11 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0"
   }
 }
