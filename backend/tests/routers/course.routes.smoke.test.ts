@@ -72,13 +72,30 @@ vi.mock("../../src/realtime/socket", () => ({
 }));
 
 vi.mock("../../src/models/course.model", () => {
-  const courseModel = {
-    findOne: vi.fn(),
-    find: vi.fn(),
-    findOneAndUpdate: vi.fn(),
-    countDocuments: vi.fn(),
+  // `Course` debe ser invocable como constructor (`new Course({...})`)
+  // y exponer métodos estáticos usados por el controller. Vitest requiere
+  // que el impl sea `function`/`class` para soportar `new` (los arrow
+  // son rechazados: "is not a constructor").
+  type CourseMock = ((this: { save: ReturnType<typeof vi.fn> }) => void) & {
+    findOne: ReturnType<typeof vi.fn>;
+    find: ReturnType<typeof vi.fn>;
+    findOneAndUpdate: ReturnType<typeof vi.fn>;
+    countDocuments: ReturnType<typeof vi.fn>;
+    mockClear: () => void;
+    mockImplementationOnce: (
+      impl: (this: { save: ReturnType<typeof vi.fn> }) => void,
+    ) => void;
   };
-  return { default: courseModel };
+  const Course = vi.fn(function CourseInstanceMock(
+    this: { save: ReturnType<typeof vi.fn> },
+  ) {
+    this.save = vi.fn().mockResolvedValue(undefined);
+  }) as unknown as CourseMock;
+  Course.findOne = vi.fn();
+  Course.find = vi.fn();
+  Course.findOneAndUpdate = vi.fn();
+  Course.countDocuments = vi.fn();
+  return { default: Course };
 });
 
 vi.mock("../../src/models/course-assigned.model", () => {
@@ -92,6 +109,7 @@ vi.mock("../../src/models/course-assigned.model", () => {
 // resolución del router, que a su vez importa estos módulos).
 import courseRouter from "../../src/routes/course.routes";
 import Course from "../../src/models/course.model";
+import { emitRealtimeInvalidation } from "../../src/realtime/socket";
 
 const ADMIN_AUTH: TestAuth = {
   userId: "u-admin",
@@ -253,5 +271,175 @@ describe("course.routes.ts — smoke", () => {
       .set(noAuthHeader());
 
     expect(res.status).toBe(401);
+  });
+
+  it("DELETE /api/courses/:id cuando CourseAssigned.findOne lanza → 500 'Error al eliminar curso'", async () => {
+    assignedFindOneMock?.mockRejectedValue(new Error("boom"));
+    const res = await request(app)
+      .delete(`/api/courses/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH));
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Error al eliminar curso");
+  });
+});
+
+// ---- Llenado de cobertura del catálogo (POST/PUT happy + GET filtros) ----
+
+const realtimeMock = emitRealtimeInvalidation as unknown as ReturnType<typeof vi.fn>;
+
+describe("course.routes.ts — catálogo (POST/PUT happy + filtros GET)", () => {
+beforeEach(() => {
+    resetMocks();
+    realtimeMock.mockReset();
+    // El constructor `new Course(...)` precisa reset para que cada test
+    // pueda configurar su fixture `save` (vitest mock factory instala el
+    // inicial; le dejamos el comportamiento default save=resolve(undefined)).
+    (Course as unknown as { mockClear: () => void }).mockClear();
+  });
+
+  it("POST /api/courses (admin) happy path → 201 'Curso creado exitosamente' + realtime courses.changed", async () => {
+    // El factory por defecto de vi.mock retorna `{ save: vi.fn().mockResolvedValue(undefined) }`.
+    // El controller hace `new Course({...})` → `await course.save()` → 201.
+    const res = await request(app)
+      .post("/api/courses")
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "Fundamentos", description: "desc", level: "basic" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe("Curso creado exitosamente");
+    expect(realtimeMock).toHaveBeenCalledWith("courses.changed", [["courses"]]);
+    // El constructor fue invocado con los campos whitelist.
+    expect(Course).toHaveBeenCalledWith({
+      name: "Fundamentos",
+      description: "desc",
+      level: "basic",
+      isActive: undefined,
+    });
+  });
+
+  it("POST /api/courses cuando save lanza → 500 'Error al crear curso'", async () => {
+    (Course as unknown as {
+      mockImplementationOnce: (
+        impl: (this: { save: ReturnType<typeof vi.fn> }) => void,
+      ) => void;
+    }).mockImplementationOnce(
+      function CourseThrowingMock(this: { save: ReturnType<typeof vi.fn> }) {
+        this.save = vi.fn().mockRejectedValue(new Error("boom"));
+      },
+    );
+
+    const res = await request(app)
+      .post("/api/courses")
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "Fundamentos", description: "desc", level: "basic" });
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Error al crear curso");
+  });
+
+  it("GET /api/courses/:id happy path → 200 con el Course encontrado", async () => {
+    const course = { _id: VALID_ID, name: "Fundamentos", description: "desc", level: "basic", isActive: true };
+    courseFindOneMock.mockResolvedValue(course);
+
+    const res = await request(app)
+      .get(`/api/courses/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(course);
+    expect(courseFindOneMock).toHaveBeenCalledWith({ _id: VALID_ID, deletedAt: null });
+  });
+
+  it("GET /api/courses con filtros name/level/isActive → 200 aplica regex/level/bool", async () => {
+    courseCountMock.mockResolvedValue(0);
+    courseFindMock.mockReturnValueOnce(chainable([]));
+    const res = await request(app)
+      .get("/api/courses?name=fund&level=basic&isActive=true")
+      .set(authHeader(ADMIN_AUTH));
+
+    expect(res.status).toBe(200);
+    expect(courseCountMock).toHaveBeenCalledWith({
+      deletedAt: null,
+      name: { $regex: "fund", $options: "i" },
+      level: "basic",
+      isActive: true,
+    });
+  });
+
+  it("GET /api/courses con isActive=false branch opuesto al filter bool", async () => {
+    courseCountMock.mockResolvedValue(0);
+    courseFindMock.mockReturnValueOnce(chainable([]));
+    await request(app)
+      .get("/api/courses?isActive=false")
+      .set(authHeader(ADMIN_AUTH));
+    expect(courseCountMock).toHaveBeenCalledWith({ deletedAt: null, isActive: false });
+  });
+
+  it("GET /api/courses cuando find lanza → 500 'Error al obtener cursos'", async () => {
+    courseCountMock.mockResolvedValue(0);
+    courseFindMock.mockRejectedValueOnce(new Error("boom"));
+    const res = await request(app)
+      .get("/api/courses")
+      .set(authHeader(ADMIN_AUTH));
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Error al obtener cursos");
+  });
+
+  it("PUT /api/courses/:id (admin) happy path → 200 con el Course actualizado + realtime", async () => {
+    const updated = { _id: VALID_ID, name: "X", description: "Y", level: "basic", isActive: false };
+    courseFindOneAndUpdateMock.mockResolvedValueOnce(updated);
+
+    const res = await request(app)
+      .put(`/api/courses/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(updated);
+    expect(courseFindOneAndUpdateMock).toHaveBeenCalledWith(
+      { _id: VALID_ID, deletedAt: null },
+      { name: "X", description: "Y", level: "basic", isActive: false },
+      { new: true },
+    );
+    expect(realtimeMock).toHaveBeenCalledWith("courses.changed", [["courses"]]);
+  });
+
+  it("PUT /api/courses/:id con curso no encontrado → 404 'Curso no encontrado'", async () => {
+    courseFindOneAndUpdateMock.mockResolvedValueOnce(null);
+    const res = await request(app)
+      .put(`/api/courses/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Curso no encontrado");
+  });
+
+  it("PUT /api/courses/:id con rol Miembro → 403 (ADMIN_ROLES only)", async () => {
+    const res = await request(app)
+      .put(`/api/courses/${VALID_ID}`)
+      .set(authHeader(MEMBER_AUTH))
+      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+    expect(res.status).toBe(403);
+    expect(courseFindOneAndUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("PUT /api/courses/:id cuando findOneAndUpdate lanza → 500 'Error al actualizar curso'", async () => {
+    courseFindOneAndUpdateMock.mockRejectedValueOnce(new Error("boom"));
+    const res = await request(app)
+      .put(`/api/courses/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Error al actualizar curso");
+  });
+
+  it("GET /api/courses/:id cuando findOne lanza → 500 'Error al obtener curso'", async () => {
+    courseFindOneMock.mockRejectedValueOnce(new Error("boom"));
+    const res = await request(app)
+      .get(`/api/courses/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH));
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Error al obtener curso");
   });
 });
