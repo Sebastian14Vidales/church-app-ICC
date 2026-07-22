@@ -103,6 +103,10 @@ const generalLimiter = rateLimit({
 Se monta en `server.ts` sobre el prefijo `/api` (`app.use("/api", generalLimiter)`) **antes** de
 los routers y **después** de `helmet()` y `cors()`.
 
+**Exención de `/api/auth/*` (ver §D3bis)**: el bucket del `generalLimiter` NO incluye las rutas de
+autenticación; se aplica `skip: (req) => req.originalUrl.startsWith("/api/auth")`. Detalle y
+justificación en §D3bis.
+
 **Justificación del umbral `max: 100/min por IP`**:
 
 - Capa de *defensa en profundidad* frente a abuso/fuerza bruta, NO un límite funcional estricto.
@@ -113,8 +117,84 @@ los routers y **después** de `helmet()` y `cors()`.
   adaptado a 1 min / 100 por ventana corta) y con lo propuesto en el brief del `chief-architect`.
 - Acciones administrativas raras (close/reopen) reciben además el limiter **específico** de D4,
   más restrictivo.
+- El umbral **se mantiene en 100/min para datos** tras la exención de auth de §D3bis: al separar
+  los buckets, el tráfico de datos ya no compite con las ráfagas de boot/login del frontend, por
+  lo que 100/min sigue siendo holgado para navegación legítima y restrictivo para abuso. No se
+  sube a ciegas (cumple §D3bis "no subir max a ciegas").
 
 **Exclusión de entorno de test** (ver D5).
+
+### D3bis — Exención de `/api/auth/*` del limiter general (fix de bug de navegación)
+
+**Estado**: Parche de bug urgente. Aceptado por `devops-engineer` en coordinación con
+`chief-architect`. No requiere nuevo ADR (es la corrección de D3 dentro del mismo ADR-0003).
+
+**Síntoma reportado**: al iniciar sesión o navegar, el `generalLimiter` ("Demasiadas solicitudes.
+Intenta más tarde.") satura también `/api/auth/*`. El frontend recibe 429 sobre endpoints de auth
+y, al interpretarlo como fallo de sesión, cierra la sesión involuntariamente. El usuario legítimo
+no puede navegar.
+
+**Causa raíz**: el `generalLimiter` se montaba sobre `app.use("/api", ...)` antes que cualquier
+router, sin distinguir tráfico de auth de tráfico de datos. El frontend, al bootear, emite ráfagas
+legítimas sobre `/api/auth/*` (login + bootstrap del AuthContext + reintentos del refresh token).
+Al compartir bucket con los listados/paginación/dashboards, un operador legítimo agota los 100/min
+y el interceptor del frontend cierra sesión al ver 429 en auth.
+
+**Decisión**: `/api/auth/*` queda **fuera** del bucket del `generalLimiter`:
+
+```ts
+const generalLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Demasiadas solicitudes. Intenta más tarde." },
+  skip: (req) => req.originalUrl.startsWith("/api/auth"),
+});
+if (process.env.NODE_ENV !== "test") app.use("/api", generalLimiter);
+```
+
+**Elección de implementación (`skip` vs. reorder de routers)**: se elige `skip` con
+`req.originalUrl.startsWith("/api/auth")` en lugar de reordenar el montaje (montar auth routes
+antes que el limiter) por las razones siguientes:
+
+1. **Explicitud**: la exención está **docutada en el propio middleware**; cualquier lector de
+   `server.ts` ve que `/api/auth/*` no aplica rate-limit sin tener que razonar sobre el orden de
+   montaje de Express.
+2. **Robustez al reorder**: si un futuro refactor monta otro router antes/después del limiter, la
+   exención se preserva por `skip`, no depende de un orden de mounts frágil.
+3. **`req.originalUrl` (no `req.path`)**: Express "strips" el mount path de `req.path` para el
+   middleware montado en `/api` (p. ej. `/auth/login` en vez de `/api/auth/login`); usar
+   `originalUrl` evita el bug sutil de comparar `/auth` vs `/api/auth` y es insensible a futuros
+   cambios de prefijo de montaje.
+4. **Mantenibilidad**: añadir/quitar rutas de auth al prefijo `/api/auth/*` no requiere tocar el
+   limiter — basta con que sigan bajo ese prefijo, que ya es la convención del repo.
+
+**No se elimina el limiter** (sigue siendo defensa en profundidad sobre `/api/*` de datos) y **no
+se sube `max` a ciegas**: con el bucket de auth separado, 100/min para datos sigue siendo
+razonable (ver justificación de umbral en §D3). Si el `product-owner`/UAT detecta throttling real
+en flujo batch de datos, se ajusta en iteración menor.
+
+**Mantenimiento del bypass de test** (D5): el `skip` de auth **se aplica también en test**, pero
+como en `NODE_ENV === "test"` el `generalLimiter` no se monta en absoluto (guard `NODE_ENV !==
+"test"`), el `skip` de auth es no-op en tests. No rompe los smoke tests actuales ni futuros e2e.
+
+**Backlog derivado (NO parte de este fix — fuera de scope)**:
+
+- **Limiter específico de login/brute-force** sobre `POST /api/auth/login` (p. ej. `max: 10/min`
+  por IP+identifier, con `express-slow-down` como complemento opcional). Dominio del
+  `auth-security-engineer`. Queda registrado como futura defensa específica de auth; no se instala
+  en este fix para no cambiar contrato ni exceder scope.
+- **Limiter específico de close/reopen** sobre `/api/course-assignments/.../state` (patrón
+  `windowMs: 60_000, max: 20` mencionado en `course-assignment.routes.ts:116-128`): dominio del
+  `auth-security-engineer`, ya habilitado por §D4 de este ADR. **No se instala en este fix** — fuera
+  de scope, sólo se deja esta nota como recordatorio de precedencia.
+- **`RateLimitStore` centralizado** (Mongo/Redis) para deployment multi-instancia: backlog infra
+  del `devops-engineer`.
+
+**Verificación de coherencia inter-ADRs**: este fix no afecta a ET-1, ET-2 (ya cerrada) ni ET-3
+del ADR-0001; no toca contrato, schemas ni lógica de business. No introduce dependencias nuevas
+(cumple `AGENTS.md §6` regla de oro 6).
 
 ### D4 — Rate-limit específico para `/close` y `/reopen` (`max: 20/min`)
 
@@ -249,6 +329,15 @@ smoke tests".
 - `backend/src/server.ts` — añadidos imports de `helmet` y `rateLimit` (de `express-rate-limit`);
   montado `app.use(helmet())` al inicio y `app.use("/api", generalLimiter)` (guardado por
   `NODE_ENV !== "test"`). CORS y routers no se modifican. `connectDB` y routers no se tocan.
+
+### Cambios del fix del bug de navegación (§D3bis)
+
+- `docs/adr/0003-security-hardening-deps.md` — añadida sección §D3bis (exención de `/api/auth/*`,
+  justificación de `skip` vs. reorder, nota de backlog de limiters específicos).
+- `backend/src/server.ts` — añadido `skip: (req) => req.originalUrl.startsWith("/api/auth")` al
+  `generalLimiter`, con comentario explicativo. **No** se reordenan routers; **no** se elimina el
+  limiter; **no** se sube `max`. CORS, routers, `helmet()` y bypass de test (`NODE_ENV !== "test"`)
+  sin cambios.
 
 ## No se hace en este ADR (delegaciones)
 

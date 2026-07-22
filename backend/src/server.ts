@@ -44,12 +44,27 @@ app.use(
 // tests end-to-end que monten `server.ts` real ( ADR-0003 §D5 ). Los smoke
 // tests actuales usan una app Express aparte y no se ven afectados en ningún
 // caso. Se monta DESPUÉS de helmet/cors y ANTES de los routers.
+//
+// EXENCIÓN DE /api/auth/* ( fix BUG-NAVEGACION, ADR-0003 §D3bis ):
+// Las rutas de autenticación quedan FUERA del bucket del `generalLimiter`.
+// Motivo: el frontend emite ráfagas legítimas sobre /api/auth/* al bootear
+// (login + bootstrap del AuthContext + reintentos de refreshToken), y al
+// compartir bucket con el tráfico de datos (listados, paginación, dashboards)
+// un operador legítimo agota los 100/min y el frontend cierra sesión por 429.
+// La auth se protege con expiración de JWT + AuthorizeRoles + validación; añadir
+// un limiter específico de login/brute-force queda como backlog del
+// auth-security-engineer (ver ADR-0003 §D3bis).
+//
+// Implementación: `skip` con `req.originalUrl` (NO `req.path`, que Express
+// "strips" al mount path `/api` por lo que "/auth/login" ya no haría match
+// con "/api/auth"). `originalUrl` preserva la URL completa y es estable.
 const generalLimiter = rateLimit({
   windowMs: 60_000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Demasiadas solicitudes. Intenta más tarde." },
+  skip: (req) => req.originalUrl.startsWith("/api/auth"),
 });
 if (process.env.NODE_ENV !== "test") app.use("/api", generalLimiter);
 
