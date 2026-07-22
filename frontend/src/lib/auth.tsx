@@ -8,8 +8,41 @@ import {
     type PropsWithChildren,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { isAxiosError } from "axios"
 import api, { setAuthToken, setUnauthorizedHandler } from "@/lib/axios"
 import { authUserSchema, currentSessionResponseSchema, type AuthUser } from "@/types/index"
+
+/**
+ * Indica si el error proviene del backend con un status que significa que la
+ * sesión es efectivamente inválida (401 no autenticado / 403 prohibido en la
+ * validación del propio token). En esos casos SÍ está permitido cerrar la
+ * sesión automáticamente.
+ */
+const isInvalidSessionError = (error: unknown): boolean => {
+    if (!isAxiosError(error)) {
+        return false
+    }
+    const status = error.response?.status
+    return status === 401 || status === 403
+}
+
+/**
+ * Indica si el error es transitorio (rate-limit 429, error de servidor 5xx, o
+ * fallo de red/timeout sin `response`). Estos errores NO implican sesión
+ * inválida: el usuario debe permanecer autenticado y la app reintentará la
+ * validación del token en la próxima navegación (React Query mostrará/reintentará
+ * el error en la UI activa).
+ */
+const isTransientError = (error: unknown): boolean => {
+    if (!isAxiosError(error)) {
+        return false
+    }
+    if (!error.response) {
+        return true
+    }
+    const status = error.response.status
+    return status === 429 || (status >= 500 && status < 600)
+}
 
 const AUTH_TOKEN_KEY = "authToken"
 const AUTH_USER_KEY = "authUser"
@@ -160,19 +193,44 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setAuthToken(storedToken)
 
         const bootstrapSession = async () => {
-            try {
-                const { data } = await api.get("/auth/me")
-                const response = currentSessionResponseSchema.safeParse(data)
+            // Validación del token guardado contra /auth/me. Sólo se cierra la
+            // sesión cuando el backend declara la sesión inválida (401/403). Ante
+            // errores transitorios (429 / 5xx / red) se conserva el token y el
+            // usuario en storage y estado, dejando a React Query mostrar/reintentar
+            // el error. Se hace un único reintento con backoff para 429/5xx para
+            // suavizar caídas momentáneas del backend. Ver AGENTS.md §8 (no logout
+            // espurio por errores transitorios).
+            const fetchMe = async (attempt: number): Promise<void> => {
+                try {
+                    const { data } = await api.get("/auth/me")
+                    const response = currentSessionResponseSchema.safeParse(data)
 
-                if (!response.success) {
-                    throw new Error("Sesion invalida")
+                    if (!response.success) {
+                        throw new Error("Sesion invalida")
+                    }
+
+                    setToken(storedToken)
+                    setUser(response.data.user)
+                    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.data.user))
+                } catch (error) {
+                    if (isInvalidSessionError(error)) {
+                        performLogout()
+                        return
+                    }
+
+                    if (attempt === 0 && isTransientError(error)) {
+                        await new Promise((resolve) => setTimeout(resolve, 800))
+                        return fetchMe(attempt + 1)
+                    }
+
+                    // Otros errores (incluido un parseo inesperado): no se cierra
+                    // sesión para evitar logout espurio; el usuario permanece
+                    // autenticado hasta la próxima validación.
                 }
+            }
 
-                setToken(storedToken)
-                setUser(response.data.user)
-                sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.data.user))
-            } catch {
-                performLogout()
+            try {
+                await fetchMe(0)
             } finally {
                 setIsBootstrapping(false)
             }
