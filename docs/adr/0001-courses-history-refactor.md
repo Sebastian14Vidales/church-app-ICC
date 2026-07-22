@@ -353,12 +353,48 @@ mismo cambio del paso 3.
   tanto, **las acciones sensibles se ejecutan funcionalmente** (sin registro), pero el
   código deja rastro de dónde auditar.
 
+### ET-2 — Rate-limit + helmet ausentes (deuda de seguridad transversal)
+
+- **Vigencia**: desde el paso 6 del Plan de ejecución del ADR-0001 hasta que el
+  `devops-engineer` (junto con el `auth-security-engineer`) abra el mini-ADR
+  `docs/adr/0003-security-hardening-deps.md` (por crear) y materialice:
+  - Instalación de `express-rate-limit` con rate-limits específicos en
+    `POST /api/courses/assignments/:id/close` y `POST /api/courses/assignments/:id/reopen`
+    (propuesto `windowMs: 60_000, max: 20` por IP) y un rate-limit general para el resto
+    del server.
+  - Instalación y configuración de `helmet` en `backend/src/server.ts` (header hardening,
+    `contentSecurityPolicy`, `noSniff`, etc.).
+- **Estado actual**: el `auth-security-engineer` confirmó (paso 6) que **todos los permisos
+  de los endpoints del módulo de cursos coinciden 1:1 con el contrato** (sin divergencias).
+  Para `D-32` (rate-limit) y `helmet` no existe la dep instalada y `AGENTS.md §6` prohíbe
+  introducir deps nuevas sin ADR; se añadieron comentarios `TODO[RATELIMIT-PENDING]` en
+  `backend/src/routes/course-assignment.routes.ts` con el patrón sugerido.
+- **Compromiso**: el `chief-architect` delegará al `devops-engineer` la apertura del
+  mini-ADR `0003` y la instalación. El `auth-security-engineer` cerrará `D-32` retirando
+  los TODO una vez instalado. Mientras tanto, el endpoint `/reopen` se protege por
+  `authorizeRoles(SUPERADMIN_ROLES)` + validación `status === "completed"` en service
+  (defensa en profundidad vigente).
+
+### ET-3 — Drift del mensaje 403 entre contrato y código legacy
+
+- **Vigencia**: desde la detección del paso 7 (frontend) y paso 10 setup (testing).
+- **Drift**: el contrato `docs/api/courses-api.md` usa "No tienes permisos para **realizar
+  esta** acción" en `§1.3`, `§2.9` y otros; el `backend/src/middleware/auth.middleware.ts:30`
+  responde "No tienes permisos **para esta** acción" (sin "realizar"). El contrato es la
+  fuente de verdad (AGENTS.md §10 invariante).
+- **Decisión**: el código cede ante el contrato. El `quality-engineer` (paso 11) o el
+  `auth-security-engineer` reconcilian: añadendo "realizar" en `auth.middleware.ts:30`.
+  Como `auth.middleware` es cross-modular (afecta a todos los endpoints del backend), no se
+  cambia en esta épica de cursos sin coordinación; se marca mas aquí para no olvidarlo.
+- **Smoke tests** del `testing-engineer` no assertan el string exacto por este drift; lo
+  retomarán cuando se reconcilien.
+
 ### Otras excepciones ya ratificadas
 
 E-1, E-3, E-4 y E-5 son aceptadas (ver sección anterior "Excepciones ratificadas por el
-`chief-architect` tras el paso 3"). E-2 fue rechazada (no aplica). Ninguna adicional
-	temporal con caducidad, salvo la ET-1 anterior y la revisión futura de E-1 cuando la
-cardinalidad histórica crezca.
+`chief-architect` tras el paso 3"). E-2 fue rechazada (no aplica). Excepciones temporales
+abiertas vigentes: **ET-1** (auditoría ausente), **ET-2** (rate-limit + helmet),
+**ET-3** (drift mensaje 403). Revisión futura de E-1 cuando la cardinalidad histórica crezca.
 
 ## Referencias
 
