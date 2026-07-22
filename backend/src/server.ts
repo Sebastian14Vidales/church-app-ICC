@@ -3,6 +3,8 @@ import cors from "cors";
 import connectDB from "./config/db";
 import { seedDatabase } from "./config/seed";
 import authRoutes from "./routes/session-auth.routes";
+import courseAssignmentRoutes from "./routes/course-assignment.routes";
+import attendanceRoutes from "./routes/attendance.routes";
 import courseRoutes from "./routes/course.routes";
 import roleRoutes from "./routes/role.routes";
 import userRoutes from "./routes/user.routes";
@@ -33,6 +35,13 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/members", userProfileRoutes);
+// Order matters: /api/courses prefix is shared by three routers ( ADR-0001 §D1 ).
+// 1) course-assignment.routes.ts — concrete subresources (/assignments, /my-courses, ...)
+// 2) attendance.routes.ts       — /my-attendance
+// 3) course.routes.ts (catalog) — must go LAST so its `GET /:id` does NOT shadow
+//    the subresources above. Express matches in the order of `app.use`.
+app.use("/api/courses", courseAssignmentRoutes);
+app.use("/api/courses", attendanceRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/sermons", sermonRoutes);
 app.use("/api/life-groups", lifeGroupRoutes);
