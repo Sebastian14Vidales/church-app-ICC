@@ -31,6 +31,7 @@ El `Chief AI Architect` es el custodio de este archivo; nadie más lo modifica s
 | Base de datos   | MongoDB + Mongoose                            |
 | Tiempo real      | Socket.IO (`backend/src/realtime/socket.ts`) |
 | Validación      | Middleware propio + expresa validadores      |
+| Hardening HTTP  | helmet + express-rate-limit (ver ADR-0003)   |
 | Autenticación   | JWT + sesión / action tokens                 |
 | Email           | Nodemailer (`backend/src/services/email.service.ts`) |
 | Testing         | Vitest (frontend) + Vitest/Supertest (backend) |

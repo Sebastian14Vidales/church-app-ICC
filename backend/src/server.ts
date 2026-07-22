@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import connectDB from "./config/db";
 import { seedDatabase } from "./config/seed";
 import authRoutes from "./routes/session-auth.routes";
@@ -16,6 +18,12 @@ import eventRoutes from "./routes/event.routes";
 const app = express();
 app.use(express.json());
 
+// Hardening HTTP ( ADR-0003 §D2 ). Se monta antes que cualquier router y antes
+// de CORS. Helmet se mantiene activo en todos los entornos (incluido test):
+// las respuestas son JSON, su CSP por defecto no afecta llamadas XHR/fetch y
+// los smoke tests de Supertest no asertan headers.
+app.use(helmet());
+
 connectDB()
   .then(async () => {
     console.log("Conectado a la base de datos");
@@ -30,6 +38,20 @@ app.use(
     origin: `${process.env.FRONTEND_URL}`,
   }),
 );
+
+// Rate-limit general para /api/* ( ADR-0003 §D3 ). 100 req/min por IP como
+// defensa en profundidad. Se SKIP en entorno de test para no romper futuros
+// tests end-to-end que monten `server.ts` real ( ADR-0003 §D5 ). Los smoke
+// tests actuales usan una app Express aparte y no se ven afectados en ningún
+// caso. Se monta DESPUÉS de helmet/cors y ANTES de los routers.
+const generalLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Demasiadas solicitudes. Intenta más tarde." },
+});
+if (process.env.NODE_ENV !== "test") app.use("/api", generalLimiter);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
