@@ -7,6 +7,9 @@
     "dev:api": "nodemon --exec ts-node src/index.ts --api",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "migrate:courses-cancelled": "ts-node src/config/migrations/20260721-courses-cancelled-to-completed.ts",
     "migrate:courses-indexes": "ts-node src/config/migrations/20260721-courses-indexes.ts"
   },
@@ -31,11 +34,15 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "nodemon": "^3.1.11",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.65.0"
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
   }
 }
