@@ -1,7 +1,7 @@
 ---
 description: Auth, JWT, roles, permisos, validación de entrada y hardening de seguridad.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 ---
 
 # Auth-Security Engineer — `auth-security-engineer`

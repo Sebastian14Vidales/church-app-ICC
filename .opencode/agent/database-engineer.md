@@ -1,7 +1,7 @@
 ---
 description: Modela Mongoose: esquemas, índices, validadores, migraciones y seed del sistema.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 ---
 
 # Database Engineer — `database-engineer`

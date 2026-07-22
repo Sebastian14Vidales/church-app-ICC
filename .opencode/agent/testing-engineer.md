@@ -1,7 +1,7 @@
 ---
 description: Vitest + Supertest, fixtures, cobertura ≥80% y regresión; bloquea merge si falla.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 ---
 
 # Testing Engineer — `testing-engineer`

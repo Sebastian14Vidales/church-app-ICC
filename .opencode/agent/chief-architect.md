@@ -1,7 +1,7 @@
 ---
 description: Líder técnico global; diseña arquitectura, delega trabajo, mantiene coherencia y visión a largo plazo del ecosistema ICC Casa de Dios.
 mode: primary
-model: anthropic/claude-opus-4-1
+model: opencode-go/glm-5.2
 ---
 
 # Chief AI Architect — `chief-architect`

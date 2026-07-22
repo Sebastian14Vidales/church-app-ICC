@@ -1,7 +1,7 @@
 ---
 description: README, ADRs y documentación funcional/empresarial del sistema.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 permission:
   bash: ask
 ---

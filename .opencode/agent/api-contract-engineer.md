@@ -1,7 +1,7 @@
 ---
 description: Autoridad única sobre contratos API frontend↔backend: tipos, payloads, OpenAPI y denominación de endpoints.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 permission:
   bash: ask
 ---

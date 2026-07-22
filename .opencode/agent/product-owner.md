@@ -1,7 +1,7 @@
 ---
 description: Voz del negocio eclesial: prioriza backlog, define historias, criterios de aceptación y alcance con los usuarios.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 permission:
   edit: deny
   bash: ask

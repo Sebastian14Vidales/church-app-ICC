@@ -1,7 +1,7 @@
 ---
 description: Dueño único del frontend React: estructura de componentes, hooks, layouts, router, páginas y llamadas a API.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 ---
 
 # Frontend Engineer — `frontend-engineer`

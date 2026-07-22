@@ -1,7 +1,7 @@
 ---
 description: Socket.IO, eventos en vivo, notificaciones real-time y su autenticación.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 ---
 
 # Realtime & Notifications Engineer — `realtime-notif-engineer`

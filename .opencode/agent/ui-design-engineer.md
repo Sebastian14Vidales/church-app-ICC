@@ -1,7 +1,7 @@
 ---
 description: Sistemas de diseño con Tailwind, accesibilidad WCAG y consistencia visual.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 permission:
   bash: ask
 ---

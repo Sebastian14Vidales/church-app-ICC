@@ -1,77 +1,77 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "username": "icc-dev",
-  "model": "anthropic/claude-sonnet-4-6",
+  "model": "opencode-go/glm-5.2",
   "default_agent": "chief-architect",
   "instructions": ["AGENTS.md"],
   "agent": {
     "chief-architect": {
       "description": "Líder técnico global; diseña arquitectura, delega y mantiene la coherencia.",
       "mode": "primary",
-      "model": "GLM-5.2"
+      "model": "opencode-go/glm-5.2"
     },
     "api-contract-engineer": {
       "description": "Autoridad sobre contratos API, tipos y OpenAPI frontend↔backend.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code",
+      "model": "opencode-go/glm-5.2",
       "permission": { "bash": "ask" }
     },
     "backend-engineer": {
       "description": "Implementa Express: controllers, routes, services.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code"
+      "model": "opencode-go/glm-5.2"
     },
     "database-engineer": {
       "description": "Modela Mongoose, esquemas, índices, migraciones, seed.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code"
+      "model": "opencode-go/glm-5.2"
     },
     "auth-security-engineer": {
       "description": "JWT, roles, permisos, validación y hardening general.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code"
+      "model": "opencode-go/glm-5.2"
     },
     "realtime-notif-engineer": {
       "description": "Socket.IO, eventos en vivo y notificaciones real-time.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code"
+      "model": "opencode-go/glm-5.2"
     },
     "frontend-engineer": {
       "description": "Dueño único del frontend: estructura, hooks, layouts, router, páginas y API.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code"
+      "model": "opencode-go/glm-5.2"
     },
     "ui-design-engineer": {
       "description": "Tailwind, accesibilidad y sistema de diseño.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code",
+      "model": "opencode-go/glm-5.2",
       "permission": { "bash": "ask" }
     },
     "testing-engineer": {
       "description": "Vitest + Supertest, fixtures y cobertura.",
       "mode": "subagent",
-      "model": "MiniMax-M2.7"
+      "model": "opencode-go/glm-5.2"
     },
     "devops-engineer": {
       "description": "Docker, scripts, CI/CD, variables de entorno y deploy.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code"
+      "model": "opencode-go/glm-5.2"
     },
     "doc-keeper": {
       "description": "README, ADRs y documentación funcional/empresarial.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code",
+      "model": "opencode-go/glm-5.2",
       "permission": { "bash": "ask" }
     },
     "quality-engineer": {
       "description": "Calidad end-to-end: revisión, refactor seguro y diagnóstico de bugs.",
       "mode": "subagent",
-      "model": "Kimi K2.7 Code"
+      "model": "opencode-go/glm-5.2"
     },
     "product-owner": {
       "description": "Voz del negocio eclesial: backlog, historias y criterios de aceptación.",
       "mode": "subagent",
-      "model": "GLM-5.2",
+      "model": "opencode-go/glm-5.2",
       "permission": { "edit": "deny", "bash": "ask" }
     }
   },

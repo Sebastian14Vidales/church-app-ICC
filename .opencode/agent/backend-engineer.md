@@ -1,7 +1,7 @@
 ---
 description: Implementa Express: controllers, routes y services con lógica de negocio del backend.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 ---
 
 # Backend Engineer — `backend-engineer`

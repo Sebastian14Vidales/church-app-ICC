@@ -118,17 +118,21 @@ ICC_CASA_DE_DIOS/
 | --------------------------- | ------------- | --------- | ---------------------------------------------- | ------------------- |
 | `chief-architect`           | GLM-5.2       | primary   | Arquitectura global, delegación, coherencia    | No (sólo ADR/docs)   |
 | `product-owner`             | GLM-5.2       | subagent  | Voz del negocio: backlog, historias, alcance   | No (sólo docs)       |
-| `api-contract-engineer`     | —             | subagent  | Contratos API frontend↔backend, OpenAPI/tipos   | Sí (tipos, contratos)|
-| `backend-engineer`          | Kimi K2.7 Code| subagent  | Express, controllers, routes, services         | Sí                   |
-| `database-engineer`         | Kimi K2.7 Code| subagent  | Mongoose, esquemas, índices, migraciones       | Sí (`models/`,`config/`)|
-| `auth-security-engineer`    | Kimi K2.7 Code| subagent  | Auth, JWT, roles, permisos, hardening          | Sí (`middleware/auth`, `services/`)|
-| `realtime-notif-engineer`   | —             | subagent  | Socket.IO, notificaciones, eventos en vivo     | Sí (`realtime/`)     |
-| `frontend-engineer`         | Kimi K2.7 Code| subagent  | React: estructura, hooks, layouts, router, páginas, API | Sí (`frontend/src/`)|
-| `ui-design-engineer`        | —             | subagent  | Tailwind, accesibilidad, sistemas de diseño    | Sí (estilos, clases)|
-| `testing-engineer`          | MiniMax-M2.7  | subagent  | Vitest, Supertest, cobertura, fixtures          | Sí (`*.test.ts`)     |
-| `devops-engineer`           | Kimi K2.7 Code| subagent  | Docker, scripts, CI, env, deploy                | Sí (infra)           |
-| `doc-keeper`                | —             | subagent  | README, ADRs, doc funcional/empresarial        | Sí (docs)            |
-| `quality-engineer`          | —             | subagent  | Revisión + refactor seguro + debug (audita→corrige) | Sí (tras auditar) |
+| `api-contract-engineer`     | GLM-5.2       | subagent  | Contratos API frontend↔backend, OpenAPI/tipos   | Sí (tipos, contratos)|
+| `backend-engineer`          | GLM-5.2       | subagent  | Express, controllers, routes, services         | Sí                   |
+| `database-engineer`         | GLM-5.2       | subagent  | Mongoose, esquemas, índices, migraciones       | Sí (`models/`,`config/`)|
+| `auth-security-engineer`    | GLM-5.2       | subagent  | Auth, JWT, roles, permisos, hardening          | Sí (`middleware/auth`, `services/`)|
+| `realtime-notif-engineer`   | GLM-5.2       | subagent  | Socket.IO, notificaciones, eventos en vivo     | Sí (`realtime/`)     |
+| `frontend-engineer`         | GLM-5.2       | subagent  | React: estructura, hooks, layouts, router, páginas, API | Sí (`frontend/src/`)|
+| `ui-design-engineer`        | GLM-5.2       | subagent  | Tailwind, accesibilidad, sistemas de diseño    | Sí (estilos, clases)|
+| `testing-engineer`          | GLM-5.2       | subagent  | Vitest, Supertest, cobertura, fixtures          | Sí (`*.test.ts`)     |
+| `devops-engineer`           | GLM-5.2       | subagent  | Docker, scripts, CI, env, deploy                | Sí (infra)           |
+| `doc-keeper`                | GLM-5.2       | subagent  | README, ADRs, doc funcional/empresarial        | Sí (docs)            |
+| `quality-engineer`          | GLM-5.2       | subagent  | Revisión + refactor seguro + debug (audita→corrige) | Sí (tras auditar) |
+
+> Nota: Modelo runtime unificado a `GLM-5.2` según disponibilidad del provider
+> `opencode-go` y reconcile con `opencode.json`. Ver
+> [`docs/adr/0002-reconcile-models-drift.md`](docs/adr/0002-reconcile-models-drift.md).
 
 Reglas de oro:
 

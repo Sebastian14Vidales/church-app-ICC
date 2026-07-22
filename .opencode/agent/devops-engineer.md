@@ -1,7 +1,7 @@
 ---
 description: Docker, scripts, CI/CD, variables de entorno, infraestructura y despliegue.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode-go/glm-5.2
 ---
 
 # DevOps Engineer — `devops-engineer`

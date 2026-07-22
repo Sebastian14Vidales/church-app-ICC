@@ -1,7 +1,7 @@
 ---
 description: Calidad end-to-end: revisión, refactor seguro y diagnóstico de bugs. Edita sólo tras auditar.
 mode: subagent
-model: anthropic/claude-opus-4-1
+model: opencode-go/glm-5.2
 ---
 
 # Quality Engineer — `quality-engineer`
