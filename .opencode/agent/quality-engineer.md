@@ -1,7 +1,7 @@
 ---
 description: Calidad end-to-end: revisión, refactor seguro y diagnóstico de bugs. Edita sólo tras auditar.
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/kimi-k2.7-code
 ---
 
 # Quality Engineer — `quality-engineer`

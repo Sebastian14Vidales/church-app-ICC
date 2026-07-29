@@ -40,45 +40,45 @@ const TAB_FOCUSABLE_KEYS = new Set([
 
 const handleTabKeyDown =
     <T extends string>(tabs: Array<{ id: T }>, onChange: (id: T) => void) =>
-    (event: KeyboardEvent<HTMLButtonElement>) => {
-        if (!TAB_FOCUSABLE_KEYS.has(event.key)) return;
-        const parent = event.currentTarget.parentElement;
-        if (!parent) return;
-        const buttons = Array.from(
-            parent.querySelectorAll<HTMLButtonElement>('button[role="tab"]'),
-        );
-        const count = buttons.length;
-        if (count === 0) return;
-        const currentIndex = buttons.indexOf(event.currentTarget);
-        if (currentIndex < 0) return;
-        let nextIndex = currentIndex;
-        switch (event.key) {
-            case "ArrowRight":
-            case "Right":
-                nextIndex = (currentIndex + 1) % count;
-                break;
-            case "ArrowLeft":
-            case "Left":
-                nextIndex = (currentIndex - 1 + count) % count;
-                break;
-            case "Home":
-                nextIndex = 0;
-                break;
-            case "End":
-                nextIndex = count - 1;
-                break;
-            default:
-                return;
-        }
-        event.preventDefault();
-        const target = buttons[nextIndex];
-        if (!target) return;
-        const targetId = target.id.replace(/^professor-tab-/, "");
-        const matched = tabs.find((tab) => tab.id === targetId);
-        if (!matched) return;
-        onChange(matched.id);
-        target.focus();
-    };
+        (event: KeyboardEvent<HTMLButtonElement>) => {
+            if (!TAB_FOCUSABLE_KEYS.has(event.key)) return;
+            const parent = event.currentTarget.parentElement;
+            if (!parent) return;
+            const buttons = Array.from(
+                parent.querySelectorAll<HTMLButtonElement>('button[role="tab"]'),
+            );
+            const count = buttons.length;
+            if (count === 0) return;
+            const currentIndex = buttons.indexOf(event.currentTarget);
+            if (currentIndex < 0) return;
+            let nextIndex = currentIndex;
+            switch (event.key) {
+                case "ArrowRight":
+                case "Right":
+                    nextIndex = (currentIndex + 1) % count;
+                    break;
+                case "ArrowLeft":
+                case "Left":
+                    nextIndex = (currentIndex - 1 + count) % count;
+                    break;
+                case "Home":
+                    nextIndex = 0;
+                    break;
+                case "End":
+                    nextIndex = count - 1;
+                    break;
+                default:
+                    return;
+            }
+            event.preventDefault();
+            const target = buttons[nextIndex];
+            if (!target) return;
+            const targetId = target.id.replace(/^professor-tab-/, "");
+            const matched = tabs.find((tab) => tab.id === targetId);
+            if (!matched) return;
+            onChange(matched.id);
+            target.focus();
+        };
 
 const formatAssignmentDate = (value: string) =>
     new Date(value).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
@@ -253,9 +253,8 @@ export default function MyCoursesProfessor() {
                             tabIndex={selected ? 0 : -1}
                             onClick={() => setTab(id)}
                             onKeyDown={handleTabKeyDown(TABS, setTab)}
-                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
-                                selected ? "bg-blue-600 text-white shadow" : "text-slate-600 hover:bg-slate-100"
-                            }`}
+                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${selected ? "bg-blue-600 text-white shadow" : "text-slate-600 hover:bg-slate-100"
+                                }`}
                         >
                             {label}
                         </button>
@@ -271,120 +270,122 @@ export default function MyCoursesProfessor() {
                 hidden={tab !== "current"}
                 className="space-y-6"
             >
-                {activeQuery.isLoading ? (
-                    <p className="text-sm text-slate-500">Cargando tu curso...</p>
-                ) : activeQuery.isError ? (
-                    <p className="text-sm text-rose-600">No se pudo cargar tu curso.</p>
-                ) : activeAssignment ? (
-                    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Curso actual</p>
-                                <h2 className="mt-2 text-2xl font-bold text-slate-900">{activeAssignment.course.name}</h2>
-                                <p className="mt-2 text-sm leading-6 text-slate-500">{activeAssignment.course.description}</p>
-                            </div>
-                            <span
-                            role="img"
-                            aria-label={`Nivel ${COURSE_LEVEL_LABELS[activeAssignment.course.level] ?? activeAssignment.course.level}`}
-                            className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-200"
-                        >
-                                Nivel {COURSE_LEVEL_LABELS[activeAssignment.course.level] ?? activeAssignment.course.level}
-                            </span>
-                        </div>
-
-                        <div className="mt-6 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
-                            <p className="flex items-center gap-2">
-                                <CalendarDays className="h-4 w-4 text-slate-400" />
-                                {formatAssignmentDate(activeAssignment.startDate)} a {formatAssignmentDate(activeAssignment.endDate)}
-                            </p>
-                            <p className="flex items-center gap-2">
-                                <Clock3 className="h-4 w-4 text-slate-400" />
-                                {activeAssignment.startTime} · {activeAssignment.totalClasses} clases
-                            </p>
-                            <p className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-slate-400" />
-                                {getLocationNameById(activeAssignment.location)}
-                            </p>
-                            <p
-                                role="status"
-                                aria-label={`Progreso de sesiones: ${recordedSessions.length} de ${activeAssignment.totalClasses} clases registradas`}
-                                className="flex items-center gap-2"
-                            >
-                                <BookOpen className="h-4 w-4 text-slate-400" />
-                                Progreso de sesiones: {sessionsProgress}
-                            </p>
-                        </div>
-
-                        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-center justify-between gap-3">
+                <div className="grid grid-cols-1 gap-6 md:grid md:grid-cols-2  2xl:grid-cols-3">
+                    {activeQuery.isLoading ? (
+                        <p className="text-sm text-slate-500">Cargando tu curso...</p>
+                    ) : activeQuery.isError ? (
+                        <p className="text-sm text-rose-600">No se pudo cargar tu curso.</p>
+                    ) : activeAssignment ? (
+                        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm font-semibold text-slate-900">Miembros del curso</p>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        {activeAssignment.members.length
-                                            ? `${activeAssignment.members.length} registrados`
-                                            : "Aun no has registrado miembros en este curso"}
-                                    </p>
+                                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Curso actual</p>
+                                    <h2 className="mt-2 text-2xl font-bold text-slate-900">{activeAssignment.course.name}</h2>
+                                    <p className="mt-2 text-sm leading-6 text-slate-500">{activeAssignment.course.description}</p>
                                 </div>
-                                <Button
-                                    color="primary"
-                                    variant="flat"
-                                    onPress={() => openMembersModal(activeAssignment)}
+                                <span
+                                    role="img"
+                                    aria-label={`Nivel ${COURSE_LEVEL_LABELS[activeAssignment.course.level] ?? activeAssignment.course.level}`}
+                                    className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-200"
                                 >
-                                    Registrar miembros
-                                </Button>
+                                    Nivel {COURSE_LEVEL_LABELS[activeAssignment.course.level] ?? activeAssignment.course.level}
+                                </span>
                             </div>
 
-                            {activeAssignment.members.length ? (
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {activeAssignment.members.map((member) => (
-                                        <span
-                                            key={member._id}
-                                            className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm"
-                                        >
-                                            {formatFullName(member.firstName, member.lastName)}
-                                        </span>
-                                    ))}
-                                </div>
-                            ) : null}
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap gap-3">
-                            <Link to={PATHS.attendance}>
-                                <Button color="primary" variant="solid" className="font-semibold">
-                                    <ClipboardCheck className="h-4 w-4" />
-                                    Registrar asistencia
-                                </Button>
-                            </Link>
-                            <Button
-                                color="warning"
-                                variant="flat"
-                                isLoading={closeCourse.isPending}
-                                isDisabled={!canClose}
-                                aria-disabled={!canClose}
-                                title={canClose ? undefined : "Debes registrar todas las clases antes de cerrar el curso"}
-                                onPress={handleCloseCourse}
-                            >
-                                Cerrar curso
-                            </Button>
-                            {!canClose ? (
+                            <div className="mt-6 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+                                <p className="flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4 text-slate-400" />
+                                    {formatAssignmentDate(activeAssignment.startDate)} a {formatAssignmentDate(activeAssignment.endDate)}
+                                </p>
+                                <p className="flex items-center gap-2">
+                                    <Clock3 className="h-4 w-4 text-slate-400" />
+                                    {activeAssignment.startTime} · {activeAssignment.totalClasses} clases
+                                </p>
+                                <p className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-slate-400" />
+                                    {getLocationNameById(activeAssignment.location)}
+                                </p>
                                 <p
                                     role="status"
-                                    aria-live="polite"
-                                    className="self-center text-sm text-amber-700"
+                                    aria-label={`Progreso de sesiones: ${recordedSessions.length} de ${activeAssignment.totalClasses} clases registradas`}
+                                    className="flex items-center gap-2"
                                 >
-                                    Para cerrar el curso debes registrar las {activeAssignment.totalClasses} clases programadas.
+                                    <BookOpen className="h-4 w-4 text-slate-400" />
+                                    Progreso de sesiones: {sessionsProgress}
                                 </p>
-                            ) : null}
-                        </div>
-                    </article>
-                ) : (
-                    <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm shadow-slate-200/70">
-                        <h2 className="text-2xl font-semibold text-slate-900">No tienes un curso activo</h2>
-                        <p className="mt-3 text-sm leading-6 text-slate-500">
-                            Cuando se te asigne un curso lo veras aqui con su calendario y ubicacion.
-                        </p>
-                    </section>
-                )}
+                            </div>
+
+                            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-900">Miembros del curso</p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {activeAssignment.members.length
+                                                ? `${activeAssignment.members.length} registrados`
+                                                : "Aun no has registrado miembros en este curso"}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        color="primary"
+                                        variant="flat"
+                                        onPress={() => openMembersModal(activeAssignment)}
+                                    >
+                                        Registrar miembros
+                                    </Button>
+                                </div>
+
+                                {activeAssignment.members.length ? (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {activeAssignment.members.map((member) => (
+                                            <span
+                                                key={member._id}
+                                                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm"
+                                            >
+                                                {formatFullName(member.firstName, member.lastName)}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div className="mt-5 flex flex-wrap gap-3">
+                                <Link to={PATHS.attendance}>
+                                    <Button color="primary" variant="solid" className="font-semibold">
+                                        <ClipboardCheck className="h-4 w-4" />
+                                        Registrar asistencia
+                                    </Button>
+                                </Link>
+                                <Button
+                                    color="warning"
+                                    variant="flat"
+                                    isLoading={closeCourse.isPending}
+                                    isDisabled={!canClose}
+                                    aria-disabled={!canClose}
+                                    title={canClose ? undefined : "Debes registrar todas las clases antes de cerrar el curso"}
+                                    onPress={handleCloseCourse}
+                                >
+                                    Cerrar curso
+                                </Button>
+                                {!canClose ? (
+                                    <p
+                                        role="status"
+                                        aria-live="polite"
+                                        className="self-center text-sm text-amber-700"
+                                    >
+                                        Para cerrar el curso debes registrar las {activeAssignment.totalClasses} clases programadas.
+                                    </p>
+                                ) : null}
+                            </div>
+                        </article>
+                    ) : (
+                        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm shadow-slate-200/70">
+                            <h2 className="text-2xl font-semibold text-slate-900">No tienes un curso activo</h2>
+                            <p className="mt-3 text-sm leading-6 text-slate-500">
+                                Cuando se te asigne un curso lo veras aqui con su calendario y ubicacion.
+                            </p>
+                        </section>
+                    )}
+                </div>
             </section>
 
             {/* ===== Historial ===== */}
@@ -401,78 +402,80 @@ export default function MyCoursesProfessor() {
                         Cursos completados
                     </h2>
                 </div>
+                <div className="grid grid-cols-1 gap-6 md:grid md:grid-cols-2  2xl:grid-cols-3">
 
-                {historyQuery.isLoading ? (
-                    <p className="text-sm text-slate-500">Cargando historial...</p>
-                ) : historyQuery.isError ? (
-                    <p className="text-sm text-rose-600">No se pudo cargar tu historial.</p>
-                ) : historyItems.length ? (
-                    <div className="space-y-3">
-                        {historyItems.map((assignment) => {
-                            const isExpanded = expandedHistoryId === assignment._id;
-                            return (
-                                <article
-                                    key={assignment._id}
-                                    className="rounded-3xl border border-amber-200 bg-amber-50 p-5"
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => setExpandedHistoryId(isExpanded ? null : assignment._id)}
-                                        className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
-                                        aria-expanded={isExpanded}
-                                        aria-controls={`professor-history-detail-${assignment._id}`}
-                                        aria-label={isExpanded
-                                            ? `Ocultar detalle de ${assignment.course.name}`
-                                            : `Ver detalle de ${assignment.course.name}`}
+                    {historyQuery.isLoading ? (
+                        <p className="text-sm text-slate-500">Cargando historial...</p>
+                    ) : historyQuery.isError ? (
+                        <p className="text-sm text-rose-600">No se pudo cargar tu historial.</p>
+                    ) : historyItems.length ? (
+                        <div className="space-y-3">
+                            {historyItems.map((assignment) => {
+                                const isExpanded = expandedHistoryId === assignment._id;
+                                return (
+                                    <article
+                                        key={assignment._id}
+                                        className="rounded-3xl border border-amber-200 bg-amber-50 p-5"
                                     >
-                                        <div>
-                                            <p className="text-base font-bold text-slate-900">{assignment.course.name}</p>
-                                            <p className="mt-1 text-sm text-slate-600">
-                                                Completado · {formatAssignmentDate(assignment.endDate)} ·{" "}
-                                                {getLocationNameById(assignment.location)}
-                                            </p>
-                                        </div>
-                                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-700 shadow-sm">
-                                            {isExpanded ? "Ocultar detalle" : "Ver detalle"}
-                                        </span>
-                                    </button>
-
-                                    {isExpanded ? (
-                                        <div
-                                            id={`professor-history-detail-${assignment._id}`}
-                                            role="region"
-                                            aria-label={`Detalle del curso ${assignment.course.name}`}
-                                            className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4"
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedHistoryId(isExpanded ? null : assignment._id)}
+                                            className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                                            aria-expanded={isExpanded}
+                                            aria-controls={`professor-history-detail-${assignment._id}`}
+                                            aria-label={isExpanded
+                                                ? `Ocultar detalle de ${assignment.course.name}`
+                                                : `Ver detalle de ${assignment.course.name}`}
                                         >
-                                            {historyDetail.isLoading ? (
-                                                <p className="text-sm text-slate-500">Cargando sesiones...</p>
-                                            ) : historyDetail.isError ? (
-                                                <p className="text-sm text-rose-600">No se pudo cargar el detalle.</p>
-                                            ) : expandedDetail && expandedSummary.length ? (
-                                                <ul className="space-y-2">
-                                                    {expandedSummary.map(({ member, present, count, rate }) => (
-                                                        <li key={member._id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                                                            <p className="font-medium text-slate-900">
-                                                                {formatFullName(member.firstName, member.lastName)}
-                                                            </p>
-                                                            <p className="text-slate-600">
-                                                                {present}/{count} clases presentes · {rate}% asistencia
-                                                            </p>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <p className="text-sm text-slate-500">Sin sesiones registradas.</p>
-                                            )}
-                                        </div>
-                                    ) : null}
-                                </article>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <p role="status" aria-live="polite" className="text-sm text-slate-500">Aun no has completado cursos.</p>
-                )}
+                                            <div>
+                                                <p className="text-base font-bold text-slate-900">{assignment.course.name}</p>
+                                                <p className="mt-1 text-sm text-slate-600">
+                                                    Completado · {formatAssignmentDate(assignment.endDate)} ·{" "}
+                                                    {getLocationNameById(assignment.location)}
+                                                </p>
+                                            </div>
+                                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-700 shadow-sm">
+                                                {isExpanded ? "Ocultar detalle" : "Ver detalle"}
+                                            </span>
+                                        </button>
+
+                                        {isExpanded ? (
+                                            <div
+                                                id={`professor-history-detail-${assignment._id}`}
+                                                role="region"
+                                                aria-label={`Detalle del curso ${assignment.course.name}`}
+                                                className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4"
+                                            >
+                                                {historyDetail.isLoading ? (
+                                                    <p className="text-sm text-slate-500">Cargando sesiones...</p>
+                                                ) : historyDetail.isError ? (
+                                                    <p className="text-sm text-rose-600">No se pudo cargar el detalle.</p>
+                                                ) : expandedDetail && expandedSummary.length ? (
+                                                    <ul className="space-y-2">
+                                                        {expandedSummary.map(({ member, present, count, rate }) => (
+                                                            <li key={member._id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                                                <p className="font-medium text-slate-900">
+                                                                    {formatFullName(member.firstName, member.lastName)}
+                                                                </p>
+                                                                <p className="text-slate-600">
+                                                                    {present}/{count} clases presentes · {rate}% asistencia
+                                                                </p>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p className="text-sm text-slate-500">Sin sesiones registradas.</p>
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p role="status" aria-live="polite" className="text-sm text-slate-500">Aun no has completado cursos.</p>
+                    )}
+                </div>
             </section>
 
             {/* ===== Modal Registrar miembros ===== */}
@@ -509,9 +512,8 @@ export default function MyCoursesProfessor() {
                             return (
                                 <label
                                     key={member._id}
-                                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
-                                        checked ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
-                                    }`}
+                                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${checked ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
+                                        }`}
                                 >
                                     <Checkbox
                                         isSelected={checked}

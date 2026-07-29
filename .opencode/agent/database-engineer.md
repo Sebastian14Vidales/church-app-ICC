@@ -1,7 +1,7 @@
 ---
 description: Modela Mongoose: esquemas, índices, validadores, migraciones y seed del sistema.
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/kimi-k2.7-code
 ---
 
 # Database Engineer — `database-engineer`

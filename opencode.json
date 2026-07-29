@@ -13,60 +13,60 @@
     "api-contract-engineer": {
       "description": "Autoridad sobre contratos API, tipos y OpenAPI frontend↔backend.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2",
+      "model": "opencode-go/kimi-k2.7-code",
       "permission": { "bash": "ask" }
     },
     "backend-engineer": {
       "description": "Implementa Express: controllers, routes, services.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/kimi-k2.7-code"
     },
     "database-engineer": {
       "description": "Modela Mongoose, esquemas, índices, migraciones, seed.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/kimi-k2.7-code"
     },
     "auth-security-engineer": {
       "description": "JWT, roles, permisos, validación y hardening general.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/kimi-k2.7-code"
     },
     "realtime-notif-engineer": {
       "description": "Socket.IO, eventos en vivo y notificaciones real-time.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/kimi-k2.7-code"
     },
     "frontend-engineer": {
       "description": "Dueño único del frontend: estructura, hooks, layouts, router, páginas y API.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/kimi-k2.7-code"
     },
     "ui-design-engineer": {
       "description": "Tailwind, accesibilidad y sistema de diseño.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2",
+      "model": "opencode-go/kimi-k2.7-code",
       "permission": { "bash": "ask" }
     },
     "testing-engineer": {
       "description": "Vitest + Supertest, fixtures y cobertura.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/minimax-m2.7"
     },
     "devops-engineer": {
       "description": "Docker, scripts, CI/CD, variables de entorno y deploy.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/kimi-k2.7-code"
     },
     "doc-keeper": {
       "description": "README, ADRs y documentación funcional/empresarial.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2",
+      "model": "opencode-go/kimi-k2.7-code",
       "permission": { "bash": "ask" }
     },
     "quality-engineer": {
       "description": "Calidad end-to-end: revisión, refactor seguro y diagnóstico de bugs.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2"
+      "model": "opencode-go/kimi-k2.7-code"
     },
     "product-owner": {
       "description": "Voz del negocio eclesial: backlog, historias y criterios de aceptación.",

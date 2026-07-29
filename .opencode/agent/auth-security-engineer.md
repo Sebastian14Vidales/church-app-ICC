@@ -1,7 +1,7 @@
 ---
 description: Auth, JWT, roles, permisos, validación de entrada y hardening de seguridad.
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/kimi-k2.7-code
 ---
 
 # Auth-Security Engineer — `auth-security-engineer`

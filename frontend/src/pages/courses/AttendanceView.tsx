@@ -228,7 +228,7 @@ export default function AttendanceView() {
 
     return (
         <div className="space-y-8">
-            <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-7 text-white shadow-xl shadow-slate-300/40 sm:px-8">
+            <section className="relative rounded-[2rem] bg-slate-950 px-6 py-7 text-white shadow-xl shadow-slate-300/40 sm:px-8">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(34,197,94,0.24),_transparent_30%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.2),_transparent_28%)]" />
                 <div className="relative grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                     <div>
@@ -546,7 +546,7 @@ export default function AttendanceView() {
                                 Primero necesitas registrar miembros en el curso para tomar asistencia.
                             </div>
                         ) : filteredMembers.length ? (
-                            <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-2">
+                            <div className="max-h-[32rem] space-y-3  pr-2">
                                 {filteredMembers.map((member) => {
                                     const currentStatus = attendanceState[member._id]
 

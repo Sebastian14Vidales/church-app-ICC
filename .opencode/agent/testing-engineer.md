@@ -1,7 +1,7 @@
 ---
 description: Vitest + Supertest, fixtures, cobertura ≥80% y regresión; bloquea merge si falla.
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/minimax-m2.7
 ---
 
 # Testing Engineer — `testing-engineer`

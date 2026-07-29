@@ -1,7 +1,7 @@
 ---
 description: Implementa Express: controllers, routes y services con lógica de negocio del backend.
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/kimi-k2.7-code
 ---
 
 # Backend Engineer — `backend-engineer`

@@ -1,7 +1,7 @@
 ---
 description: Socket.IO, eventos en vivo, notificaciones real-time y su autenticación.
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/kimi-k2.7-code
 ---
 
 # Realtime & Notifications Engineer — `realtime-notif-engineer`

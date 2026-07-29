@@ -1,7 +1,7 @@
 ---
 description: README, ADRs y documentación funcional/empresarial del sistema.
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/kimi-k2.7-code
 permission:
   bash: ask
 ---
