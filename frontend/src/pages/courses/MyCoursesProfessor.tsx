@@ -197,12 +197,43 @@ export default function MyCoursesProfessor() {
         });
     };
 
-    const historyItems = historyQuery.data ?? [];
+    const historyItems = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
     const expandedDetail = historyDetail.data;
     const expandedSummary = useMemo(() => {
         if (!expandedDetail) return [];
         return computeStudentSummary(expandedDetail, expandedDetail.sessions);
     }, [expandedDetail]);
+
+    const selectedHistoryItem = useMemo(
+        () => historyItems.find((item) => item._id === expandedHistoryId),
+        [historyItems, expandedHistoryId],
+    );
+
+    const historyDetailBody = useMemo(() => {
+        if (historyDetail.isLoading) {
+            return <LoadingSpinner label="Cargando sesiones..." className="min-h-[160px]" />;
+        }
+        if (historyDetail.isError) {
+            return <p className="text-sm text-rose-600">No se pudo cargar el detalle.</p>;
+        }
+        if (!expandedDetail || !expandedSummary.length) {
+            return <p className="text-sm text-slate-500">Sin sesiones registradas.</p>;
+        }
+        return (
+            <ul className="space-y-2">
+                {expandedSummary.map(({ member, present, count, rate }) => (
+                    <li key={member._id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <p className="font-medium text-slate-900">
+                            {formatFullName(member.firstName, member.lastName)}
+                        </p>
+                        <p className="text-slate-600">
+                            {present}/{count} clases presentes · {rate}% asistencia
+                        </p>
+                    </li>
+                ))}
+            </ul>
+        );
+    }, [historyDetail.isLoading, historyDetail.isError, expandedDetail, expandedSummary]);
 
     return (
         <div className="space-y-8">
@@ -403,13 +434,14 @@ export default function MyCoursesProfessor() {
                         Cursos completados
                     </h2>
                 </div>
-                <div className="grid grid-cols-1 gap-6 md:grid md:grid-cols-2  2xl:grid-cols-3">
 
-                    {historyQuery.isLoading ? (
-                        <LoadingSpinner label="Cargando historial..." className="min-h-[200px]" />
-                    ) : historyQuery.isError ? (
-                        <p className="text-sm text-rose-600">No se pudo cargar tu historial.</p>
-                    ) : historyItems.length ? (
+                {historyQuery.isLoading ? (
+                    <LoadingSpinner label="Cargando historial..." className="min-h-[200px]" />
+                ) : historyQuery.isError ? (
+                    <p className="text-sm text-rose-600">No se pudo cargar tu historial.</p>
+                ) : historyItems.length ? (
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr] xl:items-start">
+                        {/* Lista de cursos completados */}
                         <div className="space-y-3">
                             {historyItems.map((assignment) => {
                                 const isExpanded = expandedHistoryId === assignment._id;
@@ -423,7 +455,7 @@ export default function MyCoursesProfessor() {
                                             onClick={() => setExpandedHistoryId(isExpanded ? null : assignment._id)}
                                             className="flex w-full items-center justify-between gap-3 rounded-2xl px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                                             aria-expanded={isExpanded}
-                                            aria-controls={`professor-history-detail-${assignment._id}`}
+                                            aria-controls={isExpanded ? `professor-history-detail-${assignment._id}` : undefined}
                                             aria-label={isExpanded
                                                 ? `Ocultar detalle de ${assignment.course.name}`
                                                 : `Ver detalle de ${assignment.course.name}`}
@@ -440,43 +472,53 @@ export default function MyCoursesProfessor() {
                                             </span>
                                         </button>
 
+                                        {/* Detalle en móvil/tablet */}
                                         {isExpanded ? (
                                             <div
                                                 id={`professor-history-detail-${assignment._id}`}
                                                 role="region"
                                                 aria-label={`Detalle del curso ${assignment.course.name}`}
-                                                className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4"
+                                                className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4 xl:hidden"
                                             >
-                                                {historyDetail.isLoading ? (
-                                                    <LoadingSpinner label="Cargando sesiones..." className="min-h-[160px]" />
-                                                ) : historyDetail.isError ? (
-                                                    <p className="text-sm text-rose-600">No se pudo cargar el detalle.</p>
-                                                ) : expandedDetail && expandedSummary.length ? (
-                                                    <ul className="space-y-2">
-                                                        {expandedSummary.map(({ member, present, count, rate }) => (
-                                                            <li key={member._id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                                                                <p className="font-medium text-slate-900">
-                                                                    {formatFullName(member.firstName, member.lastName)}
-                                                                </p>
-                                                                <p className="text-slate-600">
-                                                                    {present}/{count} clases presentes · {rate}% asistencia
-                                                                </p>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : (
-                                                    <p className="text-sm text-slate-500">Sin sesiones registradas.</p>
-                                                )}
+                                                {historyDetailBody}
                                             </div>
                                         ) : null}
                                     </article>
                                 );
                             })}
                         </div>
-                    ) : (
-                        <p role="status" aria-live="polite" className="text-sm text-slate-500">Aun no has completado cursos.</p>
-                    )}
-                </div>
+
+                        {/* Detalle en desktop */}
+                        <div className="hidden xl:sticky xl:top-6 xl:block">
+                            {selectedHistoryItem ? (
+                                <div
+                                    id="professor-history-detail-panel"
+                                    role="region"
+                                    aria-label={`Detalle del curso ${selectedHistoryItem.course.name}`}
+                                    aria-live="polite"
+                                    className="rounded-3xl border border-amber-200 bg-white p-5"
+                                >
+                                    <div className="border-b border-amber-200 pb-4">
+                                        <h3 className="text-lg font-bold text-slate-900">
+                                            {selectedHistoryItem.course.name}
+                                        </h3>
+                                        <p className="mt-1 text-sm text-slate-600">
+                                            Completado · {formatAssignmentDate(selectedHistoryItem.endDate)} ·{" "}
+                                            {getLocationNameById(selectedHistoryItem.location)}
+                                        </p>
+                                    </div>
+                                    <div className="pt-4">{historyDetailBody}</div>
+                                </div>
+                            ) : (
+                                <div className="rounded-3xl border border-amber-200 bg-white p-5">
+                                    <p className="text-sm text-slate-500">Selecciona un curso para ver el detalle.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <p role="status" aria-live="polite" className="text-sm text-slate-500">Aun no has completado cursos.</p>
+                )}
             </section>
 
             {/* ===== Modal Registrar miembros ===== */}

@@ -1,6 +1,7 @@
 import { Response } from "express";
 import CourseAssigned from "../models/course-assigned.model";
 import ClassSession from "../models/class-session.model";
+import type { IUserProfile } from "../models/user-profile.model";
 import { AuthenticatedRequest } from "../types/auth";
 import {
   addMembers as addMembersService,
@@ -22,6 +23,21 @@ import { handleControllerError } from "../services/app-error";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+
+const isPopulatedStudent = (
+  student: unknown,
+): student is IUserProfile & { _id: unknown } => {
+  if (!student || typeof student !== "object") {
+    return false;
+  }
+  const candidate = student as Record<string, unknown>;
+  return (
+    "_id" in candidate &&
+    typeof candidate.firstName === "string" &&
+    typeof candidate.lastName === "string" &&
+    typeof candidate.documentID === "string"
+  );
+};
 
 const parsePagination = (query: {
   page?: unknown;
@@ -125,9 +141,9 @@ export class CourseAssignmentController {
       const sessions = await ClassSession.find({
         courseAssigned: assignment._id,
         deletedAt: null,
-      })
-        .sort({ classNumber: 1 })
-        .populate(attendancePopulate);
+      }).sort({ classNumber: 1 });
+
+      await ClassSession.populate(sessions, attendancePopulate);
 
       const sessionsByClassNumber = new Map(
         sessions.map((session) => [session.classNumber, session]),
@@ -153,11 +169,13 @@ export class CourseAssignmentController {
             topic: storedSession?.topic ?? "",
             observations: storedSession?.observations ?? "",
             attendance:
-              storedSession?.attendance.map((entry) => ({
-                member: entry.student,
-                present: entry.present,
-                notes: entry.notes ?? "",
-              })) ?? [],
+              storedSession?.attendance
+                .filter((entry) => isPopulatedStudent(entry.student))
+                .map((entry) => ({
+                  member: entry.student,
+                  present: entry.present,
+                  notes: entry.notes ?? "",
+                })) ?? [],
           };
         },
       );

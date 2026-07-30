@@ -65,7 +65,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 const readStoredToken = () => {
-    const token = sessionStorage.getItem(AUTH_TOKEN_KEY)
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
 
     if (!token || token === "undefined" || token === "null") {
         return null
@@ -75,7 +75,7 @@ const readStoredToken = () => {
 }
 
 const readStoredUser = () => {
-    const storedUser = sessionStorage.getItem(AUTH_USER_KEY)
+    const storedUser = localStorage.getItem(AUTH_USER_KEY)
 
     if (!storedUser) {
         return null
@@ -84,14 +84,14 @@ const readStoredUser = () => {
     try {
         return authUserSchema.parse(JSON.parse(storedUser))
     } catch {
-        sessionStorage.removeItem(AUTH_USER_KEY)
+        localStorage.removeItem(AUTH_USER_KEY)
         return null
     }
 }
 
-const clearSessionStorage = () => {
-    sessionStorage.removeItem(AUTH_TOKEN_KEY)
-    sessionStorage.removeItem(AUTH_USER_KEY)
+const clearStoredSession = () => {
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    localStorage.removeItem(AUTH_USER_KEY)
     setAuthToken(null)
 }
 
@@ -100,9 +100,9 @@ const persistSession = ({ token, user }: LoginSession) => {
         throw new Error("Token de sesión inválido")
     }
 
-    clearSessionStorage()
-    sessionStorage.setItem(AUTH_TOKEN_KEY, token)
-    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+    clearStoredSession()
+    localStorage.setItem(AUTH_TOKEN_KEY, token)
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
     setAuthToken(token)
 }
 
@@ -123,6 +123,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const [isSessionTransitioning, setIsSessionTransitioning] = useState(false)
     const isLoggingOutRef = useRef(false)
     const transitionTimeoutRef = useRef<number | null>(null)
+    const bootstrapAbortControllerRef = useRef<AbortController | null>(null)
 
     const startSessionTransition = () => {
         if (transitionTimeoutRef.current) {
@@ -142,10 +143,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         isLoggingOutRef.current = true
+        bootstrapAbortControllerRef.current?.abort()
         startSessionTransition()
         setToken(null)
         setUser(null)
-        clearSessionStorage()
+        clearStoredSession()
         queryClient.clear()
         isLoggingOutRef.current = false
     })
@@ -155,6 +157,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     const login = (session: LoginSession) => {
+        // Defensa en profundidad: si ya existe una sesión activa en el
+        // almacenamiento compartido (por ejemplo, abierta en otra pestaña),
+        // no se permite que la pantalla de login la sobrescriba.
+        if (readStoredToken()) {
+            return
+        }
+
         startSessionTransition()
         persistSession(session)
         setToken(session.token)
@@ -179,11 +188,44 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
     }, [performLogout])
 
+    // Sincronización entre pestañas: cuando el token/usuario cambian en
+    // localStorage (login/logout en otra pestaña), este tab adopta o cierra la
+    // sesión automáticamente. El evento storage no se dispara en el tab que
+    // originó el cambio, por lo que no hay bucles.
+    useEffect(() => {
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key !== AUTH_TOKEN_KEY && event.key !== AUTH_USER_KEY && event.key !== null) {
+                return
+            }
+
+            const newToken = readStoredToken()
+            const newUser = readStoredUser()
+
+            if (!newToken) {
+                if (token) {
+                    performLogout()
+                }
+                return
+            }
+
+            if (newToken !== token) {
+                setToken(newToken)
+                setAuthToken(newToken)
+            }
+            if (newUser) {
+                setUser(newUser)
+            }
+        }
+
+        window.addEventListener("storage", handleStorageChange)
+        return () => window.removeEventListener("storage", handleStorageChange)
+    }, [token, performLogout])
+
     useEffect(() => {
         const storedToken = readStoredToken()
 
         if (!storedToken) {
-            clearSessionStorage()
+            clearStoredSession()
             setToken(null)
             setUser(null)
             setIsBootstrapping(false)
@@ -191,6 +233,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         setAuthToken(storedToken)
+        bootstrapAbortControllerRef.current = new AbortController()
+        const { signal } = bootstrapAbortControllerRef.current
 
         const bootstrapSession = async () => {
             // Validación del token guardado contra /auth/me. Sólo se cierra la
@@ -202,7 +246,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             // espurio por errores transitorios).
             const fetchMe = async (attempt: number): Promise<void> => {
                 try {
-                    const { data } = await api.get("/auth/me")
+                    const { data } = await api.get("/auth/me", { signal })
                     const response = currentSessionResponseSchema.safeParse(data)
 
                     if (!response.success) {
@@ -211,8 +255,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
                     setToken(storedToken)
                     setUser(response.data.user)
-                    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.data.user))
+                    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.data.user))
                 } catch (error) {
+                    if (error instanceof Error && error.name === "AbortError") {
+                        return
+                    }
+
                     if (isInvalidSessionError(error)) {
                         performLogout()
                         return
@@ -237,6 +285,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         bootstrapSession()
+
+        return () => {
+            bootstrapAbortControllerRef.current?.abort()
+        }
     }, [performLogout])
 
     const value: AuthContextValue = {

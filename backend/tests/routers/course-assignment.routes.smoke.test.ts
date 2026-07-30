@@ -111,6 +111,7 @@ vi.mock("../../src/models/class-session.model", () => {
     countDocuments: vi.fn(),
     updateMany: vi.fn(),
     findOneAndUpdate: vi.fn(),
+    populate: vi.fn((docs) => Promise.resolve(docs)),
   };
   return { default: model };
 });
@@ -245,7 +246,22 @@ const buildStoredSession = (classNumber: number) => ({
   observations: "ok",
   updatedAt: new Date(`2026-02-0${classNumber}T22:30:00.000Z`),
   attendance: [
-    { student: { _id: OTHER_VALID_ID }, present: true, notes: "" },
+    {
+      student: {
+        _id: OTHER_VALID_ID,
+        firstName: "Estudiante",
+        lastName: "Test",
+        documentID: "123456",
+        birthdate: new Date("1990-01-01"),
+        neighborhood: "Barrio",
+        phoneNumber: "3001234567",
+        bloodType: "O+",
+        role: { _id: OTHER_VALID_ID, name: "Miembro" },
+        user: null,
+      },
+      present: true,
+      notes: "",
+    },
   ],
 });
 

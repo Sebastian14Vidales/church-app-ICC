@@ -22,7 +22,7 @@ const initialValues: LoginFormData = {
 export default function Login() {
     const navigate = useNavigate()
     const location = useLocation()
-    const { login: loginSession } = useAuth()
+    const { login: loginSession, isAuthenticated, isBootstrapping } = useAuth()
     const [searchParams] = useSearchParams()
     const initialEmail = useMemo(() => searchParams.get("email") ?? "", [searchParams])
     const notice = (location.state as { notice?: string } | null)?.notice
@@ -38,6 +38,15 @@ export default function Login() {
         },
     })
 
+    // Defensa en profundidad: si ya existe una sesión activa (por ejemplo, una
+    // pestaña abierta con la misma cuenta), se redirige al dashboard en lugar de
+    // permitir iniciar otra sesión.
+    useEffect(() => {
+        if (isAuthenticated && !isBootstrapping) {
+            navigate(PATHS.dashboard, { replace: true })
+        }
+    }, [isAuthenticated, isBootstrapping, navigate])
+
     useEffect(() => {
         if (initialEmail) {
             setValue("email", initialEmail, { shouldDirty: false })
@@ -50,6 +59,11 @@ export default function Login() {
     })
 
     const onSubmit = async (formData: LoginFormData) => {
+        if (isAuthenticated) {
+            navigate(PATHS.dashboard, { replace: true })
+            return
+        }
+
         const response = await loginMutation.mutateAsync({
             email: formData.email.trim().toLowerCase(),
             password: formData.password,

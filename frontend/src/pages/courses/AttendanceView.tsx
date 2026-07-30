@@ -547,7 +547,7 @@ export default function AttendanceView() {
                                 Primero necesitas registrar miembros en el curso para tomar asistencia.
                             </div>
                         ) : filteredMembers.length ? (
-                            <div className="max-h-[32rem] space-y-3  pr-2">
+                            <div className="space-y-3">
                                 {filteredMembers.map((member) => {
                                     const currentStatus = attendanceState[member._id]
 
