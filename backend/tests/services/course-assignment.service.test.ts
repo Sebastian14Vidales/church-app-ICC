@@ -66,8 +66,17 @@ vi.mock("../../src/models/user-profile.model", () => {
   const userProfileModel = {
     findById: vi.fn(),
     find: vi.fn(),
+    findByIdAndUpdate: vi.fn(),
   };
-  return { default: userProfileModel };
+  const SPIRITUAL_GROWTH_STAGES = [
+    "Consolidación",
+    "Discipulado básico",
+    "Carácter cristiano",
+    "Sanidad y propósito",
+    "Cosmovisión bíblica",
+    "Doctrina cristiana",
+  ];
+  return { default: userProfileModel, SPIRITUAL_GROWTH_STAGES };
 });
 
 import CourseAssigned from "../../src/models/course-assigned.model";
@@ -95,6 +104,9 @@ const classSessionUpdateMany =
 
 const userProfileFindById = UserProfile.findById as unknown as ReturnType<typeof vi.fn>;
 const userProfileFind = UserProfile.find as unknown as ReturnType<typeof vi.fn>;
+const userProfileFindByIdAndUpdate =
+  UserProfile.findByIdAndUpdate as unknown as ReturnType<typeof vi.fn>;
+const classSessionFind = ClassSession.find as unknown as ReturnType<typeof vi.fn>;
 
 const realtimeMock = emitRealtimeInvalidation as unknown as ReturnType<typeof vi.fn>;
 
@@ -131,11 +143,12 @@ const VALID_COURSE_ID = "65a1f0c0c1d2a3b4f5e6f7a8";
 const VALID_PROFESSOR_ID = "65a1f0c0c1d2a3b4f5e6f7a9";
 const VALID_MEMBER_ID = "65a1f0c0c1d2a3b4f5e6f7b0";
 const OTHER_MEMBER_ID = "65a1f0c0c1d2a3b4f5e6f7b1";
+const NON_EXISTENT_MEMBER_ID = "65a1f0c0c1d2a3b4f5e6f7b2";
 const ASSIGNMENT_ID = "65a1f0c0c1d2a3b4f5e6f7c0";
 
 const buildAssignment = (overrides: Record<string, unknown> = {}) => ({
   _id: ASSIGNMENT_ID,
-  course: { _id: VALID_COURSE_ID, name: "Fundamentos" },
+  course: { _id: VALID_COURSE_ID, name: "Fundamentos", spiritualGrowthStage: "Consolidación" },
   professor: { _id: VALID_PROFESSOR_ID },
   members: [] as Array<{ _id: string }>,
   startDate: new Date("2026-02-01"),
@@ -155,7 +168,7 @@ const buildAssignment = (overrides: Record<string, unknown> = {}) => ({
 
 const buildPopulatedAssignment = (overrides: Record<string, unknown> = {}) => ({
   _id: ASSIGNMENT_ID,
-  course: { _id: VALID_COURSE_ID, name: "Fundamentos" },
+  course: { _id: VALID_COURSE_ID, name: "Fundamentos", spiritualGrowthStage: "Consolidación" },
   professor: { _id: VALID_PROFESSOR_ID, role: { name: "Profesor" } },
   members: [{ _id: VALID_MEMBER_ID }],
   startDate: new Date("2026-02-01"),
@@ -179,9 +192,22 @@ const buildProfessorProfile = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const buildMember = (id: string, roleName: string) => ({
+const buildMember = (
+  id: string,
+  roleName: string,
+  overrides: Record<string, unknown> = {},
+) => ({
   _id: id,
+  firstName: "Nombre",
+  lastName: "Apellido",
   role: { name: roleName },
+  spiritualGrowthStage: undefined,
+  ...overrides,
+});
+
+const buildSession = (classNumber: number, attendance: Array<{ student: string; present: boolean }>) => ({
+  classNumber,
+  attendance,
 });
 
 const resetMocks = () => {
@@ -197,6 +223,8 @@ const resetMocks = () => {
   classSessionUpdateMany.mockReset();
   userProfileFindById.mockReset();
   userProfileFind.mockReset();
+  userProfileFindByIdAndUpdate.mockReset();
+  classSessionFind.mockReset();
   realtimeMock.mockReset();
 };
 
@@ -544,11 +572,13 @@ describe("course-assignment.service — addMembers", () => {
     professorId: string,
     members: Array<{ _id: string }> = [],
     status = "active",
+    overrides: Record<string, unknown> = {},
   ) =>
     buildAssignment({
       professor: { _id: professorId },
       members,
       status,
+      ...overrides,
     });
 
   it("404 si la asignacion no existe", async () => {
@@ -643,16 +673,110 @@ describe("course-assignment.service — addMembers", () => {
       expect.any(Array),
     );
   });
+
+  it("404 si algún memberId no existe", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID);
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(chainableWith([]));
+
+    await expect(
+      addMembers(ASSIGNMENT_ID, [NON_EXISTENT_MEMBER_ID], {
+        callerProfileId: VALID_PROFESSOR_ID,
+        callerRoles: ["Profesor"],
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: `No se encontró un miembro con ID ${NON_EXISTENT_MEMBER_ID}`,
+    });
+  });
+
+  it("inscribe miembro elegible cuando la siguiente etapa coincide con la del curso", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID, [], "active", {
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Consolidación" }),
+      ]),
+    );
+    const populated = buildPopulatedAssignment({
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+      members: [{ _id: VALID_MEMBER_ID }],
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    const result = await addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID], {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    expect(result).toBe(populated);
+    expect(assignedFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: ASSIGNMENT_ID, deletedAt: null },
+      { $set: { members: [VALID_MEMBER_ID] } },
+      { new: true },
+    );
+  });
+
+  it("rechaza miembro no elegible cuando la etapa no coincide", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID, [], "active", {
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Carácter cristiano" }),
+      ]),
+    );
+
+    await expect(
+      addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID], {
+        callerProfileId: VALID_PROFESSOR_ID,
+        callerRoles: ["Profesor"],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: `Nombre Apellido no es elegible para el curso "Discipulado básico". Su siguiente etapa es "Sanidad y propósito".`,
+    });
+  });
+
+  it("rechaza miembro en última etapa sin siguiente etapa", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID, [], "active", {
+      course: { _id: VALID_COURSE_ID, name: "Doctrina", spiritualGrowthStage: "Doctrina cristiana" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Doctrina cristiana" }),
+      ]),
+    );
+
+    await expect(
+      addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID], {
+        callerProfileId: VALID_PROFESSOR_ID,
+        callerRoles: ["Profesor"],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Nombre Apellido no puede inscribirse: ya alcanzó la última etapa de crecimiento espiritual",
+    });
+  });
 });
 
 describe("course-assignment.service — closeAssignment", () => {
   beforeEach(resetMocks);
 
-  const buildActiveForProfessor = (professorId: string, totalClasses = 8) =>
+  const buildActiveForProfessor = (
+    professorId: string,
+    totalClasses = 8,
+    overrides: Record<string, unknown> = {},
+  ) =>
     buildAssignment({
       professor: { _id: professorId },
       totalClasses,
       status: "active",
+      ...overrides,
     });
 
   it("404 si la asignacion no existe", async () => {
@@ -751,6 +875,64 @@ describe("course-assignment.service — closeAssignment", () => {
     });
 
     expect(returned.status).toBe("completed");
+  });
+
+  it("avance automático: actualiza etapa de miembros con asistencia >= 70%", async () => {
+    const assignment = buildActiveForProfessor(VALID_PROFESSOR_ID, 8, {
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+      members: [{ _id: VALID_MEMBER_ID }, { _id: OTHER_MEMBER_ID }],
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    classSessionCountDocuments.mockResolvedValue(8);
+    classSessionFind.mockReturnValue(
+      chainableWith(
+        Array.from({ length: 8 }, (_, i) =>
+          buildSession(i + 1, [
+            { student: VALID_MEMBER_ID, present: true },
+            { student: OTHER_MEMBER_ID, present: true },
+          ]),
+        ),
+      ),
+    );
+    userProfileFindByIdAndUpdate.mockResolvedValue(null);
+
+    const returned = await closeAssignment(ASSIGNMENT_ID, {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    expect(returned.status).toBe("completed");
+    expect(userProfileFindByIdAndUpdate).toHaveBeenCalledTimes(2);
+    expect(userProfileFindByIdAndUpdate).toHaveBeenCalledWith(VALID_MEMBER_ID, {
+      spiritualGrowthStage: "Discipulado básico",
+    });
+    expect(userProfileFindByIdAndUpdate).toHaveBeenCalledWith(OTHER_MEMBER_ID, {
+      spiritualGrowthStage: "Discipulado básico",
+    });
+  });
+
+  it("avance automático: no actualiza etapa de miembros con asistencia < 70%", async () => {
+    const assignment = buildActiveForProfessor(VALID_PROFESSOR_ID, 8, {
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+      members: [{ _id: VALID_MEMBER_ID }],
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    classSessionCountDocuments.mockResolvedValue(8);
+    classSessionFind.mockReturnValue(
+      chainableWith(
+        Array.from({ length: 8 }, (_, i) =>
+          buildSession(i + 1, [{ student: VALID_MEMBER_ID, present: i < 4 }]),
+        ),
+      ),
+    );
+
+    const returned = await closeAssignment(ASSIGNMENT_ID, {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    expect(returned.status).toBe("completed");
+    expect(userProfileFindByIdAndUpdate).not.toHaveBeenCalled();
   });
 });
 

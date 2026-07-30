@@ -15,6 +15,7 @@ export interface IUserProfile extends Document {
   ministryInterest?: string | null;
   spiritualGrowthStage?: string;
   encounterStage?: string;
+  profession?: string;
   role: PopulatedDoc<IRole & Document>;
   user?: PopulatedDoc<Types.ObjectId>;
 }
@@ -32,7 +33,7 @@ const MINISTRIES = [
   "Ministerio de Evangelismo y Consolidación G.V.E",
 ];
 
-const SPIRITUAL_GROWTH_STAGES = [
+export const SPIRITUAL_GROWTH_STAGES = [
   "Consolidación",
   "Discipulado básico",
   "Carácter cristiano",
@@ -94,6 +95,10 @@ const userProfileSchema: Schema = new Schema(
     encounterStage: {
       type: String,
       enum: ENCOUNTER_STAGES,
+    },
+    profession: {
+      type: String,
+      trim: true,
     },
     role: {
       type: Types.ObjectId,

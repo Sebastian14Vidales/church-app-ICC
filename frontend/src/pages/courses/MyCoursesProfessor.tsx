@@ -20,7 +20,26 @@ import { COURSE_LEVEL_LABELS } from "@/utils/constants/courses";
 import PATHS from "@/utils/constants/routes";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { formatFullName, normalizeSearchText } from "@/utils/text";
-import type { CourseAssignedCanonical } from "@/types/index";
+import type { CourseAssignedCanonical, Member } from "@/types/index";
+
+const SPIRITUAL_GROWTH_STAGES = [
+    "Consolidación",
+    "Discipulado básico",
+    "Carácter cristiano",
+    "Sanidad y propósito",
+    "Cosmovisión bíblica",
+    "Doctrina cristiana",
+] as const;
+
+const getNextSpiritualGrowthStage = (currentStage?: string | null) => {
+    if (!currentStage) return SPIRITUAL_GROWTH_STAGES[0];
+    const currentIndex = SPIRITUAL_GROWTH_STAGES.indexOf(currentStage as (typeof SPIRITUAL_GROWTH_STAGES)[number]);
+    if (currentIndex === -1 || currentIndex === SPIRITUAL_GROWTH_STAGES.length - 1) return null;
+    return SPIRITUAL_GROWTH_STAGES[currentIndex + 1];
+};
+
+const isMemberEligibleForCourse = (member: Member, courseStage: string) =>
+    getNextSpiritualGrowthStage(member.spiritualGrowthStage) === courseStage;
 
 type Tab = "current" | "history";
 
@@ -145,9 +164,16 @@ export default function MyCoursesProfessor() {
         : 0;
     const canClose = activeAssignment ? recordedSessions.length >= activeAssignment.totalClasses : false;
 
+    const courseStage = activeAssignment?.course.spiritualGrowthStage;
+
     const availableMembers = useMemo(
-        () => (membersQuery.data ?? []).filter((member) => ["Asistente", "Miembro"].includes(member.role.name)),
-        [membersQuery.data],
+        () =>
+            (membersQuery.data ?? []).filter(
+                (member) =>
+                    ["Asistente", "Miembro"].includes(member.role.name) &&
+                    (!courseStage || isMemberEligibleForCourse(member, courseStage)),
+            ),
+        [membersQuery.data, courseStage],
     );
 
     const filteredMembers = useMemo(() => {
@@ -550,27 +576,43 @@ export default function MyCoursesProfessor() {
                     />
 
                     <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-2">
-                        {filteredMembers.map((member) => {
-                            const checked = selectedMemberIds.includes(member._id);
-                            return (
-                                <label
-                                    key={member._id}
-                                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${checked ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
-                                        }`}
-                                >
-                                    <Checkbox
-                                        isSelected={checked}
-                                        onValueChange={() => toggleMember(member._id)}
-                                        aria-label={`Seleccionar a ${formatFullName(member.firstName, member.lastName)}`}
-                                        className="mt-1"
-                                    />
-                                    <div>
-                                        <p className="font-medium text-slate-900">{formatFullName(member.firstName, member.lastName)}</p>
-                                        <p className="text-sm text-slate-500">{member.role.name} · {member.documentID}</p>
-                                    </div>
-                                </label>
-                            );
-                        })}
+                        {availableMembers.length === 0 ? (
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
+                                <p className="text-sm font-medium text-slate-700">
+                                    No hay miembros disponibles para esta etapa de crecimiento espiritual.
+                                </p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Solo se pueden inscribir miembros cuya siguiente etapa sea{" "}
+                                    {courseStage ? `"${courseStage}"` : "la del curso activo"}.
+                                </p>
+                            </div>
+                        ) : filteredMembers.length === 0 ? (
+                            <p className="text-center text-sm text-slate-500">
+                                No se encontraron miembros con ese criterio de busqueda.
+                            </p>
+                        ) : (
+                            filteredMembers.map((member) => {
+                                const checked = selectedMemberIds.includes(member._id);
+                                return (
+                                    <label
+                                        key={member._id}
+                                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${checked ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
+                                            }`}
+                                    >
+                                        <Checkbox
+                                            isSelected={checked}
+                                            onValueChange={() => toggleMember(member._id)}
+                                            aria-label={`Seleccionar a ${formatFullName(member.firstName, member.lastName)}`}
+                                            className="mt-1"
+                                        />
+                                        <div>
+                                            <p className="font-medium text-slate-900">{formatFullName(member.firstName, member.lastName)}</p>
+                                            <p className="text-sm text-slate-500">{member.role.name} · {member.documentID}</p>
+                                        </div>
+                                    </label>
+                                );
+                            })
+                        )}
                     </div>
 
                     <Button

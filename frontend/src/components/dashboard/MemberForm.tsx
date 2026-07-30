@@ -4,8 +4,10 @@
   type Control,
   type FieldErrors,
   type UseFormRegister,
+  type UseFormSetValue,
 } from "react-hook-form";
 import { DatePicker, Input, Select, SelectItem } from "@heroui/react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { getAllRoles } from "@/api/MemberAPI";
@@ -46,12 +48,14 @@ type MemberFormProps = {
   register: UseFormRegister<MemberFormData>;
   errors: FieldErrors<MemberFormData>;
   control: Control<MemberFormData>;
+  setValue: UseFormSetValue<MemberFormData>;
 };
 
 export default function MemberForm({
   register,
   errors,
   control,
+  setValue,
 }: MemberFormProps) {
   const { user } = useAuth();
   const { data: roles = [], isLoading } = useQuery({
@@ -70,6 +74,12 @@ export default function MemberForm({
     user?.roles.includes("Profesor") || user?.roles.includes("Pastor") || user?.roles.includes("Supervisor");
   const isCreatingAsPastorOrProfesor = user?.roles.includes("Profesor") || user?.roles.includes("Pastor");
   const showChurchRoles = !isCreatingAsPastorOrProfesor;
+
+  useEffect(() => {
+    if (isRestrictedMemberManager) {
+      setValue("baptized", "false", { shouldValidate: true });
+    }
+  }, [isRestrictedMemberManager, setValue]);
   const showProfession =
     selectedRoleNames.some((role) => PROFESSION_ENABLED_ROLES.includes(role)) ||
     Boolean(user?.roles.some((role) => PROFESSION_ENABLED_ROLES.includes(role)));
@@ -200,7 +210,7 @@ export default function MemberForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
+        <div className={isRestrictedMemberManager ? "md:col-span-2" : ""}>
           <label className="block text-sm font-medium text-gray-700">Tipo de sangre</label>
           <Controller
             name="bloodType"
@@ -223,33 +233,35 @@ export default function MemberForm({
           {errors.bloodType && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Bautizado</label>
-          <Controller
-            name="baptized"
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <Select
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                placeholder="Seleccione una opción"
-                aria-label="Bautizado"
-                className="input"
-              >
-                {BOOLEAN_OPTIONS.map((option) => (
-                  <SelectItem key={option.key}>{option.label}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
-          {errors.baptized && <span className="text-xs text-red-500">Este campo es requerido</span>}
-        </div>
+        {!isRestrictedMemberManager && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Bautizado</label>
+            <Controller
+              name="baptized"
+              control={control}
+              rules={{ required: true }}
+              render={({ field }) => (
+                <Select
+                  selectedKeys={field.value ? [field.value] : []}
+                  onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                  placeholder="Seleccione una opción"
+                  aria-label="Bautizado"
+                  className="input"
+                >
+                  {BOOLEAN_OPTIONS.map((option) => (
+                    <SelectItem key={option.key}>{option.label}</SelectItem>
+                  ))}
+                </Select>
+              )}
+            />
+            {errors.baptized && <span className="text-xs text-red-500">Este campo es requerido</span>}
+          </div>
+        )}
       </div>
 
       {showChurchRoles && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700">Roles en la Iglesia</label>
             {baptized === "false" ? (
               <>
@@ -302,7 +314,7 @@ export default function MemberForm({
 
       {showProfession && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700">Profesión</label>
             <Input
               id="profession"

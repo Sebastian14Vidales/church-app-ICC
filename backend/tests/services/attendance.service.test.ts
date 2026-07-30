@@ -35,12 +35,16 @@ vi.mock("../../src/models/class-session.model", () => {
   return { default: classSessionModel };
 });
 
-vi.mock("../../src/models/user-profile.model", () => {
+vi.mock("../../src/models/user-profile.model", async (importOriginal) => {
   const userProfileModel = {
     find: vi.fn(),
     findById: vi.fn(),
   };
-  return { default: userProfileModel };
+  const actual = await importOriginal<typeof import("../../src/models/user-profile.model")>();
+  return {
+    ...actual,
+    default: userProfileModel,
+  };
 });
 
 import CourseAssigned from "../../src/models/course-assigned.model";

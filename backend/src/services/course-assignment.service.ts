@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import CourseAssigned from "../models/course-assigned.model";
 import Course from "../models/course.model";
 import ClassSession from "../models/class-session.model";
-import UserProfile from "../models/user-profile.model";
+import UserProfile, { SPIRITUAL_GROWTH_STAGES } from "../models/user-profile.model";
 import { emitRealtimeInvalidation } from "../realtime/socket";
 import { AppError } from "./app-error";
 import type { CourseAssignedStatus } from "../models/course-assigned.model";
@@ -330,6 +330,25 @@ export const softDeleteAssignment = async (id: string) => {
   return assignment;
 };
 
+/**
+ * Devuelve la siguiente etapa de crecimiento espiritual en la secuencia canónica.
+ * - Sin etapa actual (null, undefined o vacío): "Consolidación".
+ * - Etapa inválida o última etapa ("Doctrina cristiana"): `null` (no hay siguiente).
+ */
+const getNextSpiritualGrowthStage = (currentStage?: string | null) => {
+  if (!currentStage) return SPIRITUAL_GROWTH_STAGES[0];
+  const currentIndex = SPIRITUAL_GROWTH_STAGES.indexOf(currentStage);
+  if (currentIndex === -1 || currentIndex === SPIRITUAL_GROWTH_STAGES.length - 1) return null;
+  return SPIRITUAL_GROWTH_STAGES[currentIndex + 1];
+};
+
+const memberIdToString = (member: unknown) => {
+  if (typeof member === "string") return member;
+  const candidate = member as { _id?: unknown; toString?: () => string } | null;
+  if (candidate?._id !== undefined) return String(candidate._id);
+  return candidate?.toString ? candidate.toString() : String(member);
+};
+
 export type AddMembersContext = {
   callerProfileId?: string | null;
   callerRoles: string[];
@@ -341,15 +360,20 @@ export type AddMembersContext = {
  *   - existencia y no soft-delete de la asignación (404 "Asignacion no encontrada")
  *   - verificación de dueño si el caller es Profesor (no Admin/Superadmin bypass)
  *   - status === "active" y deletedAt: null (400 "Solo puedes registrar miembros en cursos activos")
- *   - todos los memberIds existen y su role.name ∈ {Asistente, Miembro}
+ *   - cada memberId existe (404)
+ *   - todos los memberIds tienen role.name ∈ {Asistente, Miembro}
  *     (400 "Solo puedes registrar perfiles con rol Asistente o Miembro")
+ *   - la siguiente etapa de crecimiento espiritual del miembro coincide con la etapa del curso
+ *     (400 con mensaje personalizado por miembro, ADR-0006 D3).
  * Emite realtime `courseAssignments.members.changed`.
  */
 export const addMembers = async (id: string, memberIds: string[], context: AddMembersContext) => {
-  const assignment = await CourseAssigned.findOne({ _id: id, deletedAt: null }).populate({
-    path: "professor",
-    populate: ["role", "user"],
-  });
+  const assignment = await CourseAssigned.findOne({ _id: id, deletedAt: null })
+    .populate("course")
+    .populate({
+      path: "professor",
+      populate: ["role", "user"],
+    });
 
   if (!assignment) {
     throw new AppError(404, "Asignacion no encontrada");
@@ -370,6 +394,12 @@ export const addMembers = async (id: string, memberIds: string[], context: AddMe
     throw new AppError(400, "Solo puedes registrar miembros en cursos activos");
   }
 
+  const courseStage = (assignment.course as { spiritualGrowthStage?: string } | null)
+    ?.spiritualGrowthStage;
+  if (!courseStage) {
+    throw new AppError(500, "La asignación no tiene una etapa de crecimiento definida");
+  }
+
   const normalizedMemberIds = Array.from(
     new Set((memberIds ?? []).filter((memberId) => typeof memberId === "string")),
   );
@@ -377,6 +407,16 @@ export const addMembers = async (id: string, memberIds: string[], context: AddMe
   const availableMembers = await UserProfile.find({
     _id: { $in: normalizedMemberIds },
   }).populate("role");
+
+  const memberById = new Map(
+    availableMembers.map((member) => [memberIdToString(member), member]),
+  );
+
+  for (const memberId of normalizedMemberIds) {
+    if (!memberById.has(memberId)) {
+      throw new AppError(404, `No se encontró un miembro con ID ${memberId}`);
+    }
+  }
 
   const allowedMembers = availableMembers.filter((member) => {
     const role = (member as { role?: { name?: string } | null }).role;
@@ -387,6 +427,24 @@ export const addMembers = async (id: string, memberIds: string[], context: AddMe
 
   if (allowedMembers.length !== normalizedMemberIds.length) {
     throw new AppError(400, "Solo puedes registrar perfiles con rol Asistente o Miembro");
+  }
+
+  for (const memberId of normalizedMemberIds) {
+    const member = memberById.get(memberId)!;
+    const nextStage = getNextSpiritualGrowthStage(member.spiritualGrowthStage);
+    if (nextStage !== courseStage) {
+      const memberName = `${member.firstName} ${member.lastName}`;
+      if (nextStage === null) {
+        throw new AppError(
+          400,
+          `${memberName} no puede inscribirse: ya alcanzó la última etapa de crecimiento espiritual`,
+        );
+      }
+      throw new AppError(
+        400,
+        `${memberName} no es elegible para el curso "${courseStage}". Su siguiente etapa es "${nextStage}".`,
+      );
+    }
   }
 
   const updatedAssignment = await CourseAssigned.findOneAndUpdate(
@@ -412,16 +470,20 @@ export type CloseAssignmentContext = {
  * Valida existencia + active status + todas las sesiones registradas
  * ( `ClassSession.countDocuments >= totalClasses` ).
  * Verificación de dueño si el caller es Profesor.
+ * Después del cierre, recorre los miembros inscritos y, si su asistencia >= 70%,
+ * actualiza `UserProfile.spiritualGrowthStage` a la etapa del curso (ADR-0006 D5).
  * Emite realtime `courseAssignments.closed` y `courseHistory.changed`.
  *
  * [AUDIT-PENDING] Debe registrarse acción `course.assignment.close`
  * con contexto `{ assignmentId, professorId }`.
  */
 export const closeAssignment = async (id: string, context: CloseAssignmentContext) => {
-  const assignment = await CourseAssigned.findOne({ _id: id, deletedAt: null }).populate({
-    path: "professor",
-    populate: ["role", "user"],
-  });
+  const assignment = await CourseAssigned.findOne({ _id: id, deletedAt: null })
+    .populate("course")
+    .populate({
+      path: "professor",
+      populate: ["role", "user"],
+    });
 
   if (!assignment) {
     throw new AppError(404, "Asignacion no encontrada");
@@ -454,6 +516,32 @@ export const closeAssignment = async (id: string, context: CloseAssignmentContex
   assignment.status = "completed";
   assignment.endedAt = new Date();
   await assignment.save();
+
+  const courseStage = (assignment.course as { spiritualGrowthStage?: string } | null)
+    ?.spiritualGrowthStage;
+  if (courseStage) {
+    const sessions = await ClassSession.find({
+      courseAssigned: assignment._id,
+      deletedAt: null,
+    });
+
+    const memberIds = assignment.members.map((member) => memberIdToString(member));
+
+    for (const memberId of memberIds) {
+      const totalClasses = assignment.totalClasses;
+      const presentCount = sessions.reduce((count, session) => {
+        const entry = session.attendance.find(
+          (att) => memberIdToString(att.student) === memberId,
+        );
+        return count + (entry?.present === true ? 1 : 0);
+      }, 0);
+      const attendanceRate = totalClasses ? Math.round((presentCount / totalClasses) * 100) : 0;
+
+      if (attendanceRate >= 70) {
+        await UserProfile.findByIdAndUpdate(memberId, { spiritualGrowthStage: courseStage });
+      }
+    }
+  }
 
   emitRealtimeInvalidation("courseAssignments.closed", ASSIGNMENT_QUERY_KEYS);
   emitRealtimeInvalidation("courseHistory.changed", HISTORY_QUERY_KEYS);

@@ -5,6 +5,7 @@ export type MemberFiltersValue = {
     bloodType: string;
     searchTerm: string;
     spiritualGrowthStage: string;
+    profession: string;
 };
 
 type MemberFiltersProps = {
@@ -33,7 +34,7 @@ export default function MemberFilters({ filters, onChange, onClear }: MemberFilt
 
     return (
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
                 <div>
                     <label htmlFor="member-search" className="mb-1 block text-sm font-medium text-gray-700">
                         Documento o nombre
@@ -44,6 +45,20 @@ export default function MemberFilters({ filters, onChange, onClear }: MemberFilt
                         value={filters.searchTerm}
                         onValueChange={(value) => handleFieldChange("searchTerm", value)}
                         placeholder="Busca por documento o nombre"
+                        classNames={{ inputWrapper: "border-none shadow-none" }}
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="member-profession" className="mb-1 block text-sm font-medium text-gray-700">
+                        Profesion
+                    </label>
+                    <Input
+                        id="member-profession"
+                        type="text"
+                        value={filters.profession}
+                        onValueChange={(value) => handleFieldChange("profession", value)}
+                        placeholder="Busca por profesion"
                         classNames={{ inputWrapper: "border-none shadow-none" }}
                     />
                 </div>

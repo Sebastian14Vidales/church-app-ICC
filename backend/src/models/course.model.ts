@@ -1,9 +1,11 @@
 import mongoose, { Schema, Document } from "mongoose";
+import { SPIRITUAL_GROWTH_STAGES } from "./user-profile.model";
 
 export interface ICourse extends Document {
   name: string;
   description: string;
   level: string;
+  spiritualGrowthStage: string;
   isActive: boolean;
   deletedAt: Date | null;
 }
@@ -24,6 +26,11 @@ const CourseSchema: Schema = new Schema(
     level: {
       type: String,
       enum: ["basic", "intermediate", "advanced"],
+      required: true,
+    },
+    spiritualGrowthStage: {
+      type: String,
+      enum: SPIRITUAL_GROWTH_STAGES,
       required: true,
     },
     isActive: {

@@ -112,6 +112,7 @@ export const createCourse = async (formData: CourseFormData): Promise<string> =>
             name: formData.name,
             description: formData.description,
             level: formData.level,
+            spiritualGrowthStage: formData.spiritualGrowthStage,
             isActive: true,
         };
         const { data } = await api.post("/courses", body);
@@ -144,6 +145,7 @@ export const updateCourse = async (
             name: formData.name,
             description: formData.description,
             level: formData.level,
+            spiritualGrowthStage: formData.spiritualGrowthStage,
             isActive: true,
         };
         const { data } = await api.put(`/courses/${courseId}`, body);

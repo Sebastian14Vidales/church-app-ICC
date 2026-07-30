@@ -34,6 +34,7 @@ import { formatFullName } from "@/utils/text";
 import type {
     CourseAssignmentCreateBody,
     CourseAssignedCanonical,
+    CourseCatalog,
     CourseFormData,
     CourseLevel,
 } from "@/types/index";
@@ -100,7 +101,12 @@ const handleTabKeyDown =
         target.focus();
     };
 
-const emptyCourseForm: CourseFormData = { name: "", description: "", level: "basic" };
+const emptyCourseForm: CourseFormData = {
+    name: "",
+    description: "",
+    level: "basic",
+    spiritualGrowthStage: "Consolidación",
+};
 
 const emptyAssignmentForm: CourseAssignmentCreateBody = {
     course: "",
@@ -195,9 +201,14 @@ export default function Courses() {
         setCourseModal(true);
     };
 
-    const openEditCourse = (course: { _id: string; name: string; description: string; level: CourseLevel }) => {
+    const openEditCourse = (course: CourseCatalog) => {
         setEditingCourse(course);
-        courseForm.reset({ name: course.name, description: course.description, level: course.level });
+        courseForm.reset({
+            name: course.name,
+            description: course.description,
+            level: course.level,
+            spiritualGrowthStage: course.spiritualGrowthStage,
+        });
         setCourseModal(true);
     };
 

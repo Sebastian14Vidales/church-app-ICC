@@ -1,5 +1,14 @@
 import z from "zod"
 
+export const spiritualGrowthStageSchema = z.enum([
+    "Consolidación",
+    "Discipulado básico",
+    "Carácter cristiano",
+    "Sanidad y propósito",
+    "Cosmovisión bíblica",
+    "Doctrina cristiana",
+])
+
 //Courses
 export const courseLevelSchema = z.enum(["basic", "intermediate", "advanced"])
 export type CourseLevel = z.infer<typeof courseLevelSchema>
@@ -8,7 +17,8 @@ export const createCourseSchema = z.object({
     _id: z.string(),
     name: z.string(),
     description: z.string(),
-    level: courseLevelSchema
+    level: courseLevelSchema,
+    spiritualGrowthStage: spiritualGrowthStageSchema
 })
 
 export const dashboardCourseSchema = z.array(createCourseSchema)
@@ -80,6 +90,7 @@ export const courseCatalogSchema = z.object({
     name: z.string(),
     description: z.string(),
     level: courseLevelSchema,
+    spiritualGrowthStage: spiritualGrowthStageSchema,
     isActive: z.boolean().default(true),
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional(),
@@ -121,15 +132,6 @@ export const ministrySchema = z.enum([
     "Ministerio de Parejas y Familias",
     "Ministerio Iglesia Infantil",
     "Ministerio de Evangelismo y Consolidación G.V.E",
-])
-
-export const spiritualGrowthStageSchema = z.enum([
-    "Consolidación",
-    "Discipulado básico",
-    "Carácter cristiano",
-    "Sanidad y propósito",
-    "Cosmovisión bíblica",
-    "Doctrina cristiana",
 ])
 
 export const encounterStageSchema = z.enum([
@@ -181,6 +183,7 @@ export const courseParticipantSchema = memberSchema.pick({
     ministry: true,
     ministryInterest: true,
     spiritualGrowthStage: true,
+    profession: true,
     role: true,
     user: true,
 })

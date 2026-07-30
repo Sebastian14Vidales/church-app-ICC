@@ -51,6 +51,20 @@ const resolvePrimaryRole = <TRole extends { name: string }>(roles: TRole[]) => {
   return prioritizedRole ?? roles[0];
 };
 
+/**
+ * Normaliza el campo `profession`:
+ * - Strings vacíos o solo espacios se guardan como `null`.
+ * - `null` se guarda como `null`.
+ * - `undefined` no toca el campo (no se incluye en el payload).
+ * Esto sincroniza el backend con el frontend: enviar "" limpia la profesión.
+ */
+const normalizeProfession = (value: unknown): string | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = typeof value === "string" ? value.trim() : null;
+  return trimmed || null;
+};
+
 export class UserProfileController {
   static create = async (req: AuthenticatedRequest, res: Response) => {
     let createdUserId: string | null = null;
@@ -68,8 +82,11 @@ export class UserProfileController {
         ministryInterest,
         spiritualGrowthStage,
         encounterStage,
+        profession,
         ...profileData
       } = req.body;
+
+      const normalizedProfession = normalizeProfession(profession);
 
       const selectedRoleNames = Array.isArray(roleNames) ? roleNames : [];
 
@@ -144,6 +161,7 @@ export class UserProfileController {
         ...(servesInMinistry === false && ministryInterest ? { ministryInterest } : {}),
         ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
         ...(encounterStage ? { encounterStage } : {}),
+        ...(normalizedProfession !== undefined ? { profession: normalizedProfession } : {}),
       };
 
       const profile = new UserProfile(profilePayload);
@@ -243,8 +261,10 @@ export class UserProfileController {
         ministryInterest,
         spiritualGrowthStage,
         encounterStage,
+        profession,
         ...updateData
       } = req.body;
+      const normalizedProfession = normalizeProfession(profession);
       const selectedRoleNames = Array.isArray(roleNames) ? roleNames : [];
 
       if (updateData.documentID) {
@@ -278,6 +298,7 @@ export class UserProfileController {
         ...(typeof servesInMinistry === "boolean" ? { servesInMinistry } : {}),
         ...(spiritualGrowthStage ? { spiritualGrowthStage } : {}),
         ...(encounterStage ? { encounterStage } : {}),
+        ...(normalizedProfession !== undefined ? { profession: normalizedProfession } : {}),
       } as Record<string, unknown>;
       const unsetFields: Record<string, "" | 1> = {};
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, Progress } from "@heroui/react";
 import {
     Award,
+    Briefcase,
     Calendar,
     Church,
     Heart,
@@ -62,6 +63,7 @@ const initialFilters: MemberFiltersValue = {
     bloodType: "",
     searchTerm: "",
     spiritualGrowthStage: "",
+    profession: "",
 };
 
 const getGrowthProgress = (stage?: SpiritualGrowthStage) => {
@@ -137,8 +139,11 @@ export default function Members() {
             !filters.spiritualGrowthStage || member.spiritualGrowthStage === filters.spiritualGrowthStage;
         const matchesBaptized =
             !filters.baptized || String(Boolean(member.baptized)) === filters.baptized;
+        const matchesProfession =
+            !filters.profession ||
+            normalizeSearchText(member.profession ?? "").includes(normalizeSearchText(filters.profession));
 
-        return matchesSearch && matchesBloodType && matchesGrowthStage && matchesBaptized;
+        return matchesSearch && matchesBloodType && matchesGrowthStage && matchesBaptized && matchesProfession;
     });
 
     const handleClose = () => {
@@ -254,7 +259,7 @@ export default function Members() {
 
     const isSubmitting = createMutation.isPending || updateMutation.isPending;
     const hasActiveFilters = Boolean(
-        filters.searchTerm || filters.bloodType || filters.baptized || filters.spiritualGrowthStage,
+        filters.searchTerm || filters.bloodType || filters.baptized || filters.spiritualGrowthStage || filters.profession,
     );
 
     if (isLoading) return <LoadingSpinner label="Cargando miembros..." className="min-h-screen" />;
@@ -301,6 +306,7 @@ export default function Members() {
                         register={register}
                         errors={errors}
                         control={control}
+                        setValue={setValue}
                     />
 
                     <Button
@@ -403,6 +409,13 @@ export default function Members() {
                                     <div className="flex items-center text-sm text-gray-600">
                                         <HeartPulse className="mr-2 h-4 w-4 text-gray-400" />
                                         <span>Tipo de sangre: {member.bloodType}</span>
+                                    </div>
+                                )}
+
+                                {member.profession && (
+                                    <div className="flex items-center text-sm text-gray-600">
+                                        <Briefcase className="mr-2 h-4 w-4 text-gray-400" />
+                                        <span>Profesion: {member.profession}</span>
                                     </div>
                                 )}
 

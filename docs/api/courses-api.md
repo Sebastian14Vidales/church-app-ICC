@@ -3,10 +3,10 @@
 > **Estado**: Vigente (paso 3 del Plan de ejecución del ADR-0001).
 > **Autoridad**: `api-contract-engineer` (única fuente de verdad sobre la forma de los payloads).
 > **Fuentes**: `AGENTS.md` (§3, §4, §5, §8), `docs/adr/0001-courses-history-refactor.md`,
-> `docs/backlog/courses-history-refactor.md`
+> `docs/adr/0006-course-growth-mapping.md`, `docs/backlog/courses-history-refactor.md`
 > **Consumidores**: `database-engineer`, `backend-engineer`, `auth-security-engineer`,
 > `frontend-engineer`, `testing-engineer`, `quality-engineer`.
-> **Última revisión**: 2026-07-21
+> **Última revisión**: 2026-07-29
 
 Este documento **es la única especificación normativa** de los endpoints del módulo de Cursos
 tras el refactor. Cualquier divergencia entre este contrato y el código se considera drift y
@@ -98,6 +98,7 @@ shapes definidos aquí.
       "name": "Fundamentos de la Fe",
       "description": "Curso introductorio...",
       "level": "basic",
+      "spiritualGrowthStage": "Consolidación",
       "isActive": true,
       "createdAt": "2026-01-04T10:00:00.000Z",
       "updatedAt": "2026-01-04T10:00:00.000Z"
@@ -138,6 +139,7 @@ shapes definidos aquí.
   "name": "Fundamentos de la Fe",        // string, no vacío, trim
   "description": "...",                  // string, no vacío, trim
   "level": "basic",                      // enum: basic|intermediate|advanced
+  "spiritualGrowthStage": "Consolidación", // enum: SPIRITUAL_GROWTH_STAGES (ver ADR-0006 §D1)
   "isActive": true                       // boolean, opcional, default true
 }
 ```
@@ -168,7 +170,8 @@ shapes definidos aquí.
   "name": "Fundamentos de la Fe",
   "description": "...",
   "isActive": true,            // boolean requerido (validador actual lo exige)
-  "level": "basic"              // enum, opcional en realidad; el backend-engineer decide si permite cambiarlo (lo deja opcional)
+  "level": "basic",             // enum, opcional en realidad; el backend-engineer decide si permite cambiarlo (lo deja opcional)
+  "spiritualGrowthStage": "Consolidación"  // enum, opcional en realidad (ADR-0006 §D2)
 }
 ```
 > Se conservan las validaciones actuales: `name`, `description`, `isActive` requeridos;
@@ -370,6 +373,8 @@ El schema zod formal está en §5.2 (`courseAssignedSchema` ampliado).
 - **Validaciones**:
   - La asignación debe tener `status: "active"` y `deletedAt: null` → `400 { message: "Solo puedes registrar miembros en cursos activos" }`.
   - Todos los `memberIds` deben existir y tener `role.name ∈ {"Asistente", "Miembro"}` → `400 { message: "Solo puedes registrar perfiles con rol Asistente o Miembro" }`.
+  - Elegibilidad por etapa de crecimiento espiritual (ADR-0006 §D3): la etapa del curso (`course.spiritualGrowthStage`) debe ser la **siguiente etapa** inmediata respecto a la etapa actual del miembro. Si el miembro no tiene etapa definida, su siguiente etapa es `"Consolidación"`. Si el miembro ya alcanzó o superó la etapa del curso, no es elegible.
+  - Si algún `memberId` no es elegible → `409 { message: "El miembro <nombre> no está en la etapa requerida para este curso" }` (o `400` si se prefiere agrupar; el backend normaliza a `409` por conflicto de regla de negocio).
 - **200** — `{ message: "Miembros registrados correctamente en el curso", assignment: CourseAssigned }`.
 - **Errores**: `400` / `403` / `404 { message: "Asignación no encontrada" }` / `500`.
 - **Realtime**: `courseAssignments.members.changed`.
@@ -396,8 +401,9 @@ El schema zod formal está en §5.2 (`courseAssignedSchema` ampliado).
     `400 { message: "Debes registrar todas las clases antes de cerrar el curso" }`.
 - **Comportamiento**:
   - `status = "completed"`; `endedAt = new Date()` (NUEVO, ADR §D6).
+  - Para cada miembro inscrito se calcula el porcentaje de asistencia: `attendanceRate = totalClasses ? Math.round((presentCount / totalClasses) * 100) : 0`. Las clases no registradas cuentan como falta. Si `attendanceRate >= 70%`, el `spiritualGrowthStage` del miembro se actualiza a la etapa del curso (`course.spiritualGrowthStage`) (ADR-0006 §D4, §D5). Miembros con asistencia inferior a 70% mantienen su etapa actual y pueden volver a inscribirse en el mismo curso en una asignación futura.
   - Se ejecuta con `session.withTransaction` (AC7.3 no obliga para cierre, pero se
-    recomienda por consistencia con auditoría).
+    recomienda por consistencia con auditoría y avance de etapas).
 - **200** — `{ message: "Curso cerrado correctamente" }`.
 - **Errores**: `400` / `403 { message: "No tienes permisos para cerrar este curso" }` / `404` / `500`.
 - **Realtime**: `courseAssignments.closed` y `courseHistory.changed`.
@@ -584,6 +590,7 @@ export const courseSchema = z.object({
   name: z.string(),
   description: z.string(),
   level: courseLevelSchema,
+  spiritualGrowthStage: z.enum(["Consolidación", "Discipulado básico", "Carácter cristiano", "Sanidad y propósito", "Cosmovisión bíblica", "Doctrina cristiana"]),
   isActive: z.boolean().default(true),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
@@ -865,6 +872,18 @@ Inventario puntual que el `backend-engineer`, `database-engineer`, `frontend-eng
   `closeCourseAssignment` y apuntar a `/assignments/:id/close` con POST (ver §7).
 - **D-30** `getCourseAssignments` y `getMyCourseAssignments` deben quedar como
   `@deprecated` alias de las nuevas.
+- **D-34 (ADR-0006)** `createCourseSchema` en `frontend/src/types/index.ts` marca
+  `spiritualGrowthStage` como `.optional()` para no romper el build mientras el
+  `frontend-engineer` añade el campo al formulario. El contrato objetivo lo tiene
+  **requerido** (ver §1.3, §5.1 y `backend/src/models/course.model.ts`). Una vez el
+  formulario de curso (`Courses.tsx` / `CourseForm.tsx`) capture la etapa, el campo
+  debe volverse requerido en el schema.
+- **D-35 (ADR-0006)** `frontend/src/api/CourseAPI.ts` (`createCourse` y `updateCourse`)
+  no envían aún `spiritualGrowthStage` en el body. El `frontend-engineer` debe
+  incluirlo cuando el formulario lo capture.
+- **D-36 (ADR-0006)** Los formularios de curso (`Courses.tsx`, `CourseForm.tsx`) no
+  muestran ni validan el campo `spiritualGrowthStage`. Requiere trabajo del
+  `frontend-engineer` conforme a ADR-0006 §D2.
 
 ### 8.4 Auth/Security (responsabilidad del `auth-security-engineer`)
 
