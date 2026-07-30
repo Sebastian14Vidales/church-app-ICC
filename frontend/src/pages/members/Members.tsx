@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import MemberFilters, { type MemberFiltersValue } from "@/components/dashboard/MemberFilters";
 import ModalView from "@/components/dashboard/ModalView";
 import MemberForm from "@/components/dashboard/MemberForm";
@@ -256,7 +257,7 @@ export default function Members() {
         filters.searchTerm || filters.bloodType || filters.baptized || filters.spiritualGrowthStage,
     );
 
-    if (isLoading) return <h1>Cargando miembros...</h1>;
+    if (isLoading) return <LoadingSpinner label="Cargando miembros..." className="min-h-screen" />;
     if (isError) return <h1>{error.message}</h1>;
 
     return (

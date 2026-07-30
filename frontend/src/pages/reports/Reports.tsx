@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart3, BookOpen, CalendarDays, Coins, Users } from "lucide-react";
 import { getCourseAssignments } from "@/api/CourseAPI";
 import { getAllEvents } from "@/api/EventAPI";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { COURSE_STATUS_LABELS } from "@/utils/constants/courses";
 import { getStoredDateYear, parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
@@ -84,7 +85,7 @@ export default function Reports() {
   }, [eventsByYear]);
 
   if (isLoadingAssignments || isLoadingEvents) {
-    return <h1>Cargando reportes...</h1>;
+    return <LoadingSpinner label="Cargando reportes..." className="min-h-screen" />;
   }
 
   return (

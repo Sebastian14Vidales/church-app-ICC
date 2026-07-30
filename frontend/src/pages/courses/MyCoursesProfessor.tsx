@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button, Checkbox, Input } from "@heroui/react";
 import { BookOpen, CalendarDays, ClipboardCheck, Clock3, GraduationCap, MapPin, Search, Trophy } from "lucide-react";
 
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ModalView from "@/components/dashboard/ModalView";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import {
@@ -272,7 +273,7 @@ export default function MyCoursesProfessor() {
             >
                 <div className="grid grid-cols-1 gap-6 md:grid md:grid-cols-2  2xl:grid-cols-3">
                     {activeQuery.isLoading ? (
-                        <p className="text-sm text-slate-500">Cargando tu curso...</p>
+                        <LoadingSpinner label="Cargando tu curso..." className="min-h-[200px]" />
                     ) : activeQuery.isError ? (
                         <p className="text-sm text-rose-600">No se pudo cargar tu curso.</p>
                     ) : activeAssignment ? (
@@ -405,7 +406,7 @@ export default function MyCoursesProfessor() {
                 <div className="grid grid-cols-1 gap-6 md:grid md:grid-cols-2  2xl:grid-cols-3">
 
                     {historyQuery.isLoading ? (
-                        <p className="text-sm text-slate-500">Cargando historial...</p>
+                        <LoadingSpinner label="Cargando historial..." className="min-h-[200px]" />
                     ) : historyQuery.isError ? (
                         <p className="text-sm text-rose-600">No se pudo cargar tu historial.</p>
                     ) : historyItems.length ? (
@@ -447,7 +448,7 @@ export default function MyCoursesProfessor() {
                                                 className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4"
                                             >
                                                 {historyDetail.isLoading ? (
-                                                    <p className="text-sm text-slate-500">Cargando sesiones...</p>
+                                                    <LoadingSpinner label="Cargando sesiones..." className="min-h-[160px]" />
                                                 ) : historyDetail.isError ? (
                                                     <p className="text-sm text-rose-600">No se pudo cargar el detalle.</p>
                                                 ) : expandedDetail && expandedSummary.length ? (

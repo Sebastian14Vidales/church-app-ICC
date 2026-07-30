@@ -9,6 +9,7 @@ import { DatePicker, Input, Select, SelectItem } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { getAllRoles } from "@/api/MemberAPI";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/lib/auth";
 import { type MemberFormData } from "@/types/index";
 
@@ -265,26 +266,29 @@ export default function MemberForm({
               </>
             ) : (
               <>
-                <Controller
-                  name="roleNames"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      isLoading={isLoading}
-                      selectionMode="multiple"
-                      selectedKeys={field.value || []}
-                      onSelectionChange={(keys) => field.onChange(Array.from(keys))}
-                      placeholder="Selecciona roles adicionales si aplica"
-                      aria-label="Roles en la Iglesia"
-                      className="input"
-                      isDisabled={baptized !== "true" || visibleRoles.length === 0}
-                    >
-                      {visibleRoles.map((role) => (
-                        <SelectItem key={role.name}>{role.name}</SelectItem>
-                      ))}
-                    </Select>
-                  )}
-                />
+                {isLoading ? (
+                  <LoadingSpinner label="Cargando roles..." className="min-h-[120px]" />
+                ) : (
+                  <Controller
+                    name="roleNames"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        selectionMode="multiple"
+                        selectedKeys={field.value || []}
+                        onSelectionChange={(keys) => field.onChange(Array.from(keys))}
+                        placeholder="Selecciona roles adicionales si aplica"
+                        aria-label="Roles en la Iglesia"
+                        className="input"
+                        isDisabled={baptized !== "true" || visibleRoles.length === 0}
+                      >
+                        {visibleRoles.map((role) => (
+                          <SelectItem key={role.name}>{role.name}</SelectItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                )}
                 {errors.roleNames && <span className="text-xs text-red-500">{errors.roleNames.message}</span>}
                 <p className="mt-1 text-xs text-slate-500">
                   Si está bautizado será miembro automáticamente. Los roles son opcionales y solo aplican a cargos

@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button, Input, Textarea } from "@heroui/react"
 import { HeartHandshake, MapPin, Plus, Users } from "lucide-react"
+import LoadingSpinner from "@/components/common/LoadingSpinner"
 import ModalView from "@/components/dashboard/ModalView"
 import { createLifeGroup, getMyLifeGroups } from "@/api/LifeGroupAPI"
 import { useAuth } from "@/lib/auth"
@@ -46,7 +47,7 @@ export default function MyCoverage() {
     }
 
     if (isLoading) {
-        return <h1>Cargando cobertura...</h1>
+        return <LoadingSpinner label="Cargando cobertura..." className="min-h-screen" />
     }
 
     if (isError) {

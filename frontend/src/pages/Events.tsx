@@ -44,6 +44,7 @@ import {
   upsertEventRegistration,
 } from "@/api/EventAPI";
 import { getAllMembers } from "@/api/MemberAPI";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 
@@ -319,7 +320,7 @@ export default function Events() {
 
           <div className="mt-5 space-y-3">
             {isLoading ? (
-              <p className="text-sm text-slate-500">Cargando eventos...</p>
+              <LoadingSpinner label="Cargando eventos..." className="min-h-[200px]" />
             ) : events.length ? (
               events.map((event) => (
                 <button

@@ -6,6 +6,7 @@ import { Button, DatePicker, Input, Modal, ModalBody, ModalContent, ModalFooter,
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/lib/auth";
 import {
   deleteSermon,
@@ -118,7 +119,7 @@ export default function MySermons() {
   });
 
   if (!user) {
-    return <p>Cargando usuario...</p>;
+    return <LoadingSpinner label="Cargando usuario..." className="min-h-screen" />;
   }
 
   return (
@@ -134,7 +135,7 @@ export default function MySermons() {
       </div>
 
       {isLoading ? (
-        <div>Cargando predicas...</div>
+        <LoadingSpinner label="Cargando predicas..." className="min-h-[200px]" />
       ) : sermons.length === 0 ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-slate-600 shadow-sm shadow-slate-200/70">
           <p className="text-lg font-semibold">Aun no tienes predicas agendadas</p>

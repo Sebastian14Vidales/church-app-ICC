@@ -8,6 +8,7 @@ import CourseForm from "@/components/dashboard/CourseForm";
 import AssignCourseForm from "@/components/dashboard/AssignCourseForm";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import { useAuth } from "@/lib/auth";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import {
     useActiveCourseAssignments,
     useAllCourses,
@@ -383,7 +384,7 @@ export default function Courses() {
                 </div>
 
                 {isLoadingCatalog ? (
-                    <p className="text-sm text-slate-500">Cargando catalogo...</p>
+                    <LoadingSpinner label="Cargando catalogo..." className="min-h-[200px]" />
                 ) : isErrorCatalog ? (
                     <p className="text-sm text-rose-600">No se pudo cargar el catalogo.</p>
                 ) : catalogItems.length ? (
@@ -491,7 +492,7 @@ export default function Courses() {
                 </div>
 
                 {isLoadingActive ? (
-                    <p className="text-sm text-slate-500">Cargando asignaciones...</p>
+                    <LoadingSpinner label="Cargando asignaciones..." className="min-h-[200px]" />
                 ) : isErrorActive ? (
                     <p className="text-sm text-rose-600">No se pudo cargar las asignaciones vigentes.</p>
                 ) : activeItems.length ? (
@@ -582,7 +583,7 @@ export default function Courses() {
                                     {isExpanded ? (
                                         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                             {assignmentDetail.isLoading ? (
-                                                <p className="text-sm text-slate-500">Cargando sesiones...</p>
+                                                <LoadingSpinner label="Cargando sesiones..." className="min-h-[160px]" />
                                             ) : assignmentDetail.isError ? (
                                                 <p className="text-sm text-rose-600">
                                                     No se pudo cargar el progreso de sesiones.
@@ -657,7 +658,7 @@ export default function Courses() {
                 </div>
 
                 {isLoadingHistory ? (
-                    <p className="text-sm text-slate-500">Cargando historial...</p>
+                    <LoadingSpinner label="Cargando historial..." className="min-h-[200px]" />
                 ) : isErrorHistory ? (
                     <p className="text-sm text-rose-600">No se pudo cargar el historial.</p>
                 ) : historyItems.length ? (

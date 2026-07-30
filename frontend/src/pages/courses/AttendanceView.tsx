@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { toast } from "react-toastify"
 import { showSweetAlert } from "@/components/alert/SweetAlert"
+import LoadingSpinner from "@/components/common/LoadingSpinner"
 import SavedAttendanceSummaryTable from "@/components/courses/SavedAttendanceSummaryTable"
 import StudentQuickViewModal from "@/components/courses/StudentQuickViewModal"
 import { closeCourseAssignment, getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
@@ -212,7 +213,7 @@ export default function AttendanceView() {
     }
 
     if (isLoading) {
-        return <h1>Cargando asistencias...</h1>
+        return <LoadingSpinner label="Cargando asistencias..." className="min-h-screen" />
     }
 
     if (!assignment) {

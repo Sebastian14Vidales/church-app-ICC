@@ -15,6 +15,7 @@ import {
   type Sermon,
   updateSermon,
 } from "@/api/SermonAPI";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { extractDateOnly, parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 
@@ -162,7 +163,7 @@ export default function Sermons() {
     }
   });
 
-  if (isLoading) return <h1>Cargando predicas...</h1>;
+  if (isLoading) return <LoadingSpinner label="Cargando predicas..." className="min-h-screen" />;
   if (isError) return <h1>{error.message}</h1>;
 
   return (

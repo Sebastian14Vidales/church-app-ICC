@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Button, Input } from "@heroui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CalendarDays, CheckCircle2, ClipboardCheck, Download, Search, XCircle } from "lucide-react"
+import LoadingSpinner from "@/components/common/LoadingSpinner"
 import SavedAttendanceSummaryTable from "@/components/courses/SavedAttendanceSummaryTable"
 import { getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
 import { type CourseAssigned, type ClassSession } from "@/types/index"
@@ -123,7 +124,7 @@ export default function Attendance() {
     }
 
     if (isLoading) {
-        return <h1>Cargando asistencias...</h1>
+        return <LoadingSpinner label="Cargando asistencias..." className="min-h-screen" />
     }
 
     if (!assignment) {
