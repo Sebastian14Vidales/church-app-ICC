@@ -24,6 +24,7 @@ const SPIRITUAL_GROWTH_STAGES = [
   "Carácter cristiano",
   "Sanidad y propósito",
   "Cosmovisión bíblica",
+  "Finanzas y Gobierno",
   "Doctrina cristiana",
 ];
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];

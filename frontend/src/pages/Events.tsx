@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Clock3,
   Edit3,
+  FileSpreadsheet,
   FileText,
   Lock,
   MapPin,
@@ -34,7 +35,9 @@ import {
   createEvent,
   deleteEvent,
   deleteEventRegistration,
-  getAllEvents,
+  exportEventRegistrations,
+  getEventHistory,
+  getEventsByStatus,
   type Event,
   type EventFormData,
   type EventRegistration,
@@ -72,6 +75,72 @@ const PAYMENT_STATUS_LABELS: Record<EventRegistration["paymentStatus"], string> 
   cancelled: "Cancelado",
 };
 
+type EventTab = "upcoming" | "history";
+
+const TABS: Array<{ id: EventTab; label: string }> = [
+  { id: "upcoming", label: "Próximos eventos" },
+  { id: "history", label: "Historial" },
+];
+
+const TAB_FOCUSABLE_KEYS = new Set([
+  "ArrowRight", "Right",
+  "ArrowLeft", "Left",
+  "Home", "End",
+]);
+
+const handleTabKeyDown =
+  (tabs: Array<{ id: EventTab }>, onChange: (id: EventTab) => void) =>
+    (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (!TAB_FOCUSABLE_KEYS.has(event.key)) return;
+      const parent = event.currentTarget.parentElement;
+      if (!parent) return;
+      const buttons = Array.from(
+        parent.querySelectorAll<HTMLButtonElement>('button[role="tab"]'),
+      );
+      const count = buttons.length;
+      if (count === 0) return;
+      const currentIndex = buttons.indexOf(event.currentTarget);
+      if (currentIndex < 0) return;
+      let nextIndex = currentIndex;
+      switch (event.key) {
+        case "ArrowRight":
+        case "Right":
+          nextIndex = (currentIndex + 1) % count;
+          break;
+        case "ArrowLeft":
+        case "Left":
+          nextIndex = (currentIndex - 1 + count) % count;
+          break;
+        case "Home":
+          nextIndex = 0;
+          break;
+        case "End":
+          nextIndex = count - 1;
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+      const target = buttons[nextIndex];
+      if (!target) return;
+      const targetId = target.id.replace(/^tab-/, "") as EventTab;
+      const matched = tabs.find((tab) => tab.id === targetId);
+      if (!matched) return;
+      onChange(matched.id);
+      target.focus();
+    };
+
+const triggerFileDownload = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(url);
+};
+
 const initialEventValues: EventFormData = {
   name: "",
   capacity: 50,
@@ -99,14 +168,22 @@ export default function Events() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [memberDocumentFilter, setMemberDocumentFilter] = useState("");
+  const [tab, setTab] = useState<EventTab>("upcoming");
 
   const eventForm = useForm<EventFormData>({ defaultValues: initialEventValues });
   const registrationForm = useForm<EventRegistrationFormData>({ defaultValues: initialRegistrationValues });
 
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ["events"],
-    queryFn: getAllEvents,
+  const { data: upcomingEvents = [], isLoading: isLoadingUpcoming } = useQuery({
+    queryKey: ["events", "upcoming"],
+    queryFn: () => getEventsByStatus("upcoming"),
   });
+
+  const { data: pastEvents = [], isLoading: isLoadingHistory } = useQuery({
+    queryKey: ["events", "history"],
+    queryFn: getEventHistory,
+  });
+
+  const events = tab === "upcoming" ? upcomingEvents : pastEvents;
 
   const { data: members = [] } = useQuery({
     queryKey: ["members"],
@@ -134,7 +211,8 @@ export default function Events() {
   const selectedEvent = events.find((event) => event._id === selectedEventId) ?? events[0] ?? null;
 
   const invalidateEvents = () => {
-    queryClient.invalidateQueries({ queryKey: ["events"] });
+    queryClient.invalidateQueries({ queryKey: ["events", "upcoming"] });
+    queryClient.invalidateQueries({ queryKey: ["events", "history"] });
   };
 
   const createMutation = useMutation({
@@ -171,6 +249,17 @@ export default function Events() {
       invalidateEvents();
     },
     onError: (error: Error) => toast.error(error.message || "No se pudo eliminar el evento"),
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: exportEventRegistrations,
+    onSuccess: (blob, eventId) => {
+      const event = events.find((e) => e._id === eventId) ?? selectedEvent;
+      const filename = event ? `inscritos-${event.name}.xlsx` : `inscritos-${eventId}.xlsx`;
+      triggerFileDownload(blob, filename);
+      toast.success("Descarga iniciada");
+    },
+    onError: (error: Error) => toast.error(error.message || "No se pudo descargar el archivo"),
   });
 
   const saveRegistrationMutation = useMutation({
@@ -318,48 +407,97 @@ export default function Events() {
             <CalendarDays className="h-5 w-5 text-slate-400" />
           </div>
 
-          <div className="mt-5 space-y-3">
-            {isLoading ? (
-              <LoadingSpinner label="Cargando eventos..." className="min-h-[200px]" />
-            ) : events.length ? (
-              events.map((event) => (
+          <div
+            role="tablist"
+            aria-label="Secciones de eventos"
+            aria-orientation="horizontal"
+            className="mt-5 inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm"
+          >
+            {TABS.map(({ id, label }) => {
+              const selected = tab === id;
+              return (
                 <button
-                  key={event._id}
+                  key={id}
                   type="button"
-                  onClick={() => setSelectedEventId(event._id)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${selectedEvent?._id === event._id
-                      ? "border-blue-500 bg-blue-50 shadow-sm"
-                      : "border-slate-200 bg-slate-50 hover:border-slate-300"
-                    }`}
+                  role="tab"
+                  aria-selected={selected}
+                  aria-controls={`tabpanel-${id}`}
+                  id={`tab-${id}`}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => setTab(id)}
+                  onKeyDown={handleTabKeyDown(TABS, setTab)}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
+                    selected
+                      ? "bg-blue-600 text-white shadow"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">{event.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {DATE_FORMATTER.format(parseStoredDate(event.date))} · {event.time}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                      {event.summary.registeredCount}/{event.capacity}
-                    </span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-600">
-                    <span className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-slate-400" />
-                      {event.registrations.length} registros
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-slate-400" />
-                      {event.registrationWindowClosed ? "Inscripción cerrada" : "Inscripción abierta"}
-                    </span>
-                  </div>
+                  {label}
                 </button>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                Aún no hay eventos creados.
-              </div>
-            )}
+              );
+            })}
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {TABS.map(({ id }) => {
+              const isCurrentTab = tab === id;
+              const tabEvents = id === "upcoming" ? upcomingEvents : pastEvents;
+              const tabLoading = id === "upcoming" ? isLoadingUpcoming : isLoadingHistory;
+              return (
+                <section
+                  key={id}
+                  id={`tabpanel-${id}`}
+                  role="tabpanel"
+                  aria-labelledby={`tab-${id}`}
+                  hidden={!isCurrentTab}
+                  className="space-y-3"
+                >
+                  {tabLoading ? (
+                    <LoadingSpinner label="Cargando eventos..." className="min-h-[200px]" />
+                  ) : tabEvents.length ? (
+                    tabEvents.map((event) => (
+                      <button
+                        key={event._id}
+                        type="button"
+                        onClick={() => setSelectedEventId(event._id)}
+                        className={`w-full rounded-2xl border p-4 text-left transition ${selectedEvent?._id === event._id
+                            ? "border-blue-500 bg-blue-50 shadow-sm"
+                            : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                          }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-slate-900">{event.name}</p>
+                            <p className="mt-1 text-sm text-slate-500">
+                              {DATE_FORMATTER.format(parseStoredDate(event.date))} · {event.time}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                            {event.summary.registeredCount}/{event.capacity}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-600">
+                          <span className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-slate-400" />
+                            {event.registrations.length} registros
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <Lock className="h-4 w-4 text-slate-400" />
+                            {event.registrationWindowClosed ? "Inscripción cerrada" : "Inscripción abierta"}
+                          </span>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                      {id === "upcoming"
+                        ? "Aún no hay próximos eventos."
+                        : "Aún no hay eventos en el historial."}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
           </div>
         </article>
 
@@ -391,13 +529,45 @@ export default function Events() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="flat" startContent={<UserPlus className="h-4 w-4" />} onPress={openCreateRegistrationModal}>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    startContent={<UserPlus className="h-4 w-4" />}
+                    onPress={openCreateRegistrationModal}
+                    isDisabled={selectedEvent.isPast}
+                    title={selectedEvent.isPast ? "No se pueden registrar personas en un evento pasado" : undefined}
+                  >
                     Registrar persona
                   </Button>
-                  <Button size="sm" variant="flat" startContent={<Edit3 className="h-4 w-4" />} onPress={() => openEditEventModal(selectedEvent)}>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 font-semibold text-white"
+                    startContent={<FileSpreadsheet className="h-4 w-4" />}
+                    onPress={() => exportMutation.mutate(selectedEvent._id)}
+                    isLoading={exportMutation.isPending}
+                  >
+                    Descargar Excel
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    startContent={<Edit3 className="h-4 w-4" />}
+                    onPress={() => openEditEventModal(selectedEvent)}
+                    isDisabled={selectedEvent.isPast}
+                    title={selectedEvent.isPast ? "No se puede editar un evento pasado" : undefined}
+                  >
                     Editar
                   </Button>
-                  <Button size="sm" color="danger" variant="flat" startContent={<Trash2 className="h-4 w-4" />} onPress={() => deleteMutation.mutate(selectedEvent._id)} isLoading={deleteMutation.isPending}>
+                  <Button
+                    size="sm"
+                    color="danger"
+                    variant="flat"
+                    startContent={<Trash2 className="h-4 w-4" />}
+                    onPress={() => deleteMutation.mutate(selectedEvent._id)}
+                    isLoading={deleteMutation.isPending}
+                    isDisabled={selectedEvent.isPast}
+                    title={selectedEvent.isPast ? "No se puede eliminar un evento pasado" : undefined}
+                  >
                     Eliminar
                   </Button>
                 </div>

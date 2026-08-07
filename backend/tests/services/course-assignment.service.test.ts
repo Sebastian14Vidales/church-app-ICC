@@ -10,6 +10,7 @@ import {
   closeAssignment,
   createAssignment,
   findMyActiveAssignment,
+  getNextSpiritualGrowthStage,
   reopenAssignment,
   softDeleteAssignment,
   updateAssignment,
@@ -74,6 +75,7 @@ vi.mock("../../src/models/user-profile.model", () => {
     "Carácter cristiano",
     "Sanidad y propósito",
     "Cosmovisión bíblica",
+    "Finanzas y Gobierno",
     "Doctrina cristiana",
   ];
   return { default: userProfileModel, SPIRITUAL_GROWTH_STAGES };
@@ -239,6 +241,30 @@ describe("course-assignment.service — calculateEndDate", () => {
   it("devuelve la misma fecha cuando totalClasses = 1", () => {
     const result = calculateEndDate("2026-02-01", 1);
     expect(result.toISOString()).toBe(new Date("2026-02-01").toISOString());
+  });
+});
+
+describe("course-assignment.service — getNextSpiritualGrowthStage", () => {
+  it('sin etapa actual devuelve la primera etapa "Consolidación"', () => {
+    expect(getNextSpiritualGrowthStage(undefined)).toBe("Consolidación");
+    expect(getNextSpiritualGrowthStage(null)).toBe("Consolidación");
+    expect(getNextSpiritualGrowthStage("")).toBe("Consolidación");
+  });
+
+  it('desde "Cosmovisión bíblica" avanza a "Finanzas y Gobierno" (ADR-0007)', () => {
+    expect(getNextSpiritualGrowthStage("Cosmovisión bíblica")).toBe("Finanzas y Gobierno");
+  });
+
+  it('desde "Finanzas y Gobierno" avanza a "Doctrina cristiana"', () => {
+    expect(getNextSpiritualGrowthStage("Finanzas y Gobierno")).toBe("Doctrina cristiana");
+  });
+
+  it('en la última etapa no hay siguiente etapa', () => {
+    expect(getNextSpiritualGrowthStage("Doctrina cristiana")).toBeNull();
+  });
+
+  it("etapa inválida devuelve null", () => {
+    expect(getNextSpiritualGrowthStage("Etapa desconocida")).toBeNull();
   });
 });
 
@@ -760,6 +786,52 @@ describe("course-assignment.service — addMembers", () => {
     ).rejects.toMatchObject({
       status: 400,
       message: "Nombre Apellido no puede inscribirse: ya alcanzó la última etapa de crecimiento espiritual",
+    });
+  });
+
+  it("inscribe miembro en 'Finanzas y Gobierno' cuando viene de 'Cosmovisión bíblica' (ADR-0007)", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID, [], "active", {
+      course: { _id: VALID_COURSE_ID, name: "Finanzas y Gobierno", spiritualGrowthStage: "Finanzas y Gobierno" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Cosmovisión bíblica" }),
+      ]),
+    );
+    const populated = buildPopulatedAssignment({
+      course: { _id: VALID_COURSE_ID, name: "Finanzas y Gobierno", spiritualGrowthStage: "Finanzas y Gobierno" },
+      members: [{ _id: VALID_MEMBER_ID }],
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    const result = await addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID], {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    expect(result).toBe(populated);
+  });
+
+  it("rechaza miembro en 'Cosmovisión bíblica' para curso 'Doctrina cristiana' (salta etapa ADR-0007)", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID, [], "active", {
+      course: { _id: VALID_COURSE_ID, name: "Doctrina", spiritualGrowthStage: "Doctrina cristiana" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Cosmovisión bíblica" }),
+      ]),
+    );
+
+    await expect(
+      addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID], {
+        callerProfileId: VALID_PROFESSOR_ID,
+        callerRoles: ["Profesor"],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Nombre Apellido no es elegible para el curso "Doctrina cristiana". Su siguiente etapa es "Finanzas y Gobierno".',
     });
   });
 });

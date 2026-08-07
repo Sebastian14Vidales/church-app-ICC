@@ -151,7 +151,9 @@ describe("course.routes.ts — smoke", () => {
 
   it("GET /api/courses — 200 con shape PaginatedResponse<Course>", async () => {
     courseCountMock.mockResolvedValue(1);
-    courseFindMock.mockReturnValueOnce(chainable([{ _id: VALID_ID, name: "Fundamentos", description: "d", level: "basic", isActive: true }]));
+    courseFindMock.mockReturnValueOnce(chainable([
+      { _id: VALID_ID, name: "Fundamentos", description: "d", level: "basic", spiritualGrowthStage: "Consolidación", isActive: true },
+    ]));
 
     const res = await request(app)
       .get("/api/courses")
@@ -167,6 +169,7 @@ describe("course.routes.ts — smoke", () => {
       }),
     );
     expect(res.body.items.length).toBe(1);
+    expect(res.body.items[0]).toHaveProperty("spiritualGrowthStage", "Consolidación");
     expect(res.body.total).toBe(1);
     expect(res.body.page).toBe(1);
     expect(res.body.limit).toBe(20);
@@ -223,6 +226,28 @@ describe("course.routes.ts — smoke", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("errors");
+  });
+
+  it("POST /api/courses sin spiritualGrowthStage → 400 (validador)", async () => {
+    const res = await request(app)
+      .post("/api/courses")
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "Fundamentos", description: "desc", level: "basic" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("errors");
+    expect(Course).not.toHaveBeenCalled();
+  });
+
+  it("POST /api/courses con spiritualGrowthStage inválida → 400 (validador)", async () => {
+    const res = await request(app)
+      .post("/api/courses")
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "Fundamentos", description: "desc", level: "basic", spiritualGrowthStage: "Invalida" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("errors");
+    expect(Course).not.toHaveBeenCalled();
   });
 
   it("DELETE /api/courses/:id con asignación activa → 409 (validación E-4)", async () => {
@@ -303,7 +328,7 @@ beforeEach(() => {
     const res = await request(app)
       .post("/api/courses")
       .set(authHeader(ADMIN_AUTH))
-      .send({ name: "Fundamentos", description: "desc", level: "basic" });
+      .send({ name: "Fundamentos", description: "desc", level: "basic", spiritualGrowthStage: "Consolidación" });
 
     expect(res.status).toBe(201);
     expect(res.body.message).toBe("Curso creado exitosamente");
@@ -313,6 +338,7 @@ beforeEach(() => {
       name: "Fundamentos",
       description: "desc",
       level: "basic",
+      spiritualGrowthStage: "Consolidación",
       isActive: undefined,
     });
   });
@@ -331,14 +357,14 @@ beforeEach(() => {
     const res = await request(app)
       .post("/api/courses")
       .set(authHeader(ADMIN_AUTH))
-      .send({ name: "Fundamentos", description: "desc", level: "basic" });
+      .send({ name: "Fundamentos", description: "desc", level: "basic", spiritualGrowthStage: "Consolidación" });
 
     expect(res.status).toBe(500);
     expect(res.body.message).toBe("Error al crear curso");
   });
 
   it("GET /api/courses/:id happy path → 200 con el Course encontrado", async () => {
-    const course = { _id: VALID_ID, name: "Fundamentos", description: "desc", level: "basic", isActive: true };
+    const course = { _id: VALID_ID, name: "Fundamentos", description: "desc", level: "basic", spiritualGrowthStage: "Consolidación", isActive: true };
     courseFindOneMock.mockResolvedValue(course);
 
     const res = await request(app)
@@ -386,19 +412,19 @@ beforeEach(() => {
   });
 
   it("PUT /api/courses/:id (admin) happy path → 200 con el Course actualizado + realtime", async () => {
-    const updated = { _id: VALID_ID, name: "X", description: "Y", level: "basic", isActive: false };
+    const updated = { _id: VALID_ID, name: "X", description: "Y", level: "basic", spiritualGrowthStage: "Discipulado básico", isActive: false };
     courseFindOneAndUpdateMock.mockResolvedValueOnce(updated);
 
     const res = await request(app)
       .put(`/api/courses/${VALID_ID}`)
       .set(authHeader(ADMIN_AUTH))
-      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+      .send({ name: "X", description: "Y", isActive: false, level: "basic", spiritualGrowthStage: "Discipulado básico" });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(updated);
     expect(courseFindOneAndUpdateMock).toHaveBeenCalledWith(
       { _id: VALID_ID, deletedAt: null },
-      { name: "X", description: "Y", level: "basic", isActive: false },
+      { name: "X", description: "Y", level: "basic", spiritualGrowthStage: "Discipulado básico", isActive: false },
       { new: true },
     );
     expect(realtimeMock).toHaveBeenCalledWith("courses.changed", [["courses"]]);
@@ -409,7 +435,7 @@ beforeEach(() => {
     const res = await request(app)
       .put(`/api/courses/${VALID_ID}`)
       .set(authHeader(ADMIN_AUTH))
-      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+      .send({ name: "X", description: "Y", isActive: false, level: "basic", spiritualGrowthStage: "Consolidación" });
 
     expect(res.status).toBe(404);
     expect(res.body.message).toBe("Curso no encontrado");
@@ -419,7 +445,7 @@ beforeEach(() => {
     const res = await request(app)
       .put(`/api/courses/${VALID_ID}`)
       .set(authHeader(MEMBER_AUTH))
-      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+      .send({ name: "X", description: "Y", isActive: false, level: "basic", spiritualGrowthStage: "Consolidación" });
     expect(res.status).toBe(403);
     expect(courseFindOneAndUpdateMock).not.toHaveBeenCalled();
   });
@@ -429,7 +455,7 @@ beforeEach(() => {
     const res = await request(app)
       .put(`/api/courses/${VALID_ID}`)
       .set(authHeader(ADMIN_AUTH))
-      .send({ name: "X", description: "Y", isActive: false, level: "basic" });
+      .send({ name: "X", description: "Y", isActive: false, level: "basic", spiritualGrowthStage: "Consolidación" });
     expect(res.status).toBe(500);
     expect(res.body.message).toBe("Error al actualizar curso");
   });

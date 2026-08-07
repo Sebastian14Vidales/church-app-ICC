@@ -8,9 +8,13 @@ import { ADMIN_ROLES } from "../utils/auth.utils";
 const router = Router();
 
 router.use(authenticate);
-router.use(authorizeRoles(ADMIN_ROLES));
 
+// Listados: cualquier rol autenticado (ADR-0008 §2.1).
 router.get("/", EventController.findAll);
+router.get("/history", EventController.findHistory);
+
+// Mutaciones y exportación: requieren rol administrativo.
+router.use(authorizeRoles(ADMIN_ROLES));
 
 router.post(
   "/",
@@ -51,6 +55,13 @@ router.put(
     .withMessage("El cierre de inscripciones debe ser booleano"),
   handleInputErrors,
   EventController.update,
+);
+
+router.get(
+  "/:id/export/registrations",
+  param("id").isMongoId().withMessage("El evento no es valido"),
+  handleInputErrors,
+  EventController.exportRegistrations,
 );
 
 router.post(

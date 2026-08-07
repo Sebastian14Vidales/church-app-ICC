@@ -20,20 +20,13 @@ import { COURSE_LEVEL_LABELS } from "@/utils/constants/courses";
 import PATHS from "@/utils/constants/routes";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { formatFullName, normalizeSearchText } from "@/utils/text";
-import type { CourseAssignedCanonical, Member } from "@/types/index";
+import { spiritualGrowthStageSchema, type CourseAssignedCanonical, type Member } from "@/types/index";
 
-const SPIRITUAL_GROWTH_STAGES = [
-    "Consolidación",
-    "Discipulado básico",
-    "Carácter cristiano",
-    "Sanidad y propósito",
-    "Cosmovisión bíblica",
-    "Doctrina cristiana",
-] as const;
+const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options;
 
 const getNextSpiritualGrowthStage = (currentStage?: string | null) => {
     if (!currentStage) return SPIRITUAL_GROWTH_STAGES[0];
-    const currentIndex = SPIRITUAL_GROWTH_STAGES.indexOf(currentStage as (typeof SPIRITUAL_GROWTH_STAGES)[number]);
+    const currentIndex = SPIRITUAL_GROWTH_STAGES.indexOf(currentStage);
     if (currentIndex === -1 || currentIndex === SPIRITUAL_GROWTH_STAGES.length - 1) return null;
     return SPIRITUAL_GROWTH_STAGES[currentIndex + 1];
 };

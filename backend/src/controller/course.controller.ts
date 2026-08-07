@@ -72,9 +72,9 @@ export class CourseController {
    * ( contrato §1.3, era string literal previamente ).
    */
   static create = async (req: Request, res: Response) => {
-    const { name, description, level, isActive } = req.body;
+    const { name, description, level, spiritualGrowthStage, isActive } = req.body;
     try {
-      const course = new Course({ name, description, level, isActive });
+      const course = new Course({ name, description, level, spiritualGrowthStage, isActive });
       await course.save();
       emitRealtimeInvalidation("courses.changed", COURSE_QUERY_KEYS);
       res.status(201).json({ message: "Curso creado exitosamente" });
@@ -88,11 +88,11 @@ export class CourseController {
    */
   static update = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { name, description, level, isActive } = req.body;
+    const { name, description, level, spiritualGrowthStage, isActive } = req.body;
     try {
       const course = await Course.findOneAndUpdate(
         { _id: id, deletedAt: null },
-        { name, description, level, isActive },
+        { name, description, level, spiritualGrowthStage, isActive },
         { new: true },
       );
       if (!course) {

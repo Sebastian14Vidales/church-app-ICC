@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { Types, type PopulatedDoc, type Document } from "mongoose";
 import UserProfile from "../models/user-profile.model";
 import Role, { type IRole } from "../models/role.model";
 import User from "../models/user.model";
@@ -16,11 +15,6 @@ import {
   normalizeEmail,
 } from "../utils/auth.utils";
 import CourseAssigned from "../models/course-assigned.model";
-
-type RoleReference = PopulatedDoc<IRole & Document>;
-
-const getRoleName = (role: RoleReference) =>
-  role instanceof Types.ObjectId ? "" : role.name;
 
 const sendAccountConfirmation = async (email: string, name: string, userId: string) => {
   const confirmationToken = await createConfirmationToken(userId, email);
@@ -290,7 +284,6 @@ export class UserProfileController {
       }
       const normalizedEmail = email ? normalizeEmail(email) : undefined;
       const nextUserName = buildUserName(firstName, lastName);
-      let confirmationEmailSent = false;
 
       const normalizedUpdateData = {
         ...updateData,
@@ -374,7 +367,6 @@ export class UserProfileController {
 
           if (shouldRefreshConfirmation && updatedUser) {
             await sendAccountConfirmation(updatedUser.email, updatedUser.name, String(updatedUser._id));
-            confirmationEmailSent = true;
           }
         } else {
           const duplicatedUser = await User.findOne({ email: normalizedEmail });
@@ -394,7 +386,6 @@ export class UserProfileController {
 
           normalizedUpdateData.user = createdUser._id;
           await sendAccountConfirmation(createdUser.email, createdUser.name, createdUserId);
-          confirmationEmailSent = true;
         }
       } else if (profile.user) {
         await deleteUserTokens(String(profile.user._id));

@@ -1,3 +1,4 @@
+import { spiritualGrowthStageSchema } from "@/types/index";
 import { Button, Input, Select, SelectItem } from "@heroui/react";
 
 export type MemberFiltersValue = {
@@ -15,14 +16,7 @@ type MemberFiltersProps = {
 };
 
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
-const SPIRITUAL_GROWTH_STAGES = [
-    "Consolidación",
-    "Discipulado básico",
-    "Carácter cristiano",
-    "Sanidad y propósito",
-    "Cosmovisión bíblica",
-    "Doctrina cristiana",
-];
+const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options;
 
 export default function MemberFilters({ filters, onChange, onClear }: MemberFiltersProps) {
     const handleFieldChange = (field: keyof MemberFiltersValue, value: string) => {

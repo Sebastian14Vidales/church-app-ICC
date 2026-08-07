@@ -202,6 +202,7 @@ export class CourseAssignmentController {
         assignment,
       });
     } catch (error) {
+      console.log(res.statusCode, res.statusMessage, res.headersSent);
       return handleControllerError(
         res,
         error,

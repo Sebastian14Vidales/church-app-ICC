@@ -13,7 +13,8 @@ import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { getAllRoles } from "@/api/MemberAPI";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/lib/auth";
-import { type MemberFormData } from "@/types/index";
+import { spiritualGrowthStageSchema, type MemberFormData } from "@/types/index";
+
 
 const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
 const PROFESSION_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
@@ -34,14 +35,8 @@ const MINISTRIES = [
   "Ministerio Iglesia Infantil",
   "Ministerio de Evangelismo y Consolidación G.V.E",
 ];
-const SPIRITUAL_GROWTH_STAGES = [
-  "Consolidación",
-  "Discipulado básico",
-  "Carácter cristiano",
-  "Sanidad y propósito",
-  "Cosmovisión bíblica",
-  "Doctrina cristiana",
-];
+const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options;
+
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"] as const;
 
 type MemberFormProps = {

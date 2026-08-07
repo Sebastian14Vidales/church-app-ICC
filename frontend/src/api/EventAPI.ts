@@ -48,6 +48,7 @@ export const eventSchema = z.object({
   registrationClosed: z.boolean().default(false),
   registrationWindowClosed: z.boolean().default(false),
   daysUntilRegistrationDeadline: z.number().nullable().default(null),
+  isPast: z.boolean(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
   registrations: z.array(eventRegistrationSchema).default([]),
@@ -63,6 +64,16 @@ export const eventSchema = z.object({
     occupancyRate: z.number(),
   }),
 });
+
+export const eventStatusSchema = z.enum(["upcoming", "past"]);
+export type EventStatus = z.infer<typeof eventStatusSchema>;
+
+export const eventListQuerySchema = z.object({
+  status: eventStatusSchema.optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+export type EventListQuery = z.infer<typeof eventListQuerySchema>;
 
 const eventsSchema = z.array(eventSchema);
 const eventResponseSchema = z.object({
@@ -93,6 +104,8 @@ export type EventRegistrationFormData = {
   amountPaid: number;
   notes?: string;
 };
+
+export type EventRegistrationsExport = Blob;
 
 const normalizeEvent = (event: Event): Event => ({
   ...event,
@@ -153,4 +166,21 @@ export const deleteEventRegistration = async (
 ): Promise<Event> => {
   const { data } = await api.delete(`/events/${eventId}/registrations/${registrationId}`);
   return parseEventFromResponse(data);
+};
+
+export const getEventsByStatus = async (status: EventStatus): Promise<Event[]> => {
+  const { data } = await api.get("/events", { params: { status } });
+  return eventsSchema.parse(data).map(normalizeEvent);
+};
+
+export const getEventHistory = async (): Promise<Event[]> => {
+  const { data } = await api.get("/events/history");
+  return eventsSchema.parse(data).map(normalizeEvent);
+};
+
+export const exportEventRegistrations = async (eventId: string): Promise<Blob> => {
+  const response = await api.get<Blob>(`/events/${eventId}/export/registrations`, {
+    responseType: "blob",
+  });
+  return response.data;
 };

@@ -4,6 +4,7 @@ import { CourseController } from "../controller/course.controller";
 import { authenticate, authorizeRoles } from "../middleware/auth.middleware";
 import { handleInputErrors } from "../middleware/validation";
 import { ADMIN_ROLES } from "../utils/auth.utils";
+import { SPIRITUAL_GROWTH_STAGES } from "../models/user-profile.model";
 
 /**
  * Router del catálogo de `Course` ( ADR-0001 §D1 ).
@@ -29,6 +30,9 @@ router.post(
   body("level")
     .isIn(["basic", "intermediate", "advanced"])
     .withMessage("El nivel del curso debe ser 'basic', 'intermediate' o 'advanced'"),
+  body("spiritualGrowthStage")
+    .isIn(SPIRITUAL_GROWTH_STAGES)
+    .withMessage("La etapa de crecimiento espiritual es obligatoria y debe ser una válida"),
   body("isActive").optional().isBoolean().withMessage("El estado debe ser true o false"),
   handleInputErrors,
   CourseController.create,
@@ -70,13 +74,18 @@ router.put(
     .notEmpty()
     .trim()
     .withMessage("La descripción del curso es obligatoria"),
-  body("isActive")
-    .isBoolean()
-    .withMessage("El estado debe ser true o false"),
   body("level")
     .optional()
     .isIn(["basic", "intermediate", "advanced"])
     .withMessage("El nivel del curso debe ser 'basic', 'intermediate' o 'advanced'"),
+  body("spiritualGrowthStage")
+    .optional()
+    .isIn(SPIRITUAL_GROWTH_STAGES)
+    .withMessage("La etapa de crecimiento espiritual debe ser una válida"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("El estado debe ser true o false"),
   handleInputErrors,
   CourseController.update,
 );

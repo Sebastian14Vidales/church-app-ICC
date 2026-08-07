@@ -334,8 +334,10 @@ export const softDeleteAssignment = async (id: string) => {
  * Devuelve la siguiente etapa de crecimiento espiritual en la secuencia canónica.
  * - Sin etapa actual (null, undefined o vacío): "Consolidación".
  * - Etapa inválida o última etapa ("Doctrina cristiana"): `null` (no hay siguiente).
+ * Nota: la última etapa depende de `SPIRITUAL_GROWTH_STAGES`; insertar una
+ * etapa intermedia no requiere cambios de lógica (ADR-0007).
  */
-const getNextSpiritualGrowthStage = (currentStage?: string | null) => {
+export const getNextSpiritualGrowthStage = (currentStage?: string | null) => {
   if (!currentStage) return SPIRITUAL_GROWTH_STAGES[0];
   const currentIndex = SPIRITUAL_GROWTH_STAGES.indexOf(currentStage);
   if (currentIndex === -1 || currentIndex === SPIRITUAL_GROWTH_STAGES.length - 1) return null;

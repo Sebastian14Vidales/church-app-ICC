@@ -590,7 +590,7 @@ export const courseSchema = z.object({
   name: z.string(),
   description: z.string(),
   level: courseLevelSchema,
-  spiritualGrowthStage: z.enum(["Consolidación", "Discipulado básico", "Carácter cristiano", "Sanidad y propósito", "Cosmovisión bíblica", "Doctrina cristiana"]),
+  spiritualGrowthStage: z.enum(["Consolidación", "Discipulado básico", "Carácter cristiano", "Sanidad y propósito", "Cosmovisión bíblica", "Finanzas y Gobierno", "Doctrina cristiana"]),
   isActive: z.boolean().default(true),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),

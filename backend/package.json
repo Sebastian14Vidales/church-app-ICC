@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "migrate:courses-cancelled": "ts-node src/config/migrations/20260721-courses-cancelled-to-completed.ts",
-    "migrate:courses-indexes": "ts-node src/config/migrations/20260721-courses-indexes.ts"
+    "migrate:courses-indexes": "ts-node src/config/migrations/20260721-courses-indexes.ts",
+    "migrate:courses-missing-stage": "ts-node src/config/migrations/20260804-courses-missing-spiritual-growth-stage.ts"
   },
   "keywords": [],
   "author": "",
@@ -32,7 +33,8 @@
     "mongoose": "^9.1.2",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.4",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
