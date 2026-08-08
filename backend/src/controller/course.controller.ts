@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
 import Course from "../models/course.model";
 import CourseAssigned from "../models/course-assigned.model";
+import ClassSession from "../models/class-session.model";
 import { emitRealtimeInvalidation } from "../realtime/socket";
 import { handleControllerError } from "../services/app-error";
 
 const COURSE_QUERY_KEYS = [["courses"]];
+const ASSIGNMENT_QUERY_KEYS = [["courseAssignments"], ["myCourses"], ["myAttendance"]];
+const HISTORY_QUERY_KEYS = [["courseHistory"]];
 
 /**
  * Controller del catálogo de `Course` ( ADR-0001 §D1 ).
@@ -106,32 +109,36 @@ export class CourseController {
   };
 
   /**
-   * DELETE /api/courses/:id — soft-delete con validación E-4.
-   * Si existe `CourseAssigned` con `course = id`, `status: "active"`,
-   * `deletedAt: null` → 409 "No puedes eliminar un curso con asignaciones activas".
+   * DELETE /api/courses/:id — borrado fisico en cascada.
+   * Elimina el `Course`, todas sus `CourseAssigned` y las `ClassSession`
+   * vinculadas a esas asignaciones, para no dejar registros huerfanos en
+   * la base de datos. Emite invalidacion real-time de cursos, asignaciones
+   * e historial.
    */
   static remove = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
-      const activeAssignment = await CourseAssigned.findOne({
-        course: id,
-        status: "active",
-        deletedAt: null,
-      });
-      if (activeAssignment) {
-        return res
-          .status(409)
-          .json({ message: "No puedes eliminar un curso con asignaciones activas" });
-      }
-
-      const course = await Course.findOneAndUpdate(
-        { _id: id, deletedAt: null },
-        { $set: { deletedAt: new Date() } },
-      );
+      const course = await Course.findOne({ _id: id, deletedAt: null });
       if (!course) {
         return res.status(404).json({ message: "Curso no encontrado" });
       }
+
+      // Cascade: eliminar sesiones de clase y asignaciones vinculadas para no
+      // dejar registros huerfanos en la base de datos (curso + asignaciones +
+      // sesiones). Borrado fisico (no soft-delete) a pedido del negocio.
+      const assignmentIds = (
+        await CourseAssigned.find({ course: id }).select("_id").lean()
+      ).map((doc) => doc._id);
+
+      if (assignmentIds.length) {
+        await ClassSession.deleteMany({ courseAssigned: { $in: assignmentIds } });
+      }
+      await CourseAssigned.deleteMany({ course: id });
+      await Course.deleteOne({ _id: id });
+
       emitRealtimeInvalidation("courses.changed", COURSE_QUERY_KEYS);
+      emitRealtimeInvalidation("courseAssignments.changed", ASSIGNMENT_QUERY_KEYS);
+      emitRealtimeInvalidation("courseHistory.changed", HISTORY_QUERY_KEYS);
       return res.status(200).json({ message: "Curso eliminado exitosamente" });
     } catch (error) {
       return handleControllerError(res, error, "Error al eliminar curso");

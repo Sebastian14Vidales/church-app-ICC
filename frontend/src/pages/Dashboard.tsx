@@ -68,7 +68,7 @@ const { data: coursesData } = useQuery({
     queryKey: ["courses"],
     queryFn: () => getAllCourses(),
   });
-  const courses = coursesData?.items ?? [];
+  const courses = useMemo(() => coursesData?.items ?? [], [coursesData]);
 
   const { data: assignments = [] } = useQuery({
     queryKey: ["courseAssignments"],
@@ -398,8 +398,8 @@ const { data: coursesData } = useQuery({
                   <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
                     <p className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-slate-400" />
-                      {new Date(assignment.startDate).toLocaleDateString("es-CO")} a{" "}
-                      {new Date(assignment.endDate).toLocaleDateString("es-CO")}
+                      {parseStoredDate(assignment.startDate).toLocaleDateString("es-CO")} a{" "}
+                      {parseStoredDate(assignment.endDate).toLocaleDateString("es-CO")}
                     </p>
                     <p className="flex items-center gap-2">
                       <Clock3 className="h-4 w-4 text-slate-400" />

@@ -44,7 +44,7 @@ export const noAuthHeader = (): Record<string, string> => ({});
  *
  * Los controllers hacen `await Course.find(filter).sort(...).skip(...).limit(...)`.
  * Para mockearlo sin importar Mongo, devolvemos un objeto que:
- *   - expone `sort`, `skip`, `limit`, `populate`, `lean`, `exec` que
+ *   - expone `sort`, `skip`, `limit`, `populate`, `lean`, `exec`, `select` que
  *     devuelven la propia cadena (fluent),
  *   - es thenable (`then`) → se resuelve con `items` al hacer `await`.
  *
@@ -57,6 +57,7 @@ type Chainable<T> = {
   limit: () => Chainable<T>;
   populate: () => Chainable<T>;
   lean: () => Chainable<T>;
+  select: () => Chainable<T>;
   exec: () => Promise<T>;
   then: <U>(onfulfilled: (value: T) => U | PromiseLike<U>) => Promise<U>;
 };
@@ -68,6 +69,7 @@ export const chainable = <T>(items: T): Chainable<T> => {
     limit: () => self,
     populate: () => self,
     lean: () => self,
+    select: () => self,
     exec: () => Promise.resolve(items),
     then: <U>(onfulfilled: (value: T) => U | PromiseLike<U>) =>
       Promise.resolve(items).then(onfulfilled),

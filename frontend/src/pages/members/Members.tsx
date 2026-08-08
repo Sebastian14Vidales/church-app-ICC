@@ -14,7 +14,7 @@ import {
     Plus,
     Trash2,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
@@ -35,6 +35,7 @@ import {
     type SpiritualGrowthStage,
 } from "@/types/index";
 import { roleColors, roleLabels } from "@/utils/constants/roleColors";
+import { parseStoredDate } from "@/utils/date";
 import { formatFullName, normalizeSearchText } from "@/utils/text";
 
 const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options as SpiritualGrowthStage[];
@@ -115,12 +116,11 @@ export default function Members() {
         formState: { errors },
         control,
         reset,
-        watch,
         setValue,
     } = useForm<MemberFormData>({ defaultValues: initialValues });
-    const roleNames = watch("roleNames");
-    const servesInMinistry = watch("servesInMinistry");
-    const baptized = watch("baptized");
+    const roleNames = useWatch({ control, name: "roleNames" });
+    const servesInMinistry = useWatch({ control, name: "servesInMinistry" });
+    const baptized = useWatch({ control, name: "baptized" });
 
     const { data: members = [], isLoading, isError, error } = useQuery({
         queryKey: ["members"],
@@ -400,7 +400,7 @@ export default function Members() {
                                         <Calendar className="mr-2 h-4 w-4 text-gray-400" />
                                         <span>
                                             Fecha de nacimiento:{" "}
-                                            {new Date(member.birthdate).toLocaleDateString("es-ES")}
+                                            {parseStoredDate(member.birthdate).toLocaleDateString("es-ES")}
                                         </span>
                                     </div>
                                 )}

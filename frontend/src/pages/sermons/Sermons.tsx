@@ -16,7 +16,7 @@ import {
   updateSermon,
 } from "@/api/SermonAPI";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
-import { extractDateOnly, parseStoredDate } from "@/utils/date";
+import { extractDateOnly, parseStoredDate, START_TIME_OPTIONS } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 
 type SermonFormValues = CreateSermonData;
@@ -322,13 +322,23 @@ export default function Sermons() {
                     />
                   )}
                 />
-                <Input
-                  type="time"
-                  classNames={{
-                    inputWrapper: "border-none shadow-none",
-                    input: "focus:outline-none focus:ring-0",
-                  }}
-                  {...sermonForm.register("time", { required: true })}
+                <Controller
+                  name="time"
+                  control={sermonForm.control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Select
+                      selectedKeys={field.value ? [field.value] : []}
+                      onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                      placeholder="Selecciona una hora"
+                      aria-label="Hora"
+                      className="w-full"
+                    >
+                      {START_TIME_OPTIONS.map((option) => (
+                        <SelectItem key={option.value}>{option.label}</SelectItem>
+                      ))}
+                    </Select>
+                  )}
                 />
               </div>
               <Controller

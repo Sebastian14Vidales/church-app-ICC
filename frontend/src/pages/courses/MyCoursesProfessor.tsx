@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { COURSE_LEVEL_LABELS } from "@/utils/constants/courses";
 import PATHS from "@/utils/constants/routes";
 import { getLocationNameById } from "@/utils/constants/locations";
+import { parseStoredDate } from "@/utils/date";
 import { formatFullName, normalizeSearchText } from "@/utils/text";
 import { spiritualGrowthStageSchema, type CourseAssignedCanonical, type Member } from "@/types/index";
 
@@ -94,7 +95,7 @@ const handleTabKeyDown =
         };
 
 const formatAssignmentDate = (value: string) =>
-    new Date(value).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+    parseStoredDate(value).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 
 const computeAttendanceRate = (sessionsCount: number, totalClasses: number) =>
     totalClasses === 0 ? 100 : Math.round((sessionsCount / totalClasses) * 100);

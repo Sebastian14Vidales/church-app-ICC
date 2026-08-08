@@ -148,6 +148,14 @@ export const validateProfessorUniqueActive = async (
   }
   const activeAssignment = await CourseAssigned.findOne(filter);
   if (activeAssignment) {
+    const activeCourse = await Course.findOne({
+      _id: activeAssignment.course,
+      deletedAt: null,
+    });
+    if (!activeCourse) {
+      await CourseAssigned.deleteOne({ _id: activeAssignment._id });
+      return;
+    }
     throw new AppError(409, "Este profesor ya tiene un curso activo asignado");
   }
 };

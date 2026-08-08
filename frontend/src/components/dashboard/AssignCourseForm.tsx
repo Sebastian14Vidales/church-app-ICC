@@ -1,11 +1,12 @@
 import { Controller, useWatch, type Control, type FieldErrors, type UseFormSetValue } from "react-hook-form";
-import { Button, DatePicker, Input, Select, SelectItem } from "@heroui/react";
+import { DatePicker, Input, Select, SelectItem } from "@heroui/react";
 import { parseDate, today, getLocalTimeZone } from "@internationalized/date";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllMembers } from "@/api/MemberAPI";
 import { type CourseAssignmentCreateBody } from "@/types/index";
 import { LOCATIONS } from "@/utils/constants/locations";
+import { START_TIME_OPTIONS } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 
 export type AssignCourseFormProps = {
@@ -166,12 +167,17 @@ export default function AssignCourseForm({
                         control={control}
                         rules={{ required: "Hora de inicio requerida" }}
                         render={({ field }) => (
-                            <Input
-                                type="time"
-                                {...field}
-                                classNames={{ inputWrapper: "border-none shadow-none" }}
+                            <Select
+                                selectedKeys={field.value ? [field.value] : []}
+                                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
                                 className="w-full"
-                            />
+                                placeholder="Selecciona una hora"
+                                aria-label="Hora de inicio"
+                            >
+                                {START_TIME_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value}>{option.label}</SelectItem>
+                                ))}
+                            </Select>
                         )}
                     />
                     {errors.startTime && <span className="text-xs text-red-500">{errors.startTime.message}</span>}
@@ -228,10 +234,6 @@ export default function AssignCourseForm({
 
                 {errors.location && <span className="text-xs text-red-500">{errors.location.message}</span>}
             </div>
-
-            <Button type="submit" color="primary" className="w-full">
-                Asignar curso
-            </Button>
         </div>
     );
 }

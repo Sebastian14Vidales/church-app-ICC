@@ -30,6 +30,7 @@ import {
     COURSE_STATUS_LABELS,
 } from "@/utils/constants/courses";
 import { LOCATIONS, getLocationNameById } from "@/utils/constants/locations";
+import { parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 import type {
     CourseAssignmentCreateBody,
@@ -118,7 +119,7 @@ const emptyAssignmentForm: CourseAssignmentCreateBody = {
     status: "active",
 };
 
-const formatDate = (value: string) => new Date(value).toLocaleDateString("es-CO");
+const formatDate = (value: string) => parseStoredDate(value).toLocaleDateString("es-CO");
 
 export default function Courses() {
     const { user } = useAuth();
@@ -226,7 +227,7 @@ export default function Courses() {
     const handleDeleteCourse = (course: { _id: string; name: string }) => {
         showSweetAlert({
             title: "Eliminar curso?",
-            text: `Eliminaras "${course.name}". Si tiene asignaciones activas se bloqueara el borrado.`,
+            text: `Eliminaras "${course.name}" junto con sus asignaciones y sesiones de clase registradas. Esta accion no se puede deshacer.`,
             type: "warning",
             confirmButtonText: "Si, eliminar",
             showCancelButton: true,
@@ -399,7 +400,7 @@ export default function Courses() {
                 ) : isErrorCatalog ? (
                     <p className="text-sm text-rose-600">No se pudo cargar el catalogo.</p>
                 ) : catalogItems.length ? (
-                    <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {catalogItems.map((course) => (
                             <li
                                 key={course._id}
@@ -418,19 +419,7 @@ export default function Courses() {
                                     </div>
                                     <p className="line-clamp-2 text-sm text-slate-600">{course.description}</p>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <span
-                                        role="status"
-                                        aria-label={course.isActive ? "Curso activo" : "Curso inactivo"}
-                                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                            course.isActive
-                                                ? "bg-emerald-600 text-white border border-emerald-700"
-                                                : "bg-slate-500 text-white border border-slate-600"
-                                        }`}
-                                    >
-                                        {course.isActive ? "Activo" : "Inactivo"}
-                                    </span>
-                                </div>
+                                
                                 <div className="flex items-center gap-2">
                                     <Button
                                         color="primary"

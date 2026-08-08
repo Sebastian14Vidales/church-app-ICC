@@ -42,6 +42,7 @@ vi.mock("../../src/models/course-assigned.model", () => {
     findOneAndUpdate: vi.fn(),
     countDocuments: vi.fn(),
     create: vi.fn(),
+    deleteOne: vi.fn(),
   };
   return { default: courseAssignedModel };
 });
@@ -97,6 +98,7 @@ const assignedFindOneAndUpdate =
 const assignedCountDocuments =
   CourseAssigned.countDocuments as unknown as ReturnType<typeof vi.fn>;
 const assignedCreate = CourseAssigned.create as unknown as ReturnType<typeof vi.fn>;
+const assignedDeleteOne = CourseAssigned.deleteOne as unknown as ReturnType<typeof vi.fn>;
 
 const courseFindOne = Course.findOne as unknown as ReturnType<typeof vi.fn>;
 const classSessionCountDocuments =
@@ -220,6 +222,7 @@ const resetMocks = () => {
   assignedFindOneAndUpdate.mockReset();
   assignedCountDocuments.mockReset();
   assignedCreate.mockReset();
+  assignedDeleteOne.mockReset();
   courseFindOne.mockReset();
   classSessionCountDocuments.mockReset();
   classSessionUpdateMany.mockReset();
@@ -296,10 +299,20 @@ describe("course-assignment.service — validateProfessorUniqueActive", () => {
 
   it("lanza 409 cuando existe otra activa", async () => {
     assignedFindOne.mockResolvedValue(buildAssignment());
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
     await expect(validateProfessorUniqueActive(VALID_PROFESSOR_ID)).rejects.toMatchObject({
       status: 409,
       message: "Este profesor ya tiene un curso activo asignado",
     });
+  });
+
+  it("borra una asignacion activa huérfana si su curso ya no existe", async () => {
+    assignedFindOne.mockResolvedValue(buildAssignment());
+    courseFindOne.mockResolvedValue(null);
+    assignedDeleteOne.mockResolvedValue({ deletedCount: 1 });
+
+    await expect(validateProfessorUniqueActive(VALID_PROFESSOR_ID)).resolves.toBeUndefined();
+    expect(assignedDeleteOne).toHaveBeenCalledWith({ _id: ASSIGNMENT_ID });
   });
 });
 

@@ -19,3 +19,15 @@ export const parseStoredDate = (value: string) => {
 };
 
 export const getStoredDateYear = (value: string) => parseStoredDate(value).getFullYear();
+
+/**
+ * Opciones de hora de inicio en horas enteras (formato 24h "HH:00").
+ * Solo se ofrecen horas en punto (1, 2, 3...) para simplificar la captura.
+ */
+export const START_TIME_OPTIONS: Array<{ value: string; label: string }> = Array.from(
+  { length: 24 },
+  (_, hour) => {
+    const value = `${`${hour}`.padStart(2, "0")}:00`;
+    return { value, label: value };
+  },
+);

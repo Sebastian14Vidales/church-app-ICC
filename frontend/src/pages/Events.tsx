@@ -28,6 +28,8 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Select,
+  SelectItem,
   Textarea,
 } from "@heroui/react";
 import { toast } from "react-toastify";
@@ -48,7 +50,7 @@ import {
 } from "@/api/EventAPI";
 import { getAllMembers } from "@/api/MemberAPI";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
-import { parseStoredDate } from "@/utils/date";
+import { extractDateOnly, parseStoredDate, START_TIME_OPTIONS } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("es-CO", {
@@ -315,12 +317,12 @@ export default function Events() {
     eventForm.reset({
       name: event.name,
       capacity: event.capacity,
-      date: event.date,
+      date: extractDateOnly(event.date),
       time: event.time,
       place: event.place,
       price: event.price,
       description: event.description ?? "",
-      registrationDeadline: event.registrationDeadline ?? "",
+      registrationDeadline: event.registrationDeadline ? extractDateOnly(event.registrationDeadline) : "",
       registrationClosed: event.registrationClosed,
     });
     setIsEventModalOpen(true);
@@ -700,7 +702,24 @@ export default function Events() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Hora</label>
-                  <Input type="time" {...eventForm.register("time", { required: true })} />
+                  <Controller
+                    name="time"
+                    control={eventForm.control}
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <Select
+                        selectedKeys={field.value ? [field.value] : []}
+                        onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                        placeholder="Selecciona una hora"
+                        aria-label="Hora"
+                        className="w-full"
+                      >
+                        {START_TIME_OPTIONS.map((option) => (
+                          <SelectItem key={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
                 </div>
               </div>
               <div>

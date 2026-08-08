@@ -8,10 +8,11 @@ import {
 } from "@/hooks/courses";
 import { COURSE_LEVEL_LABELS } from "@/utils/constants/courses";
 import { getLocationNameById } from "@/utils/constants/locations";
+import { parseStoredDate } from "@/utils/date";
 import type { CourseCatalog } from "@/types/index";
 
 const formatAssignmentDate = (value: string) =>
-    new Date(value).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+    parseStoredDate(value).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 
 export default function MyCoursesStudent() {
     const activeQuery = useMyActiveCourseAssignments();
