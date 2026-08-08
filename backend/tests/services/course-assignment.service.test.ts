@@ -59,6 +59,7 @@ vi.mock("../../src/models/class-session.model", () => {
     find: vi.fn(),
     countDocuments: vi.fn(),
     updateMany: vi.fn(),
+    deleteMany: vi.fn(),
     findOneAndUpdate: vi.fn(),
   };
   return { default: classSessionModel };
@@ -105,6 +106,8 @@ const classSessionCountDocuments =
   ClassSession.countDocuments as unknown as ReturnType<typeof vi.fn>;
 const classSessionUpdateMany =
   ClassSession.updateMany as unknown as ReturnType<typeof vi.fn>;
+const classSessionDeleteMany =
+  ClassSession.deleteMany as unknown as ReturnType<typeof vi.fn>;
 
 const userProfileFindById = UserProfile.findById as unknown as ReturnType<typeof vi.fn>;
 const userProfileFind = UserProfile.find as unknown as ReturnType<typeof vi.fn>;
@@ -226,6 +229,7 @@ const resetMocks = () => {
   courseFindOne.mockReset();
   classSessionCountDocuments.mockReset();
   classSessionUpdateMany.mockReset();
+  classSessionDeleteMany.mockReset();
   userProfileFindById.mockReset();
   userProfileFind.mockReset();
   userProfileFindByIdAndUpdate.mockReset();
@@ -577,26 +581,27 @@ describe("course-assignment.service — updateAssignment", () => {
   });
 });
 
-describe("course-assignment.service — softDeleteAssignment", () => {
+describe("course-assignment.service — softDeleteAssignment (hard-delete en cascada, ADR-0009 §D2)", () => {
   beforeEach(resetMocks);
 
   it("404 si no existe asignacion activa/no-soft-deleted", async () => {
-    assignedFindOneAndUpdate.mockResolvedValue(null);
+    assignedFindOne.mockResolvedValue(null);
     await expect(softDeleteAssignment(ASSIGNMENT_ID)).rejects.toMatchObject({
       status: 404,
       message: "Asignacion no encontrada",
     });
+    expect(classSessionDeleteMany).not.toHaveBeenCalled();
+    expect(assignedDeleteOne).not.toHaveBeenCalled();
   });
 
-  it("happy path marca deletedAt y emite realtime", async () => {
+  it("happy path borra fisico en cascada y emite realtime", async () => {
     const fixture = buildAssignment();
-    assignedFindOneAndUpdate.mockResolvedValue(fixture);
+    assignedFindOne.mockResolvedValue(fixture);
     const assignment = await softDeleteAssignment(ASSIGNMENT_ID);
     expect(assignment).toBe(fixture);
-    expect(assignedFindOneAndUpdate).toHaveBeenCalledWith(
-      { _id: ASSIGNMENT_ID, deletedAt: null },
-      { $set: { deletedAt: expect.any(Date) } },
-    );
+    expect(assignedFindOne).toHaveBeenCalledWith({ _id: ASSIGNMENT_ID, deletedAt: null });
+    expect(classSessionDeleteMany).toHaveBeenCalledWith({ courseAssigned: ASSIGNMENT_ID });
+    expect(assignedDeleteOne).toHaveBeenCalledWith({ _id: ASSIGNMENT_ID });
     expect(realtimeMock).toHaveBeenCalledWith(
       "courseAssignments.changed",
       expect.any(Array),

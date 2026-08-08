@@ -202,7 +202,6 @@ export class CourseAssignmentController {
         assignment,
       });
     } catch (error) {
-      console.log(res.statusCode, res.statusMessage, res.headersSent);
       return handleControllerError(
         res,
         error,
@@ -235,8 +234,9 @@ export class CourseAssignmentController {
   };
 
   /**
-   * DELETE /api/courses/assignments/:id — soft-delete. Roles SUPERADMIN_ROLES (en ruta).
-   * Service: `softDeleteAssignment`.
+   * DELETE /api/courses/assignments/:id — borrado físico en cascada.
+   * Roles SUPERADMIN_ROLES (en ruta). Service: `softDeleteAssignment`
+   * (hard-delete + ClassSession.deleteMany, ADR-0009 §D2).
    */
   static remove = async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;

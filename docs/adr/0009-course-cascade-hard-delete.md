@@ -32,13 +32,17 @@ El endpoint `DELETE /api/courses/:id` (`backend/src/controller/course.controller
 
 Esta secuencia se implementa en el controlador; la lógica de negocio puede extraerse a `course.service.ts` si el `backend-engineer` considera necesario mantener la capa de servicios coherente con `AGENTS.md` §3.
 
-### D2 — Ámbito limitado de la excepción
+### D2 — Ámbito de la excepción (catálogo + asignaciones individuales)
 
-La excepción al soft-delete aplica **única y exclusivamente** a la operación de eliminación de un `Course` del catálogo.
+La excepción al soft-delete aplica a **dos** operaciones de eliminación:
 
-- `CourseAssigned` conserva su soft-delete (`softDeleteAssignment`) para la eliminación individual de una asignación.
-- `ClassSession` conserva su comportamiento de ADR-0001 §AC7.6: el cierre/reapertura de una asignación no borra físicamente las sesiones.
-- El campo `deletedAt` se conserva en el schema de `Course` por compatibilidad y para que lecturas filtradas (`deletedAt: null`) sigan siendo válidas; sin embargo, `remove` ya no lo setea.
+1. **Eliminación de un `Course` del catálogo** (`DELETE /api/courses/:id`): borrado físico en cascada de `Course` + `CourseAssigned` + `ClassSession` (ver D1).
+2. **Eliminación individual de una `CourseAssigned`** (`DELETE /api/courses/assignments/:id`, service `softDeleteAssignment`): también es ahora un **borrado físico en cascada**. La asignación y las `ClassSession` vinculadas se eliminan permanentemente de la base de datos, de modo que el profesor queda libre de inmediato para una nueva asignación y no quedan registros persistentes que — combinados con un índice único legacy sin `partialFilterExpression` — pued(ian) disparar el `409 "Este profesor ya tiene un curso activo asignado"`.
+
+Notas:
+- El nombre del servicio `softDeleteAssignment` se conserva por compatibilidad de la superficie pública (controller, tests, frontend); la operación subyacente es un hard-delete en cascada.
+- `ClassSession` conserva su comportamiento de ADR-0001 §AC7.6 para los flujos de cierre/reapertura (NO se borran sesiones al cerrar/reabrir). El borrado físico de sesiones aplica únicamente en las dos operaciones de eliminación descritas arriba.
+- El campo `deletedAt` se conserva en los schemas de `Course` y `CourseAssigned` por compatibilidad y para que lecturas filtradas (`deletedAt: null`) sigan siendo válidas; sin embargo, las operaciones de eliminación ya no lo setean.
 
 ### D3 — Fallback defensivo en `validateProfessorUniqueActive`
 

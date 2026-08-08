@@ -270,7 +270,7 @@ export default function Courses() {
     const handleDeleteAssignment = (assignment: CourseAssignedCanonical) => {
         showSweetAlert({
             title: "Eliminar asignacion?",
-            text: `Se eliminara la asignacion de "${assignment.course.name}". Se conservan las sesiones registradas.`,
+            text: `Se eliminara la asignacion de "${assignment.course.name}" y sus sesiones de clase registradas. El profesor quedara libre para una nueva asignacion. Esta accion no se puede deshacer.`,
             type: "warning",
             confirmButtonText: "Si, eliminar",
             showCancelButton: true,

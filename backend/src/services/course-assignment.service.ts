@@ -314,25 +314,29 @@ export const updateAssignment = async (id: string, body: UpdateAssignmentBody) =
 };
 
 /**
- * Soft-delete de una `CourseAssigned` (ADR-0001 §D3, AC3.4, AC3.5).
- * NO ejecuta `ClassSession.deleteMany`: las sesiones quedan vinculadas
- * para conservar el historial de asistencia.
- * El índice unique parcial por profesor ignora esta asignación a partir de
- * ahora (su `deletedAt` deja de ser `null` → fuera del `partialFilterExpression`).
+ * Borrado físico de una `CourseAssigned` + cascada de sus `ClassSession`
+ * (ADR-0009 §D2, excepción al soft-delete del catálogo de asignaciones).
+ * Elimina permanentemente la asignación y las sesiones de clase vinculadas
+ * de la base de datos, para que el profesor quede libre de inmediato y no
+ * queden registros huerfanos que bloqueen nuevas asignaciones (error 409
+ * "Este profesor ya tiene un curso activo asignado").
  * Emite realtime `courseAssignments.changed`.
  *
+ * El nombre `softDeleteAssignment` se conserva por compatibilidad de la
+ * superficie publica (controller, tests, frontend), pero la operacion es
+ * ahora un hard-delete en cascada ratificado por el Sponsor.
+ *
  * [AUDIT-PENDING] Debe registrarse acción `course.assignment.delete`
- * con contexto `{ assignmentId }` una vez disponible el módulo de auditoría
- * ( hoy no existe en el repo ); el `Chief AI Architect` decidirá su creación.
+ * con contexto `{ assignmentId }` una vez disponible el módulo de auditoría.
  */
 export const softDeleteAssignment = async (id: string) => {
-  const assignment = await CourseAssigned.findOneAndUpdate(
-    { _id: id, deletedAt: null },
-    { $set: { deletedAt: new Date() } },
-  );
+  const assignment = await CourseAssigned.findOne({ _id: id, deletedAt: null });
   if (!assignment) {
     throw new AppError(404, "Asignacion no encontrada");
   }
+  // Cascada: eliminar sesiones de clase vinculadas y la asignacion (fisico).
+  await ClassSession.deleteMany({ courseAssigned: id });
+  await CourseAssigned.deleteOne({ _id: id });
   emitRealtimeInvalidation("courseAssignments.changed", ASSIGNMENT_QUERY_KEYS);
   // TODO[AUDIT-PENDING]: audit("course.assignment.delete", { assignmentId: id })
   return assignment;
