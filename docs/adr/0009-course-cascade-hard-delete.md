@@ -51,6 +51,25 @@ Además del borrado en cascada, se añade un fallback defensivo en `backend/src/
 - Si la validación encuentra una `CourseAssigned` con `status: "active"` cuyo `Course` ya no existe en la base de datos (ya sea porque fue soft-deleted o porque fue eliminado físicamente), la asignación se elimina físicamente antes de continuar la validación.
 - Este mecanismo actúa como purga automática de datos legacy y evita que el error 409 fantasma persista para registros huérfanos preexistentes.
 
+### D3.1 — Purga de asignaciones "fantasma" en `createAssignment` (directiva del Sponsor)
+
+**Contexto**: tras el hard-delete de D2, el Sponsor seguía sin poder reasignar un curso a un profesor cuya asignación había eliminado. Causa raíz: la BD contenía **asignaciones fantasma heredadas** — documentos `CourseAssigned` con `deletedAt != null` generados cuando el sistema aún hacía soft-delete. El índice único `{ professor }` creado originalmente **sin** `partialFilterExpression` sigue viendo a esos fantasmas y dispara `11000 duplicate key` al re-insertar; el bloque `catch` de `createAssignment` convierte el `11000` en el mismo mensaje `409 "Este profesor ya tiene un curso activo asignado"`, indistinguible de la regla de negocio legítima. La validación de servicio no los detecta porque filtra `deletedAt: null`.
+
+**Decisión**: el Sponsor ordenó explícitamente «romper la regla» que impide liberar al profesor y «borrar de la BD». Se añade una **purga defensiva** en `createAssignment`, inmediatamente después de `validateProfessorUniqueActive(professor)` y antes de insertar:
+
+```ts
+await CourseAssigned.deleteMany({ professor, deletedAt: { $ne: null } });
+```
+
+**Ámbito estricto de la purga**:
+- Se eliminan SOLO las asignaciones **fantasma** (`deletedAt != null`), invisibles en todos los listados (que filtran `deletedAt: null`) y sin valor de negocio residual.
+- NO se tocan las asignaciones `active` con `deletedAt: null` (las sigue controlando `validateProfessorUniqueActive`).
+- NO se tocan las asignaciones `completed` con `deletedAt: null` (historial vigente mostrado en el tab "Historial").
+
+**Efecto**: el profesor queda libre de inmediato en su próxima asignación, los fantasmas legacy desaparecen físicamente de la BD y un índice unique legacy sin `partialFilterExpression` ya no tiene contra qué colisionar. Esta purga complementa (no reemplaza) la corrección del índice pendiente del `database-engineer` (alinear la BD al `partialFilterExpression` ya declarado en `course-assigned.model.ts` vía `syncIndexes`).
+
+**No es una excepción al hard-delete**: es consistente con D2 (los registros遗留 se eliminan físicamente, no se soft-deletan de nuevo). El campo `deletedAt` permanece en el schema sólo por compatibilidad de lecturas; las nuevas operaciones de eliminación no lo setean.
+
 ### D4 — Requisito de transacción (recomendado)
 
 Dado que la operación afecta múltiples colecciones (`CourseAssigned`, `ClassSession`, `Course`), se recomienda envolverla en `session.withTransaction` cuando el volumen de asignaciones/sesiones lo justifique. Hoy la implementación puede ejecutar las operaciones sin transacción explícita, pero el `database-engineer` debe evaluar si el escenario de producción requiere garantía atómica.

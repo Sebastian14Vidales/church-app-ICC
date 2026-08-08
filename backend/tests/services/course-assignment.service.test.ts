@@ -43,6 +43,7 @@ vi.mock("../../src/models/course-assigned.model", () => {
     countDocuments: vi.fn(),
     create: vi.fn(),
     deleteOne: vi.fn(),
+    deleteMany: vi.fn(),
   };
   return { default: courseAssignedModel };
 });
@@ -100,6 +101,7 @@ const assignedCountDocuments =
   CourseAssigned.countDocuments as unknown as ReturnType<typeof vi.fn>;
 const assignedCreate = CourseAssigned.create as unknown as ReturnType<typeof vi.fn>;
 const assignedDeleteOne = CourseAssigned.deleteOne as unknown as ReturnType<typeof vi.fn>;
+const assignedDeleteMany = CourseAssigned.deleteMany as unknown as ReturnType<typeof vi.fn>;
 
 const courseFindOne = Course.findOne as unknown as ReturnType<typeof vi.fn>;
 const classSessionCountDocuments =
@@ -226,6 +228,7 @@ const resetMocks = () => {
   assignedCountDocuments.mockReset();
   assignedCreate.mockReset();
   assignedDeleteOne.mockReset();
+  assignedDeleteMany.mockReset();
   courseFindOne.mockReset();
   classSessionCountDocuments.mockReset();
   classSessionUpdateMany.mockReset();
@@ -380,12 +383,17 @@ describe("course-assignment.service — createAssignment", () => {
     userProfileFindById.mockReturnValueOnce(chainableWith(buildProfessorProfile()));
     // validateProfessorUniqueActive: no hay otra activa
     assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
     assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
     const populated = buildPopulatedAssignment();
     assignedFindById.mockReturnValueOnce(chainableWith(populated));
 
     const result = await createAssignment(buildBody());
 
+    expect(assignedDeleteMany).toHaveBeenCalledWith({
+      professor: VALID_PROFESSOR_ID,
+      deletedAt: { $ne: null },
+    });
     expect(assignedCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         course: VALID_COURSE_ID,
@@ -399,6 +407,44 @@ describe("course-assignment.service — createAssignment", () => {
     expect(realtimeMock).toHaveBeenCalledWith(
       "courseAssignments.changed",
       expect.any(Array),
+    );
+  });
+
+  it("purga asignaciones fantasma del profesor antes de insertar (ADR-0009 §D3)", async () => {
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(chainableWith(buildProfessorProfile()));
+    assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 2 });
+    assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
+    assignedFindById.mockReturnValueOnce(chainableWith(buildPopulatedAssignment()));
+
+    await createAssignment(buildBody());
+
+    expect(assignedDeleteMany).toHaveBeenCalledTimes(1);
+    expect(assignedDeleteMany).toHaveBeenCalledWith({
+      professor: VALID_PROFESSOR_ID,
+      deletedAt: { $ne: null },
+    });
+    expect(assignedCreate).toHaveBeenCalled();
+  });
+
+  it("NO purga asignaciones completadas vigentes (deletedAt: null)", async () => {
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(chainableWith(buildProfessorProfile()));
+    assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
+    assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
+    assignedFindById.mockReturnValueOnce(chainableWith(buildPopulatedAssignment()));
+
+    await createAssignment(buildBody());
+
+    // El filtro de purga exige deletedAt != null, por lo que el historial
+    // completed con deletedAt: null nunca se ve afectado.
+    expect(assignedDeleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ deletedAt: { $ne: null } }),
+    );
+    expect(assignedDeleteMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ deletedAt: null }),
     );
   });
 
@@ -441,6 +487,7 @@ describe("course-assignment.service — createAssignment", () => {
       ),
     );
     assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
     assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
     assignedFindById.mockReturnValueOnce(chainableWith(buildPopulatedAssignment()));
 
@@ -463,6 +510,7 @@ describe("course-assignment.service — createAssignment", () => {
     courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
     userProfileFindById.mockReturnValueOnce(chainableWith(buildProfessorProfile()));
     assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
     const duplicateError: NodeJS.ErrnoException = Object.assign(new Error("dup"), {
       code: 11000,
     });
@@ -478,6 +526,7 @@ describe("course-assignment.service — createAssignment", () => {
     courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
     userProfileFindById.mockReturnValueOnce(chainableWith(buildProfessorProfile()));
     assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
     assignedCreate.mockRejectedValue(new Error("boom"));
 
     await expect(createAssignment(buildBody())).rejects.toThrow("boom");

@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { parseDate } from "@internationalized/date";
+import { parseDate, today, getLocalTimeZone } from "@internationalized/date";
 import {
   BadgeDollarSign,
   CalendarDays,
@@ -174,6 +174,23 @@ export default function Events() {
 
   const eventForm = useForm<EventFormData>({ defaultValues: initialEventValues });
   const registrationForm = useForm<EventRegistrationFormData>({ defaultValues: initialRegistrationValues });
+
+  const dateValue = useWatch({ control: eventForm.control, name: "date" }) as string;
+  const registrationDeadlineValue = useWatch({ control: eventForm.control, name: "registrationDeadline" }) as string;
+
+  useEffect(() => {
+    if (!registrationDeadlineValue) return;
+
+    const todayDate = today(getLocalTimeZone());
+    const deadlineDate = parseDate(registrationDeadlineValue);
+
+    if (
+      deadlineDate.toString() < todayDate.toString() ||
+      (dateValue && deadlineDate.toString() > dateValue)
+    ) {
+      eventForm.setValue("registrationDeadline", "");
+    }
+  }, [dateValue, registrationDeadlineValue, eventForm]);
 
   const { data: upcomingEvents = [], isLoading: isLoadingUpcoming } = useQuery({
     queryKey: ["events", "upcoming"],
@@ -696,7 +713,7 @@ export default function Events() {
                     control={eventForm.control}
                     rules={{ required: true }}
                     render={({ field }) => (
-                      <DatePicker value={field.value ? parseDate(field.value) : null} onChange={(value) => field.onChange(value ? value.toString() : "")} />
+                      <DatePicker value={field.value ? parseDate(field.value) : null} onChange={(value) => field.onChange(value ? value.toString() : "")} minValue={today(getLocalTimeZone())} />
                     )}
                   />
                 </div>
@@ -732,7 +749,7 @@ export default function Events() {
                   name="registrationDeadline"
                   control={eventForm.control}
                   render={({ field }) => (
-                    <DatePicker value={field.value ? parseDate(field.value) : null} onChange={(value) => field.onChange(value ? value.toString() : "")} />
+                    <DatePicker value={field.value ? parseDate(field.value) : null} onChange={(value) => field.onChange(value ? value.toString() : "")} minValue={today(getLocalTimeZone())} maxValue={dateValue ? parseDate(dateValue) : null} />
                   )}
                 />
               </div>

@@ -173,6 +173,10 @@ export type CreateAssignmentBody = {
 /**
  * Crea una `CourseAssigned` tras validar existencia del `Course` (no soft-deleted),
  * existencia y rol "Profesor" del `UserProfile`, y unicidad de profesor activo.
+ *
+ * Incluye una purga defensiva de asignaciones "fantasma" (soft-deleted) para
+ * el profesor antes de insertar, liberando al profesor de documentos legacy
+ * que aún bloquean por un índice unique sin `partialFilterExpression`.
  * Emite realtime `courseAssignments.changed`.
  */
 export const createAssignment = async (body: CreateAssignmentBody) => {
@@ -202,6 +206,13 @@ export const createAssignment = async (body: CreateAssignmentBody) => {
   }
 
   await validateProfessorUniqueActive(professor);
+
+  // Purga defensiva de asignaciones fantasma (soft-deleted) del profesor.
+  // ADR-0009 §D2/D3 + directiva del Sponsor: al eliminar una asignación el
+  // profesor debe quedar libre completamente, incluso si en la BD legacy
+  // quedaron documentos `CourseAssigned` con `deletedAt != null` que un índice
+  // unique sin partialFilterExpression seguiría viendo como duplicados.
+  await CourseAssigned.deleteMany({ professor, deletedAt: { $ne: null } });
 
   const computedEndDate = calculateEndDate(startDate, Number(totalClasses));
 
