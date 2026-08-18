@@ -16,7 +16,7 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import type { Swiper as SwiperType } from "swiper";
 import { Button } from "@heroui/react";
 import { Autoplay } from "swiper/modules";
@@ -46,6 +46,10 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat("es-CO", {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const isLiderOnly =
+    user?.roles.includes("Lider") &&
+    !user.roles.some((role) => ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"].includes(role));
+
   const isSupervisorOnly =
     user?.roles.includes("Supervisor") &&
     !user.roles.some((role) => ["Admin", "Superadmin", "Profesor", "Pastor"].includes(role));
@@ -112,15 +116,22 @@ const { data: coursesData } = useQuery({
   const roleDistribution = Object.entries(roleSummary).sort((left, right) => right[1] - left[1]);
 
   const eventInsights = useMemo(() => {
-    const sortedEvents = [...events].sort(
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const currentEvents = events.filter(
+      (event) => parseStoredDate(event.date).getTime() >= today.getTime(),
+    );
+
+    const sortedEvents = currentEvents.sort(
       (left, right) => parseStoredDate(left.date).getTime() - parseStoredDate(right.date).getTime(),
     );
 
     return {
       carouselEvents: sortedEvents,
-      totalCollected: events.reduce((sum, event) => sum + event.summary.paidTotal, 0),
-      totalPending: events.reduce((sum, event) => sum + event.summary.pendingTotal, 0),
-      totalRegistrations: events.reduce((sum, event) => sum + event.summary.registeredCount, 0),
+      totalCollected: currentEvents.reduce((sum, event) => sum + event.summary.paidTotal, 0),
+      totalPending: currentEvents.reduce((sum, event) => sum + event.summary.pendingTotal, 0),
+      totalRegistrations: currentEvents.reduce((sum, event) => sum + event.summary.registeredCount, 0),
     };
   }, [events]);
 
@@ -170,6 +181,9 @@ const { data: coursesData } = useQuery({
     },
   ];
 
+  if (isLiderOnly) {
+    return <Navigate to={PATHS.myLifeGroup} replace />;
+  }
 
   if (isSupervisorOnly) {
     const membersInCoverage = members.filter((member) =>
@@ -483,40 +497,40 @@ const { data: coursesData } = useQuery({
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Eventos</p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">Recaudo y ocupación</h2>
+        {eventInsights.carouselEvents.length > 0 && (
+          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Eventos</p>
+                <h2 className="mt-2 text-2xl font-bold text-slate-900">Recaudo y ocupación</h2>
+              </div>
+              <Link to={PATHS.events} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                Ir a eventos
+              </Link>
             </div>
-            <Link to={PATHS.events} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
-              Ir a eventos
-            </Link>
-          </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Inscritos</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {activeDashboardEvent?.summary.registeredCount ?? 0}
-              </p>
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Inscritos</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  {activeDashboardEvent?.summary.registeredCount ?? 0}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Recaudado</p>
+                <p className="mt-2 text-lg font-bold text-slate-900">
+                  {CURRENCY_FORMATTER.format(activeDashboardEvent?.summary.paidTotal ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Pendiente</p>
+                <p className="mt-2 text-lg font-bold text-rose-600">
+                  {CURRENCY_FORMATTER.format(activeDashboardEvent?.summary.pendingTotal ?? 0)}
+                </p>
+              </div>
             </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Recaudado</p>
-              <p className="mt-2 text-lg font-bold text-slate-900">
-                {CURRENCY_FORMATTER.format(activeDashboardEvent?.summary.paidTotal ?? 0)}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Pendiente</p>
-              <p className="mt-2 text-lg font-bold text-rose-600">
-                {CURRENCY_FORMATTER.format(activeDashboardEvent?.summary.pendingTotal ?? 0)}
-              </p>
-            </div>
-          </div>
 
-          <div className="mt-6 space-y-4">
-            {eventInsights.carouselEvents.length ? (
+            <div className="mt-6 space-y-4">
               <Swiper
                 modules={[Autoplay]}
                 spaceBetween={16}
@@ -561,11 +575,9 @@ const { data: coursesData } = useQuery({
                   </SwiperSlide>
                 ))}
               </Swiper>
-            ) : (
-              <p className="text-sm text-slate-500">Aún no hay eventos próximos registrados.</p>
-            )}
-          </div>
-        </article>
+            </div>
+          </article>
+        )}
 
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
           <div className="flex items-center justify-between gap-3">

@@ -3,6 +3,8 @@ import UserProfile from "../models/user-profile.model";
 import Role, { type IRole } from "../models/role.model";
 import User from "../models/user.model";
 import { sendConfirmationEmail } from "../services/access-email.service";
+import { AppError, handleControllerError } from "../services/app-error";
+import { processBulkImport } from "../services/member-bulk-import.service";
 import { emitRealtimeInvalidation } from "../realtime/socket";
 import { AuthenticatedRequest } from "../types/auth";
 import {
@@ -15,6 +17,10 @@ import {
   normalizeEmail,
 } from "../utils/auth.utils";
 import CourseAssigned from "../models/course-assigned.model";
+
+interface AuthenticatedRequestWithFile extends AuthenticatedRequest {
+  file?: Express.Multer.File;
+}
 
 const sendAccountConfirmation = async (email: string, name: string, userId: string) => {
   const confirmationToken = await createConfirmationToken(userId, email);
@@ -196,6 +202,23 @@ export class UserProfileController {
         message: "Error al crear el perfil",
         error: error instanceof Error ? error.message : error,
       });
+    }
+  };
+
+  static bulkCreate = async (req: AuthenticatedRequestWithFile, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Debes adjuntar un archivo .xlsx" });
+      }
+
+      const result = await processBulkImport(req.file.buffer);
+      return res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.status).json({ message: error.message });
+      }
+
+      return handleControllerError(res, error, "Error al procesar el archivo");
     }
   };
 

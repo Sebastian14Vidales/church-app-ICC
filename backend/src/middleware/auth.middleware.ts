@@ -24,10 +24,9 @@ export const authenticate = async (
 
     req.auth = await verifySessionToken(token);
     return next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({
       message: "La sesión es inválida o expiró",
-      error: error instanceof Error ? error.message : error,
     });
   }
 };

@@ -108,6 +108,7 @@ export const memberRoleSchema = z.enum([
     "Profesor",
     "Pastor",
     "Supervisor",
+    "Lider",
     "Admin",
     "Superadmin",
 ])
@@ -379,28 +380,50 @@ export const messageResponseSchema = z.object({
     message: z.string(),
 })
 
+export const lifeGroupMemberSchema = memberSchema.pick({
+    _id: true,
+    firstName: true,
+    lastName: true,
+    documentID: true,
+    birthdate: true,
+    neighborhood: true,
+    phoneNumber: true,
+    bloodType: true,
+    baptized: true,
+    servesInMinistry: true,
+    ministry: true,
+    ministryInterest: true,
+    spiritualGrowthStage: true,
+    role: true,
+    user: true,
+})
+
+export type LifeGroupMember = z.infer<typeof lifeGroupMemberSchema>
+
+export const lifeGroupTypeSchema = z.enum(["life-group", "couple-group"])
+export type LifeGroupType = z.infer<typeof lifeGroupTypeSchema>
+
+export const lifeGroupSessionSchema = z.object({
+    _id: z.string(),
+    date: z.string(),
+    weekNumber: z.number().int().positive(),
+    attendeesPresent: z.array(lifeGroupMemberSchema).default([]),
+    offeringAmount: z.number().nonnegative(),
+    notes: z.string().optional(),
+})
+
+export type LifeGroupSession = z.infer<typeof lifeGroupSessionSchema>
+
 export const lifeGroupSchema = z.object({
     _id: z.string(),
     name: z.string(),
     neighborhood: z.string(),
     address: z.string(),
-    supervisor: memberSchema.pick({
-        _id: true,
-        firstName: true,
-        lastName: true,
-        documentID: true,
-        birthdate: true,
-        neighborhood: true,
-        phoneNumber: true,
-        bloodType: true,
-        baptized: true,
-        servesInMinistry: true,
-        ministry: true,
-        ministryInterest: true,
-        spiritualGrowthStage: true,
-        role: true,
-        user: true,
-    }),
+    supervisor: lifeGroupMemberSchema,
+    leader: lifeGroupMemberSchema,
+    type: lifeGroupTypeSchema,
+    attendees: z.array(lifeGroupMemberSchema).default([]),
+    sessions: z.array(lifeGroupSessionSchema).default([]),
     createdAt: z.string().optional(),
     updatedAt: z.string().optional(),
 })
@@ -411,6 +434,29 @@ export const createLifeGroupResponseSchema = z.object({
     message: z.string(),
     lifeGroup: lifeGroupSchema,
 })
+
+const objectIdStringSchema = z.string().regex(/^[0-9a-fA-F]{24}$/)
+
+export const createLifeGroupFormDataSchema = z.object({
+    name: z.string().min(1),
+    neighborhood: z.string().min(1),
+    address: z.string().min(1),
+    leader: objectIdStringSchema,
+    type: lifeGroupTypeSchema,
+    attendees: z.array(objectIdStringSchema).default([]),
+    supervisor: objectIdStringSchema.optional(),
+})
+
+export type CreateLifeGroupFormData = z.infer<typeof createLifeGroupFormDataSchema>
+
+export const sessionFormDataSchema = z.object({
+    date: z.string().datetime(),
+    attendeesPresent: z.array(objectIdStringSchema).default([]),
+    offeringAmount: z.number().nonnegative(),
+    notes: z.string().optional(),
+})
+
+export type SessionFormData = z.infer<typeof sessionFormDataSchema>
 
 export const authUserSchema = z.object({
     id: z.string(),
@@ -445,6 +491,9 @@ export type LifeGroupFormData = {
     name: string
     neighborhood: string
     address: string
+    leader: string
+    type: LifeGroupType
+    attendees: string[]
 }
 export type MemberFormData = {
     firstName: string
@@ -464,3 +513,32 @@ export type MemberFormData = {
     profession?: string
     email?: string
 }
+
+// ============================================================================
+// Bulk import de miembros/asistentes desde Excel (EPC-MEMBERS-BULK-001)
+// Source of truth: docs/api/members-bulk-import.md. Do not deviate here.
+// ============================================================================
+
+/** Item individual de error reportado por el bulk import. */
+export const bulkImportErrorSchema = z.object({
+    row: z.number().int(),
+    documentID: z.string().nullable(),
+    firstName: z.string().nullable().optional(),
+    reason: z.string(),
+});
+export type BulkImportErrorItem = z.infer<typeof bulkImportErrorSchema>;
+
+/** Resultado completo de un bulk import de miembros/asistentes. */
+export const bulkImportResultSchema = z.object({
+    total: z.number().int().nonnegative(),
+    insertedCount: z.number().int().nonnegative(),
+    failedCount: z.number().int().nonnegative(),
+    inserted: z.array(z.object({
+        row: z.number().int(),
+        documentID: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+    })),
+    errors: z.array(bulkImportErrorSchema),
+});
+export type BulkImportResult = z.infer<typeof bulkImportResultSchema>;

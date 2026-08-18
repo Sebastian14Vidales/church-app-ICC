@@ -26,7 +26,7 @@ export class UserController {
 
       if (!isLoginEnabledRole(role.name)) {
         return res.status(400).json({
-          message: "Solo Admin, Superadmin, Profesor y Pastor pueden tener acceso al login",
+          message: "Este usuario no tiene un rol con acceso al login",
         });
       }
 

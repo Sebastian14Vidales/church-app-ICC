@@ -21,7 +21,9 @@ export default function Sidebar() {
     const isSupervisor = user?.roles.includes("Supervisor") ?? false
     const isAdmin = user?.roles.includes("Admin") || user?.roles.includes("Superadmin")
     const isProfessor = user?.roles.includes("Profesor") ?? false
-    const isPastor = user?.roles.includes("Pastor") ?? false
+    const isLider = user?.roles.includes("Lider") ?? false
+    const isLiderOnly =
+        isLider && !isAdmin && !isProfessor && !isSupervisor
 
     const baseNavigation = [
         { name: "Dashboard", href: PATHS.dashboard, icon: Home },
@@ -30,27 +32,32 @@ export default function Sidebar() {
 
     const navigationItems: Array<{ name: string; href: string; icon: any; disabled?: boolean }> = [...baseNavigation];
 
-    if (isSupervisor) {
-        navigationItems.push({ name: "Mi cobertura", href: PATHS.lifeGroups, icon: Heart })
-    }
+    if (isLiderOnly) {
+        navigationItems.length = 0
+        navigationItems.push({ name: "Mi grupo de vida", href: PATHS.myLifeGroup, icon: Heart })
+    } else {
+        if (isSupervisor) {
+            navigationItems.push({ name: "Mi cobertura", href: PATHS.lifeGroups, icon: Heart })
+        }
 
-    if (isProfessor) {
-        navigationItems.splice(1, 0, { name: "Mis cursos", href: PATHS.myCourses, icon: BookOpen });
-        navigationItems.splice(2, 0, { name: "Asistencias", href: PATHS.attendance, icon: ClipboardCheck });
-    }
+        if (isLider) {
+            navigationItems.push({ name: "Mi grupo de vida", href: PATHS.myLifeGroup, icon: Heart })
+        }
 
-    if (isPastor) {
-        navigationItems.push({ name: "Mis predicas", href: PATHS.mySermons, icon: BookOpen });
-    }
+        if (isProfessor) {
+            navigationItems.splice(1, 0, { name: "Mis cursos", href: PATHS.myCourses, icon: BookOpen });
+            navigationItems.splice(2, 0, { name: "Asistencias", href: PATHS.attendance, icon: ClipboardCheck });
+        }
 
-    if (isAdmin) {
-        navigationItems.push(
-            { name: "Cursos", href: PATHS.courses, icon: BookOpen },
-            { name: "Predicas", href: PATHS.sermons, icon: BookOpen },
-            { name: "Eventos", href: PATHS.events, icon: Calendar },
-            { name: "Ofrendas", href: PATHS.offerings, icon: DollarSign, disabled: true },
-            { name: "Reportes", href: PATHS.reports, icon: BarChart3 },
-        );
+        if (isAdmin) {
+            navigationItems.push(
+                { name: "Cursos", href: PATHS.courses, icon: BookOpen },
+                { name: "Predicas", href: "#", icon: BookOpen, disabled: true },
+                { name: "Eventos", href: PATHS.events, icon: Calendar },
+                { name: "Ofrendas", href: PATHS.offerings, icon: DollarSign, disabled: true },
+                { name: "Reportes", href: PATHS.reports, icon: BarChart3 },
+            );
+        }
     }
 
     const userInitials = getInitials(user?.name ?? "Usuario")

@@ -2,7 +2,6 @@ import Role from "../models/role.model";
 import User from "../models/user.model";
 import UserProfile from "../models/user-profile.model";
 import CourseAssigned from "../models/course-assigned.model";
-import Sermon from "../models/sermon.model";
 import bycrpt from "bcrypt";
 
 const CURRENT_ROLES = [
@@ -11,6 +10,7 @@ const CURRENT_ROLES = [
   "Profesor",
   "Pastor",
   "Supervisor",
+  "Lider",
   "Admin",
   "Superadmin",
 ] as const;
@@ -79,19 +79,12 @@ const repairOrphanedRoleReferences = async () => {
 };
 
 const syncAccessRolesFromLinkedRecords = async () => {
-  const [professorRole, pastorRole] = await Promise.all([
-    Role.findOne({ name: "Profesor" }),
-    Role.findOne({ name: "Pastor" }),
-  ]);
-
-  if (!professorRole || !pastorRole) {
+  const professorRole = await Role.findOne({ name: "Profesor" });
+  if (!professorRole) {
     return;
   }
 
-  const [professorProfileIds, pastorUserIds] = await Promise.all([
-    CourseAssigned.distinct("professor"),
-    Sermon.distinct("pastor"),
-  ]);
+  const professorProfileIds = await CourseAssigned.distinct("professor");
 
   if (professorProfileIds.length) {
     const professorProfiles = await UserProfile.find({
@@ -113,17 +106,6 @@ const syncAccessRolesFromLinkedRecords = async () => {
         { $set: { roles: [professorRole._id] } },
       );
     }
-  }
-
-  if (pastorUserIds.length) {
-    await User.updateMany(
-      { _id: { $in: pastorUserIds } },
-      { $set: { roles: [pastorRole._id] } },
-    );
-    await UserProfile.updateMany(
-      { user: { $in: pastorUserIds } },
-      { $set: { role: pastorRole._id } },
-    );
   }
 };
 

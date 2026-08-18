@@ -80,12 +80,12 @@ export const routes: RouteObject[] = [
             ],
           },
           {
-            element: <RequireAuth allowedRoles={["Pastor"]} />,
+            element: <RequireAuth allowedRoles={["Lider", "Admin", "Superadmin", "Supervisor"]} />,
             children: [
               {
-                path: PATHS.mySermons,
+                path: PATHS.myLifeGroup,
                 lazy: async () => ({
-                  Component: (await import("@/pages/MySermons")).default,
+                  Component: (await import("@/pages/life-groups/MyLifeGroup")).default,
                 }),
               },
             ],
@@ -97,12 +97,6 @@ export const routes: RouteObject[] = [
                 path: PATHS.courses,
                 lazy: async () => ({
                   Component: (await import("@/pages/courses/Courses")).default,
-                }),
-              },
-              {
-                path: PATHS.sermons,
-                lazy: async () => ({
-                  Component: (await import("@/pages/sermons/Sermons")).default,
                 }),
               },
               {

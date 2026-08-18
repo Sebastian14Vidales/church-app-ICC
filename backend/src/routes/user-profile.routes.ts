@@ -1,11 +1,13 @@
-﻿import { Router } from "express";
+﻿import { Router, Request, Response, NextFunction } from "express";
 import { body, param } from "express-validator";
 import { UserProfileController } from "../controller/user-profile.controller";
 import { authenticate, authorizeRoles } from "../middleware/auth.middleware";
+import { uploadExcel } from "../middleware/upload.middleware";
 import { handleInputErrors } from "../middleware/validation";
-import { MEMBER_MANAGER_ROLES } from "../utils/auth.utils";
+import { ADMIN_ROLES, MEMBER_MANAGER_ROLES } from "../utils/auth.utils";
+import { MulterError } from "multer";
 
-const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
+const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor", "Lider"];
 const MINISTRIES = [
   "Ministerio de Alabanza",
   "Ministerio de Danza (Niñas entre 7 y 14 años)",
@@ -51,6 +53,24 @@ router.use(authenticate);
 router.use(authorizeRoles(MEMBER_MANAGER_ROLES));
 
 router.get("/", UserProfileController.findAll);
+
+router.post(
+  "/bulk",
+  authorizeRoles(ADMIN_ROLES),
+  uploadExcel.single("file"),
+  (err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ message: "El archivo excede el límite de 5 MB" });
+    }
+
+    if (err instanceof Error) {
+      return res.status(400).json({ message: err.message });
+    }
+
+    next(err);
+  },
+  UserProfileController.bulkCreate,
+);
 
 router.post(
   "/",
@@ -109,7 +129,7 @@ router.post(
     .withMessage("Los roles deben ser un arreglo"),
   body("roleNames.*")
     .optional()
-    .isIn(["Asistente", "Miembro", "Profesor", "Pastor", "Supervisor", "Admin", "Superadmin"])
+    .isIn(["Asistente", "Miembro", "Profesor", "Pastor", "Supervisor", "Admin", "Superadmin", "Lider"])
     .withMessage("Uno o varios roles seleccionados no son válidos"),
   body("email")
     .optional()
@@ -194,7 +214,7 @@ router.put(
     .withMessage("Los roles deben ser un arreglo"),
   body("roleNames.*")
     .optional()
-    .isIn(["Asistente", "Miembro", "Profesor", "Pastor", "Supervisor", "Admin", "Superadmin"])
+    .isIn(["Asistente", "Miembro", "Profesor", "Pastor", "Supervisor", "Admin", "Superadmin", "Lider"])
     .withMessage("Uno o varios roles seleccionados no son válidos"),
   body("email")
     .optional()

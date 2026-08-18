@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import { jwtVerify, SignJWT } from "jose";
 import ActionToken from "../models/action-token.model";
 
-export const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
+export const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor", "Lider"];
 export const ADMIN_ROLES = ["Admin", "Superadmin"];
 export const SUPERADMIN_ROLES = ["Superadmin"];
 export const MEMBER_MANAGER_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];

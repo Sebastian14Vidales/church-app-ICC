@@ -11,7 +11,6 @@ import courseRoutes from "./routes/course.routes";
 import roleRoutes from "./routes/role.routes";
 import userRoutes from "./routes/user.routes";
 import userProfileRoutes from "./routes/user-profile.routes";
-import sermonRoutes from "./routes/sermon.routes";
 import lifeGroupRoutes from "./routes/life-group.routes";
 import eventRoutes from "./routes/event.routes";
 
@@ -80,7 +79,6 @@ app.use("/api/members", userProfileRoutes);
 app.use("/api/courses", courseAssignmentRoutes);
 app.use("/api/courses", attendanceRoutes);
 app.use("/api/courses", courseRoutes);
-app.use("/api/sermons", sermonRoutes);
 app.use("/api/life-groups", lifeGroupRoutes);
 app.use("/api/events", eventRoutes);
 

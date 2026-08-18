@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { spiritualGrowthStageSchema, type MemberFormData } from "@/types/index";
 
 
-const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
+const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor", "Lider"];
 const PROFESSION_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor"];
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 const BOOLEAN_OPTIONS = [

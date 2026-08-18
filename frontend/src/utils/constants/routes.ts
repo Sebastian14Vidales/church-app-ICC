@@ -7,7 +7,6 @@ export const PATHS = {
   confirmAccount: "/confirm-account",
   profile: "/profile",
   courses: "/courses",
-  sermons: "/predicas",
   myCourses: "/my-courses",
   myCoursesStudent: "/my-courses/student",
   attendance: "/attendance",
@@ -15,8 +14,8 @@ export const PATHS = {
   events: "/events",
   offerings: "/offerings",
   lifeGroups: "/life-groups",
+  myLifeGroup: "/mi-grupo-de-vida",
   reports: "/reports",
-  mySermons: "/mis-predicas",
 } as const;
 
 export default PATHS;

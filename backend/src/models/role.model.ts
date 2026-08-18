@@ -16,6 +16,7 @@ const roleSchema: Schema = new Schema(
         "Profesor",
         "Pastor",
         "Supervisor",
+        "Lider",
         "Admin",
         "Superadmin",
       ],

@@ -4,7 +4,6 @@ import {
   getEventsByStatus,
   getEventHistory,
   exportEventRegistrations,
-  type EventStatus,
 } from "./EventAPI";
 
 /**

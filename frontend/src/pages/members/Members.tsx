@@ -4,7 +4,10 @@ import {
     Award,
     Briefcase,
     Calendar,
+    CheckCircle2,
     Church,
+    FileSpreadsheet,
+    FileUp,
     Heart,
     HeartPulse,
     Mail,
@@ -13,16 +16,19 @@ import {
     Phone,
     Plus,
     Trash2,
+    XCircle,
 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
+import { useAuth } from "@/lib/auth";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import MemberFilters, { type MemberFiltersValue } from "@/components/dashboard/MemberFilters";
 import ModalView from "@/components/dashboard/ModalView";
 import MemberForm from "@/components/dashboard/MemberForm";
 import {
+    bulkImportMembers,
     createMember,
     deleteMember,
     getAllMembers,
@@ -30,6 +36,7 @@ import {
 } from "@/api/MemberAPI";
 import {
     spiritualGrowthStageSchema,
+    type BulkImportResult,
     type Member,
     type MemberFormData,
     type SpiritualGrowthStage,
@@ -105,11 +112,53 @@ const memberToFormData = (member: Member): MemberFormData => ({
     email: member.user?.email ?? "",
 });
 
+const ELEVATED_ROLES = ["Profesor", "Supervisor", "Pastor"] as const;
+
+const getVisibleRoleNames = (member: Member): string[] => {
+    const primaryRoleName = member.role.name;
+    const extraRoleNames = Array.from(
+        new Set(
+            (member.user?.roles?.map((role) => role.name) ?? []).filter(
+                (roleName) => roleName !== primaryRoleName,
+            ),
+        ),
+    );
+    const totalRoleNames = [primaryRoleName, ...extraRoleNames];
+    const hasElevatedRole = totalRoleNames.some((roleName) =>
+        ELEVATED_ROLES.some((elevatedRole) => elevatedRole === roleName),
+    );
+    const hideMiembro = Boolean(member.baptized) && hasElevatedRole;
+
+    return hideMiembro
+        ? totalRoleNames.filter((roleName) => roleName !== "Miembro")
+        : totalRoleNames;
+};
+
 export default function Members() {
     const [showMemberModal, setShowMemberModal] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const [filters, setFilters] = useState<MemberFiltersValue>(initialFilters);
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    const canBulkImport = (user?.roles.includes("Admin") || user?.roles.includes("Superadmin")) ?? false;
+
+    const [bulkModalOpen, setBulkModalOpen] = useState(false);
+    const [bulkFile, setBulkFile] = useState<File | null>(null);
+    const [bulkResult, setBulkResult] = useState<BulkImportResult | null>(null);
+
+    const bulkImportMutation = useMutation({
+        mutationFn: bulkImportMembers,
+        onSuccess: (result) => {
+            toast.success(
+                `Importacion completada: ${result.insertedCount} insertados, ${result.failedCount} con error`,
+            );
+            setBulkResult(result);
+            queryClient.invalidateQueries({ queryKey: ["members"] });
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || "No se pudo procesar el archivo");
+        },
+    });
     const {
         register,
         handleSubmit,
@@ -152,6 +201,28 @@ export default function Members() {
         reset(initialValues);
     };
 
+    const handleSelectFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+        setBulkFile(file);
+        setBulkResult(null);
+    };
+
+    const handleBulkImport = () => {
+        if (!bulkFile) {
+            toast.error("Selecciona un archivo .xlsx primero");
+            return;
+        }
+        bulkImportMutation.reset();
+        bulkImportMutation.mutate(bulkFile);
+    };
+
+    const closeBulkModal = () => {
+        setBulkModalOpen(false);
+        setBulkFile(null);
+        setBulkResult(null);
+        bulkImportMutation.reset();
+    };
+
     const createMutation = useMutation({
         mutationFn: createMember,
         onSuccess: (data) => {
@@ -189,7 +260,7 @@ export default function Members() {
     });
 
     useEffect(() => {
-        const rolesWithAccess = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor"];
+        const rolesWithAccess = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor", "Lider"];
         const selectedRoles = roleNames || [];
 
         if (!selectedRoles.some((role) => rolesWithAccess.includes(role))) {
@@ -272,13 +343,28 @@ export default function Members() {
                     <h1 className="text-2xl font-bold text-gray-900">Gestion de Miembros</h1>
                     <p className="text-gray-600">Administra los miembros y roles de la iglesia</p>
                 </div>
-                <Button
-                    onPress={handleCreateMember}
-                    className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-                >
-                    <Plus className="mr-2 h-5 w-5" />
-                    Nuevo Miembro
-                </Button>
+                <div className="flex gap-2">
+                    {canBulkImport && (
+                        <Button
+                            onPress={() => {
+                                setBulkFile(null);
+                                setBulkResult(null);
+                                setBulkModalOpen(true);
+                            }}
+                            className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-white transition-colors hover:bg-emerald-700"
+                            startContent={<FileUp className="h-5 w-5" />}
+                        >
+                            Cargar miembros
+                        </Button>
+                    )}
+                    <Button
+                        onPress={handleCreateMember}
+                        className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                    >
+                        <Plus className="mr-2 h-5 w-5" />
+                        Nuevo Miembro
+                    </Button>
+                </div>
             </div>
 
             <MemberFilters
@@ -320,6 +406,183 @@ export default function Members() {
                 </form>
             </ModalView>
 
+            <ModalView
+                isOpen={bulkModalOpen}
+                onClose={closeBulkModal}
+                title="Cargar miembros desde Excel"
+                size="4xl"
+                scrollBehavior="inside"
+            >
+                {!bulkResult ? (
+                    <div className="space-y-4">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div className="mb-3 flex items-center gap-2 text-slate-700">
+                                <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+                                <span className="font-medium">Selecciona un archivo Excel (.xlsx)</span>
+                            </div>
+                            <input
+                                type="file"
+                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                onChange={handleSelectFile}
+                                aria-label="Selecciona archivo .xlsx"
+                                className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:font-semibold hover:file:bg-slate-200"
+                            />
+                            {bulkFile && (
+                                <p className="mt-2 text-sm text-slate-600">
+                                    Archivo seleccionado: <span className="font-medium">{bulkFile.name}</span>
+                                </p>
+                            )}
+                        </div>
+
+                        <details className="rounded-lg border border-slate-200 bg-white p-3">
+                            <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                                Formato esperado del Excel
+                            </summary>
+                            <p className="mt-2 text-sm text-slate-600">
+                                La primera fila debe contener exactamente estas cabeceras:
+                            </p>
+                            <ul className="mt-2 list-inside list-disc text-sm text-slate-600">
+                                <li>Nombre</li>
+                                <li>Apellidos</li>
+                                <li>Documento</li>
+                                <li>Fecha de nacimiento</li>
+                                <li>Barrio</li>
+                                <li>Telefono</li>
+                                <li>Tipo de sangre</li>
+                                <li>Sirve en un ministerio</li>
+                                <li>Ministerio en el que sirve</li>
+                                <li>Ministerio de interes</li>
+                                <li>Ruta de crecimiento espiritual</li>
+                                <li>Encuentro y Reencuentro</li>
+                            </ul>
+                        </details>
+
+                        {bulkImportMutation.isError && (
+                            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                {bulkImportMutation.error?.message || "No se pudo procesar el archivo"}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                onPress={closeBulkModal}
+                                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onPress={handleBulkImport}
+                                isLoading={bulkImportMutation.isPending}
+                                isDisabled={!bulkFile || bulkImportMutation.isPending}
+                                className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <FileUp className="mr-2 h-4 w-4" />
+                                Importar
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-5">
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
+                                <p className="text-xs text-slate-500">Total</p>
+                                <p className="text-2xl font-bold text-slate-800">{bulkResult.total}</p>
+                            </div>
+                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
+                                <p className="text-xs text-emerald-700">Insertados</p>
+                                <p className="text-2xl font-bold text-emerald-700">{bulkResult.insertedCount}</p>
+                            </div>
+                            <div
+                                className={`rounded-lg border p-3 text-center ${
+                                    bulkResult.failedCount > 0
+                                        ? "border-red-200 bg-red-50"
+                                        : "border-slate-200 bg-white"
+                                }`}
+                            >
+                                <p className={`text-xs ${bulkResult.failedCount > 0 ? "text-red-700" : "text-slate-500"}`}>
+                                    Errores
+                                </p>
+                                <p
+                                    className={`text-2xl font-bold ${
+                                        bulkResult.failedCount > 0 ? "text-red-700" : "text-slate-800"
+                                    }`}
+                                >
+                                    {bulkResult.failedCount}
+                                </p>
+                            </div>
+                        </div>
+
+                        {bulkResult.inserted.length > 0 && (
+                            <div>
+                                <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Insertados correctamente
+                                </h4>
+                                <ul className="max-h-48 divide-y divide-slate-100 overflow-auto rounded-lg border border-slate-200 bg-white">
+                                    {bulkResult.inserted.map((item) => (
+                                        <li key={item.row} className="flex items-center justify-between px-3 py-2 text-sm">
+                                            <span className="font-medium text-slate-800">
+                                                {item.firstName} {item.lastName}
+                                            </span>
+                                            <span className="text-slate-500">Fila {item.row} · CC {item.documentID}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {bulkResult.errors.length > 0 && (
+                            <div>
+                                <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-700">
+                                    <XCircle className="h-4 w-4" />
+                                    Errores de importacion
+                                </h4>
+                                <div className="max-h-64 overflow-auto rounded-lg border border-red-200">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="sticky top-0 bg-red-50 text-xs uppercase text-red-800">
+                                            <tr>
+                                                <th className="px-3 py-2">Fila</th>
+                                                <th className="px-3 py-2">Documento</th>
+                                                <th className="px-3 py-2">Nombre</th>
+                                                <th className="px-3 py-2">Motivo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-red-100 bg-white">
+                                            {bulkResult.errors.map((error, index) => (
+                                                <tr key={`${error.row}-${index}`}>
+                                                    <td className="px-3 py-2 text-slate-600">{error.row}</td>
+                                                    <td className="px-3 py-2 text-slate-600">{error.documentID ?? "—"}</td>
+                                                    <td className="px-3 py-2 text-slate-600">{error.firstName ?? "—"}</td>
+                                                    <td className="px-3 py-2 text-red-700">{error.reason}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                onPress={() => {
+                                    setBulkFile(null);
+                                    setBulkResult(null);
+                                }}
+                                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                            >
+                                Importar otro archivo
+                            </Button>
+                            <Button
+                                onPress={closeBulkModal}
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                            >
+                                Cerrar
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </ModalView>
+
             {filteredMembers.length ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                     {filteredMembers.map((member) => (
@@ -334,23 +597,14 @@ export default function Members() {
                                             {formatFullName(member.firstName, member.lastName)}
                                         </h3>
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <p
-                                                className={`inline-block rounded-full px-2 py-0.5 text-xs ${roleColors[member.role.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}
-                                            >
-                                                {roleLabels[member.role.name as keyof typeof roleLabels] ?? member.role.name}
-                                            </p>
-                                            {member.user?.roles?.length ? (
-                                                member.user.roles
-                                                    .filter((role) => role.name !== member.role.name)
-                                                    .map((extraRole) => (
-                                                        <p
-                                                            key={extraRole._id}
-                                                            className={`inline-block rounded-full px-2 py-0.5 text-xs ${roleColors[extraRole.name as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}
-                                                        >
-                                                            {roleLabels[extraRole.name as keyof typeof roleLabels] ?? extraRole.name}
-                                                        </p>
-                                                    ))
-                                            ) : null}
+                                            {getVisibleRoleNames(member).map((roleName) => (
+                                                <p
+                                                    key={roleName}
+                                                    className={`inline-block rounded-full px-2 py-0.5 text-xs ${roleColors[roleName as keyof typeof roleColors] ?? "bg-gray-100 text-gray-800"}`}
+                                                >
+                                                    {roleLabels[roleName as keyof typeof roleLabels] ?? roleName}
+                                                </p>
+                                            ))}
                                         </div>
                                     </div>
                                     <div className="flex min-h-5 items-center gap-2 text-sm text-gray-500">

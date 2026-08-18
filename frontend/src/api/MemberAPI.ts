@@ -1,11 +1,13 @@
 import axios from "axios";
 import api from "@/lib/axios";
 import {
+    bulkImportResultSchema,
     createMemberResponseSchema,
     memberSchema,
     membersSchema,
     messageResponseSchema,
     rolesSchema,
+    type BulkImportResult,
     type Member,
     type MemberFormData,
     type Role,
@@ -136,4 +138,17 @@ export const getAllRoles = async (): Promise<Role[]> => {
     }
 
     throw new Error("Respuesta de roles invalida");
+};
+
+export const bulkImportMembers = async (file: File): Promise<BulkImportResult> => {
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const { data } = await api.post("/members/bulk", formData);
+        const parsed = bulkImportResultSchema.safeParse(data);
+        if (parsed.success) return parsed.data;
+        throw new Error("Respuesta de importacion masiva invalida");
+    } catch (error) {
+        throw new Error(getApiErrorMessage(error, "No se pudo procesar el archivo"));
+    }
 };
