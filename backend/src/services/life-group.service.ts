@@ -117,10 +117,14 @@ export type CreateLifeGroupBody = {
 export const createLifeGroup = async (body: CreateLifeGroupBody, context: CallerContext) => {
   const { name, neighborhood, address, leader, type, attendees, supervisor } = body;
   const isAdmin = isAdminOrSuperadmin(context.roles);
-  const supervisorProfileId = isAdmin ? supervisor ?? context.profileId : context.profileId;
+  const supervisorProfileId = isAdmin ? supervisor : context.profileId;
 
   if (!supervisorProfileId) {
-    throw new AppError(400, "No se pudo determinar el supervisor responsable");
+    // ADR-0015 D1: Admin/Superadmin deben elegir supervisor; Supervisor se auto-asigna.
+    throw new AppError(
+      400,
+      isAdmin ? "Debes seleccionar el supervisor responsable" : "No se pudo determinar el supervisor responsable",
+    );
   }
 
   await validateLeader(leader);

@@ -255,6 +255,23 @@ describe("life-group.routes — POST /api/life-groups", () => {
     const res = await request(app)
       .post("/api/life-groups")
       .set(authHeader(ADMIN_AUTH))
+      .send({ ...validBody, supervisor: VALID_ID });
+    expect(res.status).toBe(201);
+    expect(mockCreateLifeGroup).toHaveBeenCalled();
+  });
+
+  // ---- ADR-0015 D1: supervisor obligatorio para Admin ----
+  //
+  // NOTA: El caso "Admin SIN supervisor → 400" se testea en el servicio
+  // (life-group.service.test.ts). El smoke test mockea el servicio, que
+  // delega directamente al controller sin ejecutar la lógica de negocio.
+
+  it("Supervisor SIN supervisor → 201 (auto-asignación, ADR-0015 D1)", async () => {
+    mockCreateLifeGroup.mockResolvedValue({});
+    // El body no incluye supervisor: el service lo ignora y se auto-asigna
+    const res = await request(app)
+      .post("/api/life-groups")
+      .set(authHeader(SUPERVISOR_AUTH))
       .send(validBody);
     expect(res.status).toBe(201);
     expect(mockCreateLifeGroup).toHaveBeenCalled();
@@ -320,6 +337,18 @@ describe("life-group.routes — PATCH /api/life-groups/:id", () => {
       .patch(`/api/life-groups/${VALID_ID}`)
       .set(authHeader(ADMIN_AUTH))
       .send({ name: "Nuevo" });
+    expect(res.status).toBe(200);
+    expect(mockUpdateLifeGroup).toHaveBeenCalled();
+  });
+
+  // ---- ADR-0015: Admin puede reasignar supervisor ----
+
+  it("Admin puede reasignar supervisor → 200 (ADR-0015 sin cambios en PATCH)", async () => {
+    mockUpdateLifeGroup.mockResolvedValue({});
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH))
+      .send({ supervisor: VALID_ID });
     expect(res.status).toBe(200);
     expect(mockUpdateLifeGroup).toHaveBeenCalled();
   });
