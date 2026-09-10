@@ -188,8 +188,6 @@ export class UserProfileController {
         confirmationEmailSent: requiresAccess,
       });
     } catch (error) {
-      console.error("Error al crear el perfil:", error);
-
       if (createdProfileId) {
         await UserProfile.findByIdAndDelete(createdProfileId);
       }
@@ -209,33 +207,16 @@ export class UserProfileController {
   static bulkCreate = async (req: AuthenticatedRequestWithFile, res: Response) => {
     try {
       if (!req.file) {
-        console.error("[members.bulkCreate] archivo no recibido");
         return res.status(400).json({ message: "Debes adjuntar un archivo .xlsx o .csv" });
       }
 
-      console.log("[members.bulkCreate] archivo recibido", {
-        originalname: req.file.originalname,
-        mimetype: req.file.mimetype,
-        size: req.file.size,
-      });
-
       const result = await processBulkImport(req.file.buffer);
-      console.log("[members.bulkCreate] importacion completada", {
-        total: result.total,
-        insertedCount: result.insertedCount,
-        failedCount: result.failedCount,
-      });
       return res.status(200).json(result);
     } catch (error) {
       if (error instanceof AppError) {
-        console.error("[members.bulkCreate] error controlado", {
-          status: error.status,
-          message: error.message,
-        });
         return res.status(error.status).json({ message: error.message });
       }
 
-      console.error("[members.bulkCreate] error inesperado", error);
       return handleControllerError(res, error, "Error al procesar el archivo");
     }
   };
@@ -453,8 +434,6 @@ export class UserProfileController {
       emitRealtimeInvalidation("members.changed", MEMBER_QUERY_KEYS);
       res.status(200).json(updatedProfile);
     } catch (error) {
-      console.error("Error al actualizar perfil:", error);
-
       if (createdUserId) {
         await deleteUserTokens(createdUserId);
         await User.findByIdAndDelete(createdUserId);

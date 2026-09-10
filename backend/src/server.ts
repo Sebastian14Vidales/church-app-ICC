@@ -25,11 +25,10 @@ app.use(helmet());
 
 connectDB()
   .then(async () => {
-    console.log("Conectado a la base de datos");
     await seedDatabase();
   })
-  .catch((error) => {
-    console.error("Error al conectar a la base de datos:", error);
+  .catch(() => {
+    // El error de conexión ya es manejado por connectDB; no se expone al cliente.
   });
 
 app.use(
