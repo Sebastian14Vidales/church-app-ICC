@@ -3,10 +3,11 @@
 > **Estado**: Vigente (paso 3 del Plan de ejecución del ADR-0001).
 > **Autoridad**: `api-contract-engineer` (única fuente de verdad sobre la forma de los payloads).
 > **Fuentes**: `AGENTS.md` (§3, §4, §5, §8), `docs/adr/0001-courses-history-refactor.md`,
-> `docs/adr/0006-course-growth-mapping.md`, `docs/backlog/courses-history-refactor.md`
+> `docs/adr/0006-course-growth-mapping.md`, `docs/adr/0017-courses-attendance-export-close-hint.md`,
+> `docs/backlog/courses-history-refactor.md`
 > **Consumidores**: `database-engineer`, `backend-engineer`, `auth-security-engineer`,
 > `frontend-engineer`, `testing-engineer`, `quality-engineer`.
-> **Última revisión**: 2026-07-29
+> **Última revisión**: 2026-09-09
 
 Este documento **es la única especificación normativa** de los endpoints del módulo de Cursos
 tras el refactor. Cualquier divergencia entre este contrato y el código se considera drift y
@@ -215,6 +216,7 @@ Todos los endpoints de asignación devuelven este shape (con populate completo d
   "startDate": "2026-02-01T00:00:00.000Z",
   "startTime": "18:00",
   "totalClasses": 8,
+  "registeredSessions": 3,                  // NUEVO (ADR-0017 D2): sesiones de clase registradas (deletedAt: null)
   "endDate": "2026-03-22T00:00:00.000Z",   // fecha calendario calculada
   "endedAt": null,                          // NUEVO: instante real de cierre
   "location": "Sede Central - Salon 1",
@@ -226,6 +228,10 @@ Todos los endpoints de asignación devuelven este shape (con populate completo d
 ```
 
 El schema zod formal está en §5.2 (`courseAssignedSchema` ampliado).
+
+> **Nota sobre cierre sugerido (ADR-0017 D3)**: la UI muestra el badge "Listo para
+> finalizar" cuando `status === "active" && registeredSessions >= totalClasses`. El
+> cierre real continúa siendo manual vía `POST /api/courses/assignments/:id/close`.
 
 ### 2.1 `GET /api/courses/assignments` — Asignaciones vigentes
 
@@ -457,6 +463,42 @@ El schema zod formal está en §5.2 (`courseAssignedSchema` ampliado).
 
 > El botón UI "Reabrir" (solo en Historial del `Superadmin`) confirma con SweetAlert.
 
+### 2.10 `GET /api/courses/assignments/:id/attendance/export` — Exportar Excel de asistencia
+
+- **Roles**: `ADMIN_ROLES` siempre; `TEACHING_ROLES` (`["Profesor"]`) solo cuando el
+  profesor autenticado es el `professor` de **esa** asignación. Si un profesor intenta
+  exportar una asignación que no es la suya → `403 { message: "No tienes permisos para exportar la asistencia de este curso" }`.
+- **Path**: `id` MongoId.
+- **Respuesta 200** — Archivo `.xlsx` binario.
+  - `Content-Type`: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+  - `Content-Disposition`: `attachment; filename="asistencia-<curso>-<YYYYMMDD>.xlsx"`
+    (p. ej. `asistencia-fundamentos-de-la-fe-20260909.xlsx`).
+  - El frontend **no parsea JSON**; recibe el buffer/blob y dispara la descarga del navegador.
+- **Hoja "Asistencia"** — una fila por miembro inscrito, con columnas:
+  - `Nombre`
+  - `Apellidos`
+  - `Documento`
+  - `Etapa de crecimiento`
+  - `Clases presentes`
+  - `Clases registradas`
+  - `% asistencia`
+  - `Resultado` — `"Aprobó"` si el porcentaje de asistencia es `>= 70%`; `"No alcanzó el 70%"` en caso contrario (regla ADR-0006 D4).
+- **Cálculo de asistencia**: reutiliza la misma lógica del overview (`attendance.service`):
+  las clases no registradas cuentan como ausencia. `Clases registradas` es el número de
+  `ClassSession` con `deletedAt: null` vinculadas a la asignación.
+- **Asignación sin miembros**: exporta 200 con la hoja "Asistencia" conteniendo solo las
+  cabeceras (sin filas de datos).
+- **Errores**:
+  - `400 { errors: [...] }` — `id` no es un MongoId válido (respuesta de `handleInputErrors`).
+  - `403 { message: "No tienes permisos para exportar la asistencia de este curso" }`
+  - `404 { message: "Asignación no encontrada" }`
+  - `500 { message: "Error al generar el archivo de asistencia" }`
+
+> **Decisión de contrato**: la exportación sigue el patrón del módulo de Eventos
+> (`GET /api/events/:id/export/registrations`, ADR-0008). No se añade query param de
+> formato; siempre es `.xlsx`. Véase `docs/api/events-api.md` §1.5 como referencia
+> cruzada del mecanismo de descarga con `responseType: "blob"`.
+
 ---
 
 ## 3. Endpoints "my-courses" (datos del usuario autenticado)
@@ -623,6 +665,7 @@ export const courseAssignedSchema = z.object({
   startDate: z.string().datetime(),
   startTime: z.string(),
   totalClasses: z.number().int().nonnegative(),
+  registeredSessions: z.number().int().nonnegative().default(0), // NUEVO (ADR-0017 D2)
   endDate: z.string().datetime(),
   endedAt: z.string().datetime().nullable().default(null),     // NUEVO (ADR §D6)
   location: z.string(),
@@ -738,7 +781,14 @@ export const attendanceOverviewSchema = z.object({
   assignment: courseAssignedSchema.nullable(),
   sessions: z.array(classSessionSchema),
 });
+
+// Tipado de la exportación Excel (binaria; no se valida con zod)
+export type CourseAttendanceExport = Blob;
 ```
+
+> La descarga del Excel se dispara con `responseType: "blob"` en Axios. El cliente
+> devuelve el `Blob` y la UI inicia la descarga del navegador, siguiendo el mismo
+> patrón documentado en `docs/api/events-api.md` §1.5 / §2.4.
 
 ---
 
@@ -766,6 +816,7 @@ columna "Estado" indica el destino de las funciones legacy.
 | `updateCourseMembers(id, memberIds)`         | `POST /api/courses/assignments/:id/members`                         | `AssignmentMutationResponse`                 | Cambia verbo `patch`→`post`. Conserva nombre |
 | `closeCourseAssignment(id)`                  | `POST /api/courses/assignments/:id/close`                           | `MessageResponse`                            | **Renombra `closeMyCourseAssignment`; ruta cambia de `/my-courses/:id/close`** |
 | `reopenCourseAssignment(id, body?)`          | `POST /api/courses/assignments/:id/reopen`                          | `AssignmentMutationResponse`                | **NUEVO** |
+| `exportAttendanceExcel(assignmentId)`        | `GET /api/courses/assignments/:id/attendance/export`                | `Promise<Blob>`                              | **NUEVO** (ADR-0017 D1) |
 
 > Aliases `@deprecated` se conservan durante una iteración para no romper usos
 > transitorios; el `quality-engineer` los elimina al final de la épica (ADR §D9).

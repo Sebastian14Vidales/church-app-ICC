@@ -1,7 +1,9 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { useForm } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import { Button, Input, Select, SelectItem } from "@heroui/react";
-import { BadgePlus, BookOpenCheck, CalendarDays, History, MapPin, NotebookPen, Pencil, Timer, Trash2, UserRound } from "lucide-react";
+import { BadgePlus, BookOpenCheck, CalendarDays, FileSpreadsheet, History, MapPin, NotebookPen, Pencil, Timer, Trash2, UserRound } from "lucide-react";
 
 import ModalView from "@/components/dashboard/ModalView";
 import CourseForm from "@/components/dashboard/CourseForm";
@@ -9,6 +11,7 @@ import AssignCourseForm from "@/components/dashboard/AssignCourseForm";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import { useAuth } from "@/hooks/useAuth";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
+import { exportAttendanceExcel } from "@/api/CourseAPI";
 import {
     useActiveCourseAssignments,
     useAllCourses,
@@ -121,6 +124,17 @@ const emptyAssignmentForm: CourseAssignmentCreateBody = {
 
 const formatDate = (value: string) => parseStoredDate(value).toLocaleDateString("es-CO");
 
+const triggerFileDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+};
+
 export default function Courses() {
     const { user } = useAuth();
     const isSuperadmin = user?.roles.includes("Superadmin") ?? false;
@@ -171,6 +185,19 @@ export default function Courses() {
     const updateAssignmentMutation = useUpdateCourseAssignment();
     const deleteAssignmentMutation = useSoftDeleteCourseAssignment();
     const reopenMutation = useReopenCourseAssignment();
+
+    const exportAttendanceMutation = useMutation({
+        mutationFn: (assignmentId: string) => exportAttendanceExcel(assignmentId),
+        onSuccess: (blob, assignmentId) => {
+            const assignment = activeItems.find((item) => item._id === assignmentId);
+            const filename = assignment
+                ? `asistencia-${assignment.course.name}.xlsx`
+                : `asistencia-${assignmentId}.xlsx`;
+            triggerFileDownload(blob, filename);
+            toast.success("Descarga iniciada");
+        },
+        onError: (error: Error) => toast.error(error.message || "No se pudo descargar el archivo"),
+    });
 
     const courseForm = useForm<CourseFormData>({ defaultValues: emptyCourseForm });
     const assignmentForm = useForm<CourseAssignmentCreateBody>({ defaultValues: emptyAssignmentForm });
@@ -511,13 +538,24 @@ export default function Courses() {
                                             </h3>
                                             <p className="text-sm text-slate-500">{assignment.course.description}</p>
                                         </div>
-                                        <span
-                                            role="status"
-                                            aria-label={`Estado: ${COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}`}
-                                            className={`rounded-full px-3 py-1 text-xs font-semibold ${COURSE_STATUS_BADGE_STYLES[assignment.status] ?? ""}`}
-                                        >
-                                            {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}
-                                        </span>
+                                        <div className="flex flex-wrap justify-end gap-2">
+                                            <span
+                                                role="status"
+                                                aria-label={`Estado: ${COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}`}
+                                                className={`rounded-full px-3 py-1 text-xs font-semibold ${COURSE_STATUS_BADGE_STYLES[assignment.status] ?? ""}`}
+                                            >
+                                                {COURSE_STATUS_LABELS[assignment.status] ?? assignment.status}
+                                            </span>
+                                            {assignment.status === "active" && assignment.registeredSessions >= assignment.totalClasses ? (
+                                                <span
+                                                    role="status"
+                                                    aria-label="Listo para finalizar"
+                                                    className="rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-white"
+                                                >
+                                                    Listo para finalizar
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </div>
 
                                     <div className="mt-4 space-y-2 text-sm text-slate-700">
@@ -555,6 +593,15 @@ export default function Courses() {
                                             }
                                         >
                                             {isExpanded ? "Ocultar sesiones" : "Ver progreso de sesiones"}
+                                        </Button>
+                                        <Button
+                                            color="success"
+                                            variant="flat"
+                                            startContent={<FileSpreadsheet className="h-4 w-4" />}
+                                            isLoading={exportAttendanceMutation.isPending}
+                                            onPress={() => exportAttendanceMutation.mutate(assignment._id)}
+                                        >
+                                            Exportar Excel
                                         </Button>
                                         {isSuperadmin ? (
                                             <>

@@ -419,6 +419,15 @@ export default function MyCoursesProfessor() {
                                 >
                                     Cerrar curso
                                 </Button>
+                                {activeAssignment.registeredSessions >= activeAssignment.totalClasses ? (
+                                    <span
+                                        role="status"
+                                        aria-label="Listo para finalizar"
+                                        className="self-center rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-white"
+                                    >
+                                        Listo para finalizar
+                                    </span>
+                                ) : null}
                                 {!canClose ? (
                                     <p
                                         role="status"

@@ -70,6 +70,7 @@ vi.mock("../../src/services/course-assignment.service", () => {
       skip: vi.fn(() => self),
       limit: vi.fn(() => self),
       populate: vi.fn(() => self),
+      select: vi.fn(() => self),
       lean: vi.fn(() => self),
       exec: vi.fn(() => Promise.resolve(resolved)),
       then: <U>(onfulfilled: (value: unknown) => U | PromiseLike<U>) =>
@@ -77,14 +78,33 @@ vi.mock("../../src/services/course-assignment.service", () => {
     };
     return self;
   };
+  const toPlain = (value: unknown) => {
+    const candidate = value as { toObject?: () => unknown } | null;
+    return candidate && typeof candidate.toObject === "function"
+      ? candidate.toObject()
+      : value;
+  };
+
   return {
     addMembers: vi.fn(),
     buildAssignmentQuery: vi.fn(() => chain([{ _id: VALID_ID }])),
     buildMyProfessorAssignmentQuery: vi.fn(() => chain([{ _id: VALID_ID }])),
     buildMyStudentAssignmentQuery: vi.fn(() => chain([{ _id: VALID_ID }])),
     closeAssignment: vi.fn(),
+    countRegisteredSessions: vi.fn().mockResolvedValue(0),
     createAssignment: vi.fn(),
+    exportAttendanceExcel: vi.fn().mockResolvedValue({
+      buffer: Buffer.from([]),
+      filename: "asistencia-test-20260909.xlsx",
+    }),
     reopenAssignment: vi.fn(),
+    serializeCourseAssigned: vi.fn((assignment: unknown, registeredSessions: number) => ({
+      ...toPlain(assignment),
+      registeredSessions,
+    })),
+    serializeCourseAssignedArray: vi.fn().mockImplementation(async (assignments: unknown[]) =>
+      assignments.map((assignment) => ({ ...toPlain(assignment), registeredSessions: 0 })),
+    ),
     softDeleteAssignment: vi.fn(),
     updateAssignment: vi.fn(),
     attendancePopulate: { path: "attendance.student" },
@@ -108,7 +128,7 @@ vi.mock("../../src/models/course-assigned.model", () => {
 vi.mock("../../src/models/class-session.model", () => {
   const model = {
     find: vi.fn(),
-    countDocuments: vi.fn(),
+    countDocuments: vi.fn().mockResolvedValue(0),
     updateMany: vi.fn(),
     findOneAndUpdate: vi.fn(),
     populate: vi.fn((docs) => Promise.resolve(docs)),
@@ -126,6 +146,7 @@ import {
   buildMyStudentAssignmentQuery,
   closeAssignment as closeAssignmentService,
   createAssignment as createAssignmentService,
+  exportAttendanceExcel as exportAttendanceExcelService,
   reopenAssignment as reopenAssignmentService,
   softDeleteAssignment as softDeleteAssignmentService,
   updateAssignment as updateAssignmentService,
@@ -141,6 +162,7 @@ const chain = (resolved: unknown) => {
     skip: vi.fn(() => self),
     limit: vi.fn(() => self),
     populate: vi.fn(() => self),
+    select: vi.fn(() => self),
     lean: vi.fn(() => self),
     exec: vi.fn(() => Promise.resolve(resolved)),
     then: <U>(onfulfilled: (value: unknown) => U | PromiseLike<U>) =>
@@ -155,6 +177,8 @@ const assignedCountDocuments =
   CourseAssigned.countDocuments as unknown as ReturnType<typeof vi.fn>;
 const assignedFindOne = CourseAssigned.findOne as unknown as ReturnType<typeof vi.fn>;
 const classSessionFind = ClassSession.find as unknown as ReturnType<typeof vi.fn>;
+const classSessionCountDocuments =
+  ClassSession.countDocuments as unknown as ReturnType<typeof vi.fn>;
 
 const mockCreateAssignment = createAssignmentService as unknown as ReturnType<typeof vi.fn>;
 const mockUpdateAssignment = updateAssignmentService as unknown as ReturnType<typeof vi.fn>;
@@ -163,6 +187,8 @@ const mockSoftDeleteAssignment =
 const mockAddMembers = addMembersService as unknown as ReturnType<typeof vi.fn>;
 const mockCloseAssignment = closeAssignmentService as unknown as ReturnType<typeof vi.fn>;
 const mockReopenAssignment = reopenAssignmentService as unknown as ReturnType<typeof vi.fn>;
+const mockExportAttendanceExcel =
+  exportAttendanceExcelService as unknown as ReturnType<typeof vi.fn>;
 const mockBuildAssignmentQuery =
   buildAssignmentQuery as unknown as ReturnType<typeof vi.fn>;
 const mockBuildMyProfessorQuery =
@@ -272,12 +298,20 @@ const resetMocks = () => {
   assignedCountDocuments.mockReset();
   assignedFindOne.mockReset();
   classSessionFind.mockReset();
+  classSessionFind.mockReturnValue(chain([]));
+  classSessionCountDocuments.mockReset();
+  classSessionCountDocuments.mockResolvedValue(0);
   mockCreateAssignment.mockReset();
   mockUpdateAssignment.mockReset();
   mockSoftDeleteAssignment.mockReset();
   mockAddMembers.mockReset();
   mockCloseAssignment.mockReset();
   mockReopenAssignment.mockReset();
+  mockExportAttendanceExcel.mockReset();
+  mockExportAttendanceExcel.mockResolvedValue({
+    buffer: Buffer.from([]),
+    filename: "asistencia-test-20260909.xlsx",
+  });
   mockBuildAssignmentQuery.mockReset();
   mockBuildMyProfessorQuery.mockReset();
   mockBuildMyStudentQuery.mockReset();
@@ -963,13 +997,144 @@ describe("course-assignment.routes — my-courses", () => {
     expect(res.body).toEqual([]);
     expect(mockBuildMyProfessorQuery).not.toHaveBeenCalled();
   });
-
   it("GET /my-courses/history cuando el service lanza → 500 'Error al obtener tu historial de cursos'", async () => {
     mockBuildMyProfessorQuery.mockRejectedValueOnce(new Error("boom"));
+
     const res = await request(app)
       .get("/api/courses/my-courses/history")
       .set(authHeader(PROFESOR_AUTH));
     expect(res.status).toBe(500);
     expect(res.body.message).toBe("Error al obtener tu historial de cursos");
+  });
+});
+
+describe("course-assignment.routes — export attendance (ADR-0017 D1)", () => {
+  beforeEach(resetMocks);
+
+  it("GET /assignments/:id/attendance/export (Admin) → 200 with xlsx buffer and attachment header", async () => {
+    mockExportAttendanceExcel.mockResolvedValueOnce({
+      buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04]), // minimal zip/xlsx header
+      filename: "asistencia-fundamentos-20260909.xlsx",
+    });
+
+    const res = await request(app)
+      .get(`/api/courses/assignments/${VALID_ID}/attendance/export`)
+      .set(authHeader(ADMIN_AUTH))
+      .responseType("buffer");
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(res.headers["content-disposition"]).toContain("attachment; filename=");
+    expect(res.headers["content-disposition"]).toContain("asistencia-");
+    expect(res.body).toBeInstanceOf(Buffer);
+    expect(mockExportAttendanceExcel).toHaveBeenCalledWith(VALID_ID, {
+      callerProfileId: ADMIN_AUTH.profileId,
+      callerRoles: ADMIN_AUTH.roles,
+    });
+  });
+
+  it("GET /assignments/:id/attendance/export (Superadmin) → 200", async () => {
+    mockExportAttendanceExcel.mockResolvedValueOnce({
+      buffer: Buffer.from([]),
+      filename: "asistencia-test.xlsx",
+    });
+
+    const res = await request(app)
+      .get(`/api/courses/assignments/${VALID_ID}/attendance/export`)
+      .set(authHeader(SUPERADMIN_AUTH));
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+  });
+
+  it("GET /assignments/:id/attendance/export (Profesor dueño) → 200", async () => {
+    mockExportAttendanceExcel.mockResolvedValueOnce({
+      buffer: Buffer.from([]),
+      filename: "asistencia-prof.xlsx",
+    });
+
+    const res = await request(app)
+      .get(`/api/courses/assignments/${VALID_ID}/attendance/export`)
+      .set(authHeader(PROFESOR_AUTH));
+
+    expect(res.status).toBe(200);
+    expect(mockExportAttendanceExcel).toHaveBeenCalledWith(VALID_ID, {
+      callerProfileId: PROFESOR_AUTH.profileId,
+      callerRoles: PROFESOR_AUTH.roles,
+    });
+  });
+
+  it("GET /assignments/:id/attendance/export (Profesor NO dueño) → 403", async () => {
+    mockExportAttendanceExcel.mockRejectedValueOnce(
+      new AppError(403, "No tienes permisos para esta acción"),
+    );
+
+    const res = await request(app)
+      .get(`/api/courses/assignments/${OTHER_VALID_ID}/attendance/export`)
+      .set(authHeader(PROFESOR_AUTH));
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("No tienes permisos para esta acción");
+  });
+
+  it("GET /assignments/:id/attendance/export (id inexistente) → 404", async () => {
+    mockExportAttendanceExcel.mockRejectedValueOnce(
+      new AppError(404, "Asignacion no encontrada"),
+    );
+
+    const res = await request(app)
+      .get(`/api/courses/assignments/${VALID_ID}/attendance/export`)
+      .set(authHeader(ADMIN_AUTH));
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Asignacion no encontrada");
+  });
+
+  it("GET /assignments/:id/attendance/export without auth → 401", async () => {
+    const res = await request(app)
+      .get(`/api/courses/assignments/${VALID_ID}/attendance/export`)
+      .set(noAuthHeader());
+
+    expect(res.status).toBe(401);
+    expect(mockExportAttendanceExcel).not.toHaveBeenCalled();
+  });
+
+  it("GET /assignments/:id/attendance/export with invalid MongoId → 400 (validator)", async () => {
+    const res = await request(app)
+      .get(`/api/courses/assignments/${INVALID_ID}/attendance/export`)
+      .set(authHeader(ADMIN_AUTH));
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("errors");
+    expect(mockExportAttendanceExcel).not.toHaveBeenCalled();
+  });
+
+  it("GET /assignments/:id/attendance/export with Miembro role → 403 (not in TEACHING+Admin+Superadmin)", async () => {
+    const res = await request(app)
+      .get(`/api/courses/assignments/${VALID_ID}/attendance/export`)
+      .set(authHeader(MEMBER_AUTH));
+
+    expect(res.status).toBe(403);
+    expect(mockExportAttendanceExcel).not.toHaveBeenCalled();
+  });
+
+  it("filename follows pattern asistencia-<curso>-<YYYYMMDD>.xlsx", async () => {
+    mockExportAttendanceExcel.mockResolvedValueOnce({
+      buffer: Buffer.from([]),
+      filename: "asistencia-fundamentos_curso-20260909.xlsx",
+    });
+
+    const res = await request(app)
+      .get(`/api/courses/assignments/${VALID_ID}/attendance/export`)
+      .set(authHeader(ADMIN_AUTH));
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-disposition"]).toMatch(
+      /^attachment; filename="asistencia-.*-\d{8}\.xlsx"$/,
+    );
   });
 });

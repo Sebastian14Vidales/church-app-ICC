@@ -95,15 +95,11 @@ const syncAccessRolesFromLinkedRecords = async () => {
       .map((profile) => profile.user)
       .filter(Boolean);
 
-    await UserProfile.updateMany(
-      { _id: { $in: professorProfileIds } },
-      { $set: { role: professorRole._id } },
-    );
-
     if (professorUserIds.length) {
       await User.updateMany(
         { _id: { $in: professorUserIds } },
-        { $set: { roles: [professorRole._id] } },
+        // ADR-0016 D1: aditivo — garantiza el rol Profesor sin destruir los demás roles.
+        { $addToSet: { roles: professorRole._id } },
       );
     }
   }
@@ -145,9 +141,18 @@ export const seedDatabase = async () => {
   }
 
   const superadminRole = await Role.findOne({ name: "Superadmin" });
+  const superadminEmail = process.env.SUPERADMIN_EMAIL;
+  const superadminPassword = process.env.SUPERADMIN_PASSWORD;
+
+  if (!superadminEmail || !superadminPassword) {
+    console.warn(
+      "Bootstrap de superadmin omitido: define SUPERADMIN_EMAIL y SUPERADMIN_PASSWORD en el entorno",
+    );
+    return;
+  }
 
   await User.findOneAndUpdate(
-    { email: "vidales14sebastian@gmail.com" },
+    { email: superadminEmail },
     {
       $set: {
         name: "Superadmin",
@@ -156,8 +161,8 @@ export const seedDatabase = async () => {
         roles: superadminRole ? [superadminRole._id] : [],
       },
       $setOnInsert: {
-        email: "vidales14sebastian@gmail.com",
-        password: await bycrpt.hash("Superadmin1234", 10),
+        email: superadminEmail,
+        password: await bycrpt.hash(superadminPassword, 10),
       },
     },
     { upsert: true, new: true },

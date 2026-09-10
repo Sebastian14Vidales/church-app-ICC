@@ -23,6 +23,8 @@ consideradas y las consecuencias para el sistema.
 | [ADR-0013](0013-bulk-import-profession-date-formats.md) | Profesión opcional y tolerancia de formatos de fecha en el bulk import | Aceptado | 2026-09-07 |
 | [ADR-0014](0014-spiritual-growth-stage-ninguna.md) | Opción "Ninguna" en la ruta de crecimiento espiritual del perfil de miembro | Aceptado | 2026-09-09 |
 | [ADR-0015](0015-life-groups-supervisor-assignment.md) | Asignación explícita de supervisor en grupos de vida (fix de cobertura invisible) | Aceptado | 2026-09-09 |
+| [ADR-0016](0016-seed-non-destructive-roles.md) | Seed no destructivo para roles y bootstrap de superadmin sin credenciales hardcodeadas | Aceptado | 2026-09-09 |
+| [ADR-0017](0017-courses-attendance-export-close-hint.md) | Cursos: exportación Excel de asistencia y cierre sugerido | Aceptado | 2026-09-09 |
 
 ---
 

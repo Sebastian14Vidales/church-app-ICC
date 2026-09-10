@@ -9,8 +9,12 @@ import {
   buildMyProfessorAssignmentQuery,
   buildMyStudentAssignmentQuery,
   closeAssignment as closeAssignmentService,
+  countRegisteredSessions,
   createAssignment,
+  exportAttendanceExcel,
   reopenAssignment as reopenAssignmentService,
+  serializeCourseAssigned,
+  serializeCourseAssignedArray,
   softDeleteAssignment,
   updateAssignment,
   attendancePopulate,
@@ -82,7 +86,8 @@ export class CourseAssignmentController {
           .limit(limit),
       ]);
 
-      return res.status(200).json({ items, total, page, limit });
+      const serializedItems = await serializeCourseAssignedArray(items);
+      return res.status(200).json({ items: serializedItems, total, page, limit });
     } catch (error) {
       return handleControllerError(res, error, "Error al obtener asignaciones");
     }
@@ -116,7 +121,8 @@ export class CourseAssignmentController {
           .limit(limit),
       ]);
 
-      return res.status(200).json({ items, total, page, limit });
+      const serializedItems = await serializeCourseAssignedArray(items);
+      return res.status(200).json({ items: serializedItems, total, page, limit });
     } catch (error) {
       return handleControllerError(res, error, "Error al obtener el historial de asignaciones");
     }
@@ -180,8 +186,9 @@ export class CourseAssignmentController {
         },
       );
 
+      const registeredSessions = await countRegisteredSessions(String(assignment._id));
       return res.status(200).json({
-        ...assignment.toObject(),
+        ...serializeCourseAssigned(assignment, registeredSessions),
         sessions: consolidatedSessions,
       });
     } catch (error) {
@@ -197,9 +204,10 @@ export class CourseAssignmentController {
     try {
       const body = req.body as CreateAssignmentBody;
       const assignment = await createAssignment(body);
+      const registeredSessions = await countRegisteredSessions(String(assignment._id));
       return res.status(201).json({
         message: "Curso asignado correctamente",
-        assignment,
+        assignment: serializeCourseAssigned(assignment, registeredSessions),
       });
     } catch (error) {
       return handleControllerError(
@@ -219,9 +227,10 @@ export class CourseAssignmentController {
     const { id } = req.params;
     try {
       const assignment = await updateAssignment(id, req.body as UpdateAssignmentBody);
+      const registeredSessions = await countRegisteredSessions(String(assignment._id));
       return res.status(200).json({
         message: "Asignacion actualizada correctamente",
-        assignment,
+        assignment: serializeCourseAssigned(assignment, registeredSessions),
       });
     } catch (error) {
       return handleControllerError(
@@ -260,9 +269,10 @@ export class CourseAssignmentController {
         callerProfileId: req.auth?.profileId,
         callerRoles: req.auth?.roles ?? [],
       });
+      const registeredSessions = await countRegisteredSessions(String(assignment._id));
       return res.status(200).json({
         message: "Miembros registrados correctamente en el curso",
-        assignment,
+        assignment: serializeCourseAssigned(assignment, registeredSessions),
       });
     } catch (error) {
       return handleControllerError(res, error, "Error al actualizar los miembros del curso");
@@ -295,9 +305,10 @@ export class CourseAssignmentController {
     const body = (req.body ?? {}) as { totalClasses?: number };
     try {
       const assignment = await reopenAssignmentService(id, body);
+      const registeredSessions = await countRegisteredSessions(String(assignment._id));
       return res.status(200).json({
         message: "Curso reabierto correctamente",
-        assignment,
+        assignment: serializeCourseAssigned(assignment, registeredSessions),
       });
     } catch (error) {
       return handleControllerError(res, error, "Error al reabrir el curso");
@@ -321,7 +332,8 @@ export class CourseAssignmentController {
         ? await buildMyProfessorAssignmentQuery(profileId, filter)
         : await buildMyStudentAssignmentQuery(profileId, filter);
 
-      return res.status(200).json(assignments);
+      const serializedAssignments = await serializeCourseAssignedArray(assignments);
+      return res.status(200).json(serializedAssignments);
     } catch (error) {
       return handleControllerError(res, error, "Error al obtener tus cursos");
     }
@@ -345,9 +357,31 @@ export class CourseAssignmentController {
         : buildMyStudentAssignmentQuery(profileId, filter);
 
       const assignments = await query.sort({ endDate: -1 });
-      return res.status(200).json(assignments);
+      const serializedAssignments = await serializeCourseAssignedArray(assignments);
+      return res.status(200).json(serializedAssignments);
     } catch (error) {
       return handleControllerError(res, error, "Error al obtener tu historial de cursos");
+    }
+  };
+
+  /**
+   * GET /api/courses/assignments/:id/attendance/export — exportar Excel de
+   * asistencia. Roles Admin/Superadmin siempre; Profesor solo dueño.
+   */
+  static exportAttendance = async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    try {
+      const { buffer, filename } = await exportAttendanceExcel(id, {
+        callerProfileId: req.auth?.profileId,
+        callerRoles: req.auth?.roles ?? [],
+      });
+      return res
+        .status(200)
+        .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        .set("Content-Disposition", `attachment; filename="${filename}"`)
+        .send(buffer);
+    } catch (error) {
+      return handleControllerError(res, error, "Error al generar el archivo de asistencia");
     }
   };
 }

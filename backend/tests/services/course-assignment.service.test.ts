@@ -9,9 +9,11 @@ import {
   calculateEndDate,
   closeAssignment,
   createAssignment,
+  exportAttendanceExcel,
   findMyActiveAssignment,
   getNextSpiritualGrowthStage,
   reopenAssignment,
+  serializeCourseAssignedArray,
   softDeleteAssignment,
   updateAssignment,
   validateProfessorUniqueActive,
@@ -129,7 +131,7 @@ const classSessionFind = ClassSession.find as unknown as ReturnType<typeof vi.fn
 
 const realtimeMock = emitRealtimeInvalidation as unknown as ReturnType<typeof vi.fn>;
 
-// ---- cadenas query fluidas (populate / sort / skip / limit / session) ---
+// ---- cadenas query fluidas (populate / sort / skip / limit / session / select) ---
 
 type Chain = {
   populate: ReturnType<typeof vi.fn>;
@@ -139,6 +141,7 @@ type Chain = {
   lean: ReturnType<typeof vi.fn>;
   exec: ReturnType<typeof vi.fn>;
   session: ReturnType<typeof vi.fn>;
+  select: ReturnType<typeof vi.fn>;
   then: <U>(onfulfilled: (value: unknown) => U | PromiseLike<U>) => Promise<U>;
 };
 
@@ -151,6 +154,7 @@ const chainableWith = (resolved: unknown): Chain => {
   self.lean = vi.fn(() => self);
   self.exec = vi.fn(() => Promise.resolve(resolved));
   self.session = vi.fn(() => self);
+  self.select = vi.fn(() => self);
   self.then = <U>(onfulfilled: (value: unknown) => U | PromiseLike<U>) =>
     Promise.resolve(resolved).then(onfulfilled);
   return self;
@@ -247,6 +251,9 @@ const resetMocks = () => {
   userProfileFind.mockReset();
   userProfileFindByIdAndUpdate.mockReset();
   classSessionFind.mockReset();
+  // Default chainable so that .select() and .populate() don't throw
+  // (individual tests override via mockReturnValueOnce as needed)
+  classSessionFind.mockReturnValue(chainableWith([]));
   realtimeMock.mockReset();
 };
 
@@ -1335,5 +1342,448 @@ describe("course-assignment.service — reopenAssignment", () => {
       message: "Error al reabrir el curso",
     });
     spy.mockRestore();
+  });
+});
+
+describe("course-assignment.service — exportAttendanceExcel (ADR-0017 D1)", () => {
+  beforeEach(resetMocks);
+
+  /**
+   * Builds a minimal assignment fixture with the given members and sessions.
+   */
+  const buildExportAssignment = (
+    members: Array<{
+      _id: string;
+      firstName: string;
+      lastName: string;
+      documentID: string;
+      spiritualGrowthStage: string;
+    }>,
+    sessions: Array<{
+      classNumber: number;
+      attendance: Array<{ studentId: string; present: boolean }>;
+    }>,
+    totalClasses: number,
+  ) => {
+    const assignmentId = ASSIGNMENT_ID;
+    const assignment = buildPopulatedAssignment({
+      course: { _id: VALID_COURSE_ID, name: "Fundamentos", spiritualGrowthStage: "Consolidación" },
+      professor: { _id: VALID_PROFESSOR_ID, role: { name: "Profesor" } },
+      members: members.map((m) => ({ _id: m._id })),
+      totalClasses,
+    });
+    return { assignment, members, sessions, assignmentId };
+  };
+
+  /**
+   * Builds a chainable for CourseAssigned.findOne that supports
+   * `.populate("course").populate(memberPopulate).populate(professorPopulate).then`
+   * Used in export tests where the code awaits the populate chain.
+   */
+  const assignmentChain = (resolved: unknown): Chain => {
+    const self = {} as Chain;
+    self.populate = vi.fn(() => self);
+    self.sort = vi.fn(() => self);
+    self.skip = vi.fn(() => self);
+    self.limit = vi.fn(() => self);
+    self.lean = vi.fn(() => self);
+    self.exec = vi.fn(() => Promise.resolve(resolved));
+    self.session = vi.fn(() => self);
+    self.select = vi.fn(() => self);
+    self.then = <U>(onfulfilled: (value: unknown) => U | PromiseLike<U>) =>
+      Promise.resolve(resolved).then(onfulfilled);
+    return self;
+  };
+
+  const ADMIN_CONTEXT = { callerProfileId: OTHER_MEMBER_ID, callerRoles: ["Admin"] as string[] };
+  const PROF_CONTEXT = { callerProfileId: VALID_PROFESSOR_ID, callerRoles: ["Profesor"] as string[] };
+  const OTHER_PROF_CONTEXT = {
+    callerProfileId: OTHER_MEMBER_ID,
+    callerRoles: ["Profesor"] as string[],
+  };
+
+  it("200 + correct Content-Type and Content-Disposition headers when Admin calls", async () => {
+    const { assignment } = buildExportAssignment([], [], 4);
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(chainableWith([]));
+
+    const result = await exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT);
+
+    expect(result).toHaveProperty("buffer");
+    expect(Buffer.isBuffer(result.buffer)).toBe(true);
+    expect(result).toHaveProperty("filename");
+    expect(result.filename).toMatch(/^asistencia-.*-\d{8}\.xlsx$/);
+  });
+
+  it("403 when Professor is NOT the owner of the assignment", async () => {
+    const { assignment } = buildExportAssignment([], [], 4);
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(chainableWith([]));
+
+    await expect(
+      exportAttendanceExcel(ASSIGNMENT_ID, OTHER_PROF_CONTEXT),
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "No tienes permisos para esta acción",
+    });
+  });
+
+  it("200 when Professor IS the owner of the assignment", async () => {
+    const { assignment } = buildExportAssignment([], [], 4);
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(chainableWith([]));
+
+    const result = await exportAttendanceExcel(ASSIGNMENT_ID, PROF_CONTEXT);
+    expect(result).toHaveProperty("buffer");
+    expect(result).toHaveProperty("filename");
+  });
+
+  it("404 when assignment does not exist", async () => {
+    assignedFindOne.mockReturnValueOnce(assignmentChain(null));
+
+    await expect(
+      exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: "Asignacion no encontrada",
+    });
+  });
+
+  it("member with 100% attendance (all classes present) → Resultado = Aprobó", async () => {
+    // totalClasses=4, member present in all 4 stored sessions
+    const memberId = VALID_MEMBER_ID;
+    const sessions = [
+      { classNumber: 1, attendance: [{ studentId: memberId, present: true }] },
+      { classNumber: 2, attendance: [{ studentId: memberId, present: true }] },
+      { classNumber: 3, attendance: [{ studentId: memberId, present: true }] },
+      { classNumber: 4, attendance: [{ studentId: memberId, present: true }] },
+    ];
+    const { assignment } = buildExportAssignment(
+      [{ _id: memberId, firstName: "Juan", lastName: "Pérez", documentID: "123", spiritualGrowthStage: "Consolidación" }],
+      sessions,
+      4,
+    );
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(
+      chainableWith(
+        sessions.map((s) => ({
+          classNumber: s.classNumber,
+          attendance: s.attendance.map((a) => ({ student: { _id: a.studentId }, present: a.present })),
+        })),
+      ),
+    );
+
+    const { buffer, filename } = await exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT);
+
+    // Verify buffer is valid XLSX (non-empty) and filename pattern
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    expect(buffer.length).toBeGreaterThan(100);
+    expect(filename).toMatch(/^asistencia-.*-\d{8}\.xlsx$/);
+
+    // Verify correct XLSX structure: header row + member row
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { header: 1 });
+    expect((rows[0] as string[])).toEqual([
+      "Nombre", "Apellidos", "Documento", "Etapa de crecimiento",
+      "Clases presentes", "Clases registradas", "% asistencia", "Resultado",
+    ]);
+    expect(rows).toHaveLength(2); // header + 1 member
+    const memberRow = rows[1] as unknown[];
+    // Verify numeric columns (text columns depend on XLSX encoding)
+    expect(memberRow[4]).toBe(4);  // Clases presentes
+    expect(memberRow[5]).toBe(4);  // Clases registradas
+    expect(memberRow[6]).toBe(100); // % asistencia
+    expect(memberRow[7]).toBe("Aprobó");
+  });
+
+  it("member with 70% exact attendance (7/10) → Resultado = Aprobó (boundary)", async () => {
+    const memberId = VALID_MEMBER_ID;
+    const totalClasses = 10;
+    const storedSessions = Array.from({ length: 7 }, (_, i) => ({
+      classNumber: i + 1,
+      attendance: [{ studentId: memberId, present: true }],
+    }));
+    const { assignment } = buildExportAssignment(
+      [{ _id: memberId, firstName: "Ana", lastName: "García", documentID: "456", spiritualGrowthStage: "Consolidación" }],
+      storedSessions,
+      totalClasses,
+    );
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(
+      chainableWith(
+        storedSessions.map((s) => ({
+          classNumber: s.classNumber,
+          attendance: s.attendance.map((a) => ({ student: { _id: a.studentId }, present: a.present })),
+        })),
+      ),
+    );
+
+    const { buffer } = await exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT);
+    expect(buffer.length).toBeGreaterThan(100);
+
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { header: 1 });
+    expect(rows).toHaveLength(2);
+    const memberRow = rows[1] as unknown[];
+    expect(memberRow[6]).toBe(70); // 7/10 = 70%
+    expect(memberRow[7]).toBe("Aprobó");
+  });
+
+  it("member with 69% attendance (9/13) → Resultado = No alcanzó el 70%", async () => {
+    const memberId = VALID_MEMBER_ID;
+    const totalClasses = 13;
+    const storedSessions = Array.from({ length: 9 }, (_, i) => ({
+      classNumber: i + 1,
+      attendance: [{ studentId: memberId, present: true }],
+    }));
+    const { assignment } = buildExportAssignment(
+      [{ _id: memberId, firstName: "Carlos", lastName: "Ruiz", documentID: "789", spiritualGrowthStage: "Consolidación" }],
+      storedSessions,
+      totalClasses,
+    );
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(
+      chainableWith(
+        storedSessions.map((s) => ({
+          classNumber: s.classNumber,
+          attendance: s.attendance.map((a) => ({ student: { _id: a.studentId }, present: a.present })),
+        })),
+      ),
+    );
+
+    const { buffer } = await exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT);
+    expect(buffer.length).toBeGreaterThan(100);
+
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { header: 1 });
+    expect(rows).toHaveLength(2);
+    const memberRow = rows[1] as unknown[];
+    expect(memberRow[6]).toBe(69); // 9/13 = 69.23% → rounds to 69
+    expect(memberRow[7]).toBe("No alcanzó el 70%");
+  });
+
+  it("member with 0% attendance (no classes stored) → Resultado = No alcanzó el 70%", async () => {
+    const memberId = VALID_MEMBER_ID;
+    const totalClasses = 8;
+    const { assignment } = buildExportAssignment(
+      [{ _id: memberId, firstName: "María", lastName: "López", documentID: "000", spiritualGrowthStage: "Consolidación" }],
+      [],
+      totalClasses,
+    );
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(chainableWith([]));
+
+    const { buffer } = await exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT);
+    expect(buffer.length).toBeGreaterThan(100);
+
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { header: 1 });
+    expect(rows).toHaveLength(2);
+    const memberRow = rows[1] as unknown[];
+    expect(memberRow[4]).toBe(0);  // Clases presentes
+    expect(memberRow[5]).toBe(0);  // Clases registradas
+    expect(memberRow[6]).toBe(0);  // % asistencia
+    expect(memberRow[7]).toBe("No alcanzó el 70%");
+  });
+
+  it("unregistered classes count as absence (denominator = totalClasses, not registeredSessions)", async () => {
+    const memberId = VALID_MEMBER_ID;
+    const totalClasses = 10;
+    const storedSessions = [
+      { classNumber: 1, attendance: [{ studentId: memberId, present: true }] },
+      { classNumber: 2, attendance: [{ studentId: memberId, present: false }] },
+      { classNumber: 3, attendance: [{ studentId: memberId, present: true }] },
+    ];
+    const { assignment } = buildExportAssignment(
+      [{ _id: memberId, firstName: "Pedro", lastName: "Navarro", documentID: "111", spiritualGrowthStage: "Consolidación" }],
+      storedSessions,
+      totalClasses,
+    );
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(
+      chainableWith(
+        storedSessions.map((s) => ({
+          classNumber: s.classNumber,
+          attendance: s.attendance.map((a) => ({ student: { _id: a.studentId }, present: a.present })),
+        })),
+      ),
+    );
+
+    const { buffer } = await exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT);
+    expect(buffer.length).toBeGreaterThan(100);
+
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { header: 1 });
+    expect(rows).toHaveLength(2);
+    const memberRow = rows[1] as unknown[];
+    // 2 present out of 10 total → 20%
+    expect(memberRow[4]).toBe(2);  // Clases presentes
+    expect(memberRow[5]).toBe(3);  // Clases registradas
+    expect(memberRow[6]).toBe(20); // % asistencia
+    expect(memberRow[7]).toBe("No alcanzó el 70%");
+  });
+
+  it("exports correct headers in the first row", async () => {
+    const { assignment } = buildExportAssignment([], [], 4);
+    assignedFindOne.mockReturnValueOnce(assignmentChain(assignment));
+    classSessionFind.mockReturnValueOnce(chainableWith([]));
+
+    const { buffer } = await exportAttendanceExcel(ASSIGNMENT_ID, ADMIN_CONTEXT);
+
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { header: 1 });
+
+    const headerRow = rows[0] as string[];
+    expect(headerRow).toEqual([
+      "Nombre",
+      "Apellidos",
+      "Documento",
+      "Etapa de crecimiento",
+      "Clases presentes",
+      "Clases registradas",
+      "% asistencia",
+      "Resultado",
+    ]);
+  });
+});
+
+describe("course-assignment.service — serializeCourseAssignedArray (ADR-0017 D2)", () => {
+  beforeEach(resetMocks);
+
+  it("adds correct registeredSessions count per assignment (no N+1)", async () => {
+    const assignmentA = {
+      _id: "assign-a",
+      course: { name: "Curso A" },
+      totalClasses: 8,
+      toObject() {
+        return this;
+      },
+    };
+    const assignmentB = {
+      _id: "assign-b",
+      course: { name: "Curso B" },
+      totalClasses: 4,
+      toObject() {
+        return this;
+      },
+    };
+
+    // 5 sessions for A, 2 sessions for B, 1 session for C (not in list)
+    classSessionFind.mockReturnValueOnce(
+      chainableWith([
+        { courseAssigned: "assign-a" },
+        { courseAssigned: "assign-a" },
+        { courseAssigned: "assign-a" },
+        { courseAssigned: "assign-a" },
+        { courseAssigned: "assign-a" },
+        { courseAssigned: "assign-b" },
+        { courseAssigned: "assign-b" },
+      ]),
+    );
+
+    const result = await serializeCourseAssignedArray([assignmentA, assignmentB]);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toHaveProperty("registeredSessions", 5);
+    expect(result[0]).toHaveProperty("course");
+    expect(result[1]).toHaveProperty("registeredSessions", 2);
+  });
+
+  it("returns registeredSessions: 0 when no ClassSession records exist", async () => {
+    const assignment = {
+      _id: "assign-no-sessions",
+      course: { name: "Sin sesiones" },
+      toObject() {
+        return this;
+      },
+    };
+    classSessionFind.mockReturnValueOnce(chainableWith([]));
+
+    const result = await serializeCourseAssignedArray([assignment]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toHaveProperty("registeredSessions", 0);
+  });
+
+  it("preserves original shape of each assignment (rest of fields intact)", async () => {
+    const assignment = {
+      _id: "assign-shape",
+      course: { _id: "course-1", name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+      professor: { _id: "prof-1", firstName: "Pedro" },
+      members: [],
+      startDate: new Date("2026-02-01"),
+      totalClasses: 6,
+      status: "active",
+      toObject() {
+        return this;
+      },
+    };
+    classSessionFind.mockReturnValueOnce(chainableWith([{ courseAssigned: "assign-shape" }]));
+
+    const [result] = await serializeCourseAssignedArray([assignment]);
+
+    expect(result).toHaveProperty("_id", "assign-shape");
+    expect(result).toHaveProperty("course.name", "Discipulado");
+    expect(result).toHaveProperty("totalClasses", 6);
+    expect(result).toHaveProperty("registeredSessions", 1);
+  });
+
+  it("handles plain objects without toObject method", async () => {
+    const assignment = {
+      _id: "assign-plain",
+      course: { name: "Plain Curso" },
+    };
+
+    classSessionFind.mockReturnValueOnce(chainableWith([{ courseAssigned: "assign-plain" }]));
+
+    const result = await serializeCourseAssignedArray([assignment]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toHaveProperty("registeredSessions", 1);
+  });
+
+  it("skips assignments with null/undefined _id", async () => {
+    const validAssignment = {
+      _id: "valid-id",
+      course: { name: "Válido" },
+      toObject() {
+        return this;
+      },
+    };
+    const invalidAssignment = {
+      _id: null,
+      course: { name: "Sin ID" },
+      toObject() {
+        return this;
+      },
+    };
+
+    // Session records for "valid-id" only; null-id gets undefined (no matching sessions)
+    classSessionFind.mockReturnValueOnce(
+      chainableWith([{ courseAssigned: "valid-id" }]),
+    );
+
+    const result = await serializeCourseAssignedArray([validAssignment, invalidAssignment]);
+
+    // Both assignments are in result; null-id gets registeredSessions from counts.get("null") = undefined
+    expect(result).toHaveLength(2);
+    // valid-id has 1 session
+    expect(result[0]).toHaveProperty("_id", "valid-id");
+    expect(result[0]).toHaveProperty("registeredSessions", 1);
+    // null-id → String(null) = "null"; counts.get("null") is undefined → 0
+    expect(result[1]).toHaveProperty("_id", null);
+    expect(result[1]).toHaveProperty("registeredSessions", 0);
   });
 });

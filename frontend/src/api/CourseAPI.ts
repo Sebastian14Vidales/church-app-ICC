@@ -304,6 +304,16 @@ export const closeCourseAssignment = async (
     }
 };
 
+export const exportAttendanceExcel = async (
+    assignmentId: CourseAssignedCanonical["_id"],
+): Promise<Blob> => {
+    const response = await api.get<Blob>(
+        `/courses/assignments/${assignmentId}/attendance/export`,
+        { responseType: "blob" },
+    );
+    return response.data;
+};
+
 export const reopenCourseAssignment = async (
     assignmentId: CourseAssignedCanonical["_id"],
     body?: ReopenAssignmentBody,

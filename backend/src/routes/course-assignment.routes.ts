@@ -49,6 +49,14 @@ router.get(
 );
 
 router.get(
+  "/assignments/:id/attendance/export",
+  authorizeRoles([...TEACHING_ROLES, "Admin", "Superadmin"]),
+  param("id").isMongoId().withMessage("La asignacion no es válida"),
+  handleInputErrors,
+  CourseAssignmentController.exportAttendance,
+);
+
+router.get(
   "/assignments/:id",
   param("id").isMongoId().withMessage("La asignacion no es válida"),
   handleInputErrors,

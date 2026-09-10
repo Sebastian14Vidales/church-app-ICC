@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import * as xlsx from "xlsx";
 import CourseAssigned from "../models/course-assigned.model";
 import Course from "../models/course.model";
 import ClassSession from "../models/class-session.model";
@@ -83,6 +84,67 @@ export const findMyActiveAssignment = (profileId: string) =>
     .populate("course")
     .populate(memberPopulate)
     .populate(professorPopulate);
+
+export type SerializedCourseAssigned = Record<string, unknown> & {
+  registeredSessions: number;
+};
+
+/**
+ * Cuenta las sesiones de clase registradas (no soft-deleted) para una
+ * asignación. Usa el mismo filtro que `attendance.service.ts`.
+ */
+export const countRegisteredSessions = async (assignmentId: string): Promise<number> =>
+  ClassSession.countDocuments({ courseAssigned: assignmentId, deletedAt: null });
+
+/**
+ * Serializa un `CourseAssigned` al shape canónico de respuesta, añadiendo
+ * `registeredSessions` (ADR-0017 D2). Acepta documentos Mongoose u objetos
+ * planos para compatibilidad con mocks de tests.
+ */
+export const serializeCourseAssigned = (
+  assignment: unknown,
+  registeredSessions: number,
+): SerializedCourseAssigned => {
+  const candidate = assignment as { toObject?: () => Record<string, unknown> } | null;
+  const plain =
+    candidate && typeof candidate.toObject === "function"
+      ? candidate.toObject()
+      : (candidate as Record<string, unknown> | null) ?? {};
+  return { ...plain, registeredSessions };
+};
+
+/**
+ * Serializa un array de `CourseAssigned` con un solo query de conteo
+ * de sesiones por asignación (evita N+1).
+ */
+export const serializeCourseAssignedArray = async (
+  assignments: unknown[],
+): Promise<SerializedCourseAssigned[]> => {
+  const ids = assignments
+    .map((assignment) => {
+      const candidate = assignment as { _id?: unknown } | null;
+      return candidate?._id !== undefined ? String(candidate._id) : null;
+    })
+    .filter((id): id is string => id !== null);
+
+  const counts = new Map<string, number>();
+  if (ids.length > 0) {
+    const sessions = await ClassSession.find({
+      courseAssigned: { $in: ids },
+      deletedAt: null,
+    }).select("courseAssigned");
+    sessions.forEach((session) => {
+      const id = String(session.courseAssigned);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    });
+  }
+
+  return assignments.map((assignment) => {
+    const candidate = assignment as { _id?: unknown } | null;
+    const id = candidate?._id !== undefined ? String(candidate._id) : "";
+    return serializeCourseAssigned(assignment, counts.get(id) ?? 0);
+  });
+};
 
 /**
  * Calcula `endDate` calendario a partir de `startDate` y `totalClasses`
@@ -682,4 +744,129 @@ export const reopenAssignment = async (id: string, body: ReopenAssignmentBody) =
   //   totalClasses: populatedAssignment.totalClasses,
   // })
   return populatedAssignment;
+};
+
+export type ExportAttendanceContext = {
+  callerProfileId?: string | null;
+  callerRoles: string[];
+};
+
+type ExportedMember = {
+  _id: unknown;
+  firstName?: string;
+  lastName?: string;
+  documentID?: string;
+  spiritualGrowthStage?: string | null;
+};
+
+/**
+ * Genera el workbook Excel de asistencia para una asignación.
+ * Reutiliza la misma lógica de conteo que el overview de asistencia:
+ * clases no registradas cuentan como ausencia (denominador = totalClasses).
+ * Roles: Admin/Superadmin siempre; Profesor solo si es dueño.
+ */
+export const exportAttendanceExcel = async (
+  id: string,
+  context: ExportAttendanceContext,
+): Promise<{ buffer: Buffer; filename: string }> => {
+  const assignment = await CourseAssigned.findOne({ _id: id, deletedAt: null })
+    .populate("course")
+    .populate(memberPopulate)
+    .populate(professorPopulate);
+
+  if (!assignment) {
+    throw new AppError(404, "Asignacion no encontrada");
+  }
+
+  const isOwnerProfessor =
+    context.callerProfileId &&
+    String((assignment.professor as { _id: unknown })._id) === context.callerProfileId;
+  const canExport =
+    isOwnerProfessor ||
+    context.callerRoles.some((role) => ["Admin", "Superadmin"].includes(role));
+
+  if (!canExport) {
+    throw new AppError(403, "No tienes permisos para esta acción");
+  }
+
+  const sessions = await ClassSession.find({
+    courseAssigned: assignment._id,
+    deletedAt: null,
+  }).populate(attendancePopulate);
+
+  const sessionsByClassNumber = new Map(
+    sessions.map((session) => [session.classNumber, session]),
+  );
+
+  const totalClasses = assignment.totalClasses;
+  const registeredSessions = sessions.length;
+
+  const memberPresentCount = new Map<string, number>();
+  const memberById = new Map<string, ExportedMember>();
+
+  for (const member of assignment.members) {
+    const memberId = memberIdToString(member);
+    memberPresentCount.set(memberId, 0);
+    memberById.set(memberId, member as ExportedMember);
+  }
+
+  for (let classNumber = 1; classNumber <= totalClasses; classNumber += 1) {
+    const storedSession = sessionsByClassNumber.get(classNumber);
+    if (!storedSession) {
+      continue;
+    }
+    for (const entry of storedSession.attendance) {
+      const studentId = memberIdToString(entry.student);
+      if (entry.present && memberPresentCount.has(studentId)) {
+        memberPresentCount.set(studentId, (memberPresentCount.get(studentId) ?? 0) + 1);
+      }
+    }
+  }
+
+  const rows = Array.from(memberById.entries()).map(([memberId, member]) => {
+    const presentCount = memberPresentCount.get(memberId) ?? 0;
+    const attendanceRate = totalClasses ? Math.round((presentCount / totalClasses) * 100) : 0;
+    const result = attendanceRate >= 70 ? "Aprobó" : "No alcanzó el 70%";
+    return [
+      member.firstName ?? "",
+      member.lastName ?? "",
+      member.documentID ?? "",
+      member.spiritualGrowthStage ?? "",
+      presentCount,
+      registeredSessions,
+      attendanceRate,
+      result,
+    ];
+  });
+
+  const headers = [
+    "Nombre",
+    "Apellidos",
+    "Documento",
+    "Etapa de crecimiento",
+    "Clases presentes",
+    "Clases registradas",
+    "% asistencia",
+    "Resultado",
+  ];
+
+  const workbook = xlsx.utils.book_new();
+  const sheet = xlsx.utils.aoa_to_sheet([headers, ...rows]);
+  xlsx.utils.book_append_sheet(workbook, sheet, "Asistencia");
+
+  const buffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" }) as Buffer;
+
+  const courseName =
+    ((assignment.course as { name?: string } | null)?.name ?? "curso")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .toLowerCase()
+      .slice(0, 40) || "curso";
+
+  const dateSlug = new Date().toISOString().split("T")[0].replace(/-/g, "");
+  const filename = `asistencia-${courseName}-${dateSlug}.xlsx`;
+
+  return { buffer, filename };
 };

@@ -8,6 +8,7 @@ import {
     CheckCircle2,
     ClipboardCheck,
     Download,
+    FileSpreadsheet,
     Search,
     TrendingUp,
     Users,
@@ -18,7 +19,7 @@ import { showSweetAlert } from "@/components/alert/SweetAlert"
 import LoadingSpinner from "@/components/common/LoadingSpinner"
 import SavedAttendanceSummaryTable from "@/components/courses/SavedAttendanceSummaryTable"
 import StudentQuickViewModal from "@/components/courses/StudentQuickViewModal"
-import { closeCourseAssignment, getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
+import { closeCourseAssignment, exportAttendanceExcel, getMyAttendanceOverview, saveMyClassAttendance } from "@/api/CourseAPI"
 import { type ClassSession, type CourseAssigned } from "@/types/index"
 import { downloadAttendancePdfReport } from "@/utils/attendanceReport"
 import { buildCourseAttendanceMetrics, buildStudentAttendanceSummaries } from "@/utils/attendanceInsights"
@@ -28,6 +29,17 @@ import { getLocationNameById } from "@/utils/constants/locations"
 import { formatFullName, normalizeSearchText } from "@/utils/text"
 
 type AttendanceState = Record<string, boolean | null>
+
+const triggerFileDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+};
 
 const buildAttendanceState = (
     assignment: CourseAssigned | null,
@@ -177,6 +189,16 @@ export default function AttendanceView() {
         },
     })
 
+    const exportAttendanceMutation = useMutation({
+        mutationFn: (assignmentId: string) => exportAttendanceExcel(assignmentId),
+        onSuccess: (blob) => {
+            const filename = assignment ? `asistencia-${assignment.course.name}.xlsx` : "asistencia-curso.xlsx";
+            triggerFileDownload(blob, filename);
+            toast.success("Descarga iniciada");
+        },
+        onError: (error: Error) => toast.error(error.message || "No se pudo descargar el archivo"),
+    })
+
     const canCloseCourse = assignment
         ? (courseMetrics?.remainingClasses ?? assignment.totalClasses) === 0
         : false
@@ -270,25 +292,51 @@ export default function AttendanceView() {
                                 Descargar reporte PDF
                             </Button>
                             <Button
-                                color="warning"
+                                color="success"
                                 variant="flat"
-                                isLoading={closeCourseMutation.isPending}
-                                isDisabled={!canCloseCourse}
-                                aria-disabled={!canCloseCourse}
-                                title={canCloseCourse ? undefined : "Debes registrar todas las clases antes de cerrar el curso"}
-                                onPress={handleCloseCourse}
+                                startContent={<FileSpreadsheet className="h-4 w-4" />}
+                                isLoading={exportAttendanceMutation.isPending}
+                                onPress={() => exportAttendanceMutation.mutate(assignment._id)}
                             >
-                                Cerrar curso
+                                Exportar Excel
                             </Button>
+                            {!canCloseCourse ? (
+                                <Button
+                                    color="warning"
+                                    variant="flat"
+                                    isLoading={closeCourseMutation.isPending}
+                                    isDisabled
+                                    aria-disabled
+                                    title="Debes registrar todas las clases antes de cerrar el curso"
+                                    onPress={handleCloseCourse}
+                                >
+                                    Cerrar curso
+                                </Button>
+                            ) : null}
                         </div>
                         {!canCloseCourse ? (
                             <p role="status" aria-live="polite" className="mt-3 text-sm text-amber-200">
                                 Para cerrar el curso debes registrar las {assignment.totalClasses} clases programadas.
                             </p>
                         ) : (
-                            <p role="status" aria-live="polite" className="mt-3 text-sm text-emerald-200">
-                                El curso ya esta listo para cerrarse.
-                            </p>
+                            <div
+                                role="status"
+                                aria-live="polite"
+                                className="mt-4 flex flex-col gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/20 p-4 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <p className="text-sm font-medium text-emerald-100">
+                                    Has registrado todas las clases ({assignment.totalClasses} de{" "}
+                                    {assignment.totalClasses}). ¿Finalizar el curso?
+                                </p>
+                                <Button
+                                    color="warning"
+                                    variant="solid"
+                                    isLoading={closeCourseMutation.isPending}
+                                    onPress={handleCloseCourse}
+                                >
+                                    Cerrar curso
+                                </Button>
+                            </div>
                         )}
                     </div>
 

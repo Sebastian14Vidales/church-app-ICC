@@ -221,6 +221,7 @@ export const courseAssignedCanonicalSchema = z.object({
     startDate: z.string().datetime(),
     startTime: z.string(),
     totalClasses: z.number().int().nonnegative(),
+    registeredSessions: z.number().int().nonnegative(),
     endDate: z.string().datetime(),
     endedAt: z.string().datetime().nullable().default(null),
     location: z.string(),
