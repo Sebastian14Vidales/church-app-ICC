@@ -12,7 +12,9 @@ import {
     Users,
     User,
 } from "lucide-react";
-import { getInitials, useAuth } from "@/lib/auth";
+import type { LucideIcon } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { getInitials } from "@/utils/text";
 import PATHS from "@/utils/constants/routes";
 
 export default function Sidebar() {
@@ -30,7 +32,7 @@ export default function Sidebar() {
         { name: "Miembros", href: PATHS.members, icon: Users },
     ];
 
-    const navigationItems: Array<{ name: string; href: string; icon: any; disabled?: boolean }> = [...baseNavigation];
+    const navigationItems: Array<{ name: string; href: string; icon: LucideIcon; disabled?: boolean }> = [...baseNavigation];
 
     if (isLiderOnly) {
         navigationItems.length = 0

@@ -10,6 +10,15 @@ export const spiritualGrowthStageSchema = z.enum([
     "Doctrina cristiana",
 ])
 
+/** Valor "sin ruta iniciada" para el perfil de miembro (ADR-0014). No aplica a cursos. */
+export const NO_SPIRITUAL_GROWTH_STAGE = "Ninguna" as const
+/** Dominio del campo en UserProfile.spiritualGrowthStage: "Ninguna" + las 7 etapas (ADR-0014). */
+export const spiritualGrowthStageChoiceSchema = z.enum([
+    NO_SPIRITUAL_GROWTH_STAGE,
+    ...spiritualGrowthStageSchema.options,
+])
+export type SpiritualGrowthStageChoice = z.infer<typeof spiritualGrowthStageChoiceSchema>
+
 //Courses
 export const courseLevelSchema = z.enum(["basic", "intermediate", "advanced"])
 export type CourseLevel = z.infer<typeof courseLevelSchema>
@@ -155,7 +164,7 @@ export const memberSchema = z.object({
     servesInMinistry: z.boolean().optional(),
     ministry: ministrySchema.optional().nullable(),
     ministryInterest: ministrySchema.optional().nullable(),
-    spiritualGrowthStage: spiritualGrowthStageSchema.optional(),
+    spiritualGrowthStage: spiritualGrowthStageChoiceSchema.optional(),
     encounterStage: encounterStageSchema.optional(),
     profession: z.string().optional().nullable(),
     role: roleSchema,
@@ -492,6 +501,7 @@ export type LifeGroupFormData = {
     neighborhood: string
     address: string
     leader: string
+    supervisor?: string
     type: LifeGroupType
     attendees: string[]
 }
@@ -507,7 +517,7 @@ export type MemberFormData = {
     servesInMinistry: "true" | "false" | ""
     ministry: MinistryName | ""
     ministryInterest: MinistryName | ""
-    spiritualGrowthStage: SpiritualGrowthStage | ""
+    spiritualGrowthStage: SpiritualGrowthStageChoice | ""
     encounterStage: EncounterStage | ""
     roleNames: MemberRoleName[]
     profession?: string

@@ -32,3 +32,12 @@ export const normalizeSearchText = (value: string) =>
         .normalize("NFD")
         .replace(DIACRITICS_REGEX, "")
         .toLocaleLowerCase("es-CO");
+
+export const getInitials = (name: string) =>
+    name
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("");

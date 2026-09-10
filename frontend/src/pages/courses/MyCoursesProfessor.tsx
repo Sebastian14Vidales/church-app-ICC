@@ -21,12 +21,12 @@ import PATHS from "@/utils/constants/routes";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { parseStoredDate } from "@/utils/date";
 import { formatFullName, normalizeSearchText } from "@/utils/text";
-import { spiritualGrowthStageSchema, type CourseAssignedCanonical, type Member, type SpiritualGrowthStage } from "@/types/index";
+import { NO_SPIRITUAL_GROWTH_STAGE, spiritualGrowthStageSchema, type CourseAssignedCanonical, type Member, type SpiritualGrowthStage } from "@/types/index";
 
 const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options;
 
 const getNextSpiritualGrowthStage = (currentStage?: string | null) => {
-    if (!currentStage) return SPIRITUAL_GROWTH_STAGES[0];
+    if (!currentStage || currentStage === NO_SPIRITUAL_GROWTH_STAGE) return SPIRITUAL_GROWTH_STAGES[0];
     // Casteado: el backend garantiza que currentStage es un valor válido de SpiritualGrowthStage.
     const currentIndex = SPIRITUAL_GROWTH_STAGES.indexOf(currentStage as SpiritualGrowthStage);
     if (currentIndex === -1 || currentIndex === SPIRITUAL_GROWTH_STAGES.length - 1) return null;

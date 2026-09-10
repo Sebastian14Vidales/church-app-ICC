@@ -25,7 +25,7 @@ import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllEvents } from "@/api/EventAPI";
 import { getMyLifeGroups } from "@/api/LifeGroupAPI";
 import { getAllMembers } from "@/api/MemberAPI";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { COURSE_LEVEL_LABELS, COURSE_STATUS_LABELS } from "@/utils/constants/courses";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { roleLabels } from "@/utils/constants/roleColors";

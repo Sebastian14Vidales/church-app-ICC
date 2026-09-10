@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { login } from "@/api/AuthAPI";
 import PasswordField from "@/components/auth/PasswordField";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import PATHS from "@/utils/constants/routes";
 
 type LoginFormData = {

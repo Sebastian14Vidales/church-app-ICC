@@ -66,7 +66,7 @@ vi.mock("react-toastify", () => ({
   },
 }));
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
     user: { id: "u1", email: "admin@test.com", name: "Admin", roles: ["Admin"], profileId: "p1" },
     isAuthenticated: true,

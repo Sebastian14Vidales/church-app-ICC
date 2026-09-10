@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { useAuth } from "@/lib/auth"
+import { useAuth } from "@/hooks/useAuth"
 import { connectRealtime, disconnectRealtime, onRealtimeInvalidation } from "@/lib/realtime"
 
 /**

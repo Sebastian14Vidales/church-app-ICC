@@ -18,7 +18,7 @@ import {
     updateCourseAssignment,
     updateCourseMembers,
 } from "@/api/CourseAPI";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import type {
     CourseAssignedCanonical,
     CourseAssignmentCreateBody,

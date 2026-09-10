@@ -6,7 +6,7 @@ import {
     myAttendanceKeys,
     myCourseKeys,
 } from "@/hooks/courses/query-keys";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import {
     getActiveCourseAssignments,
     getAllCourses,

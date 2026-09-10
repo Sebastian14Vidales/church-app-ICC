@@ -1,4 +1,4 @@
-import { useAuth } from "@/lib/auth"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function SessionOverlay() {
     const { isBootstrapping, isSessionTransitioning } = useAuth()

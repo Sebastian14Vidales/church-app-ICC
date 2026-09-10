@@ -1,8 +1,6 @@
 import {
-    createContext,
-    useContext,
+    useCallback,
     useEffect,
-    useEffectEvent,
     useRef,
     useState,
     type PropsWithChildren,
@@ -11,6 +9,8 @@ import { useQueryClient } from "@tanstack/react-query"
 import { isAxiosError } from "axios"
 import api, { setAuthToken, setUnauthorizedHandler } from "@/lib/axios"
 import { authUserSchema, currentSessionResponseSchema, type AuthUser } from "@/types/index"
+import { AuthContext } from "@/hooks/useAuth"
+import { type AuthContextValue, type LoginSession } from "@/lib/auth.types"
 
 /**
  * Indica si el error proviene del backend con un status que significa que la
@@ -46,23 +46,6 @@ const isTransientError = (error: unknown): boolean => {
 
 const AUTH_TOKEN_KEY = "authToken"
 const AUTH_USER_KEY = "authUser"
-
-type LoginSession = {
-    token: string
-    user: AuthUser
-}
-
-type AuthContextValue = {
-    token: string | null
-    user: AuthUser | null
-    isAuthenticated: boolean
-    isBootstrapping: boolean
-    isSessionTransitioning: boolean
-    login: (session: LoginSession) => void
-    logout: () => void
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 const readStoredToken = () => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
@@ -106,15 +89,6 @@ const persistSession = ({ token, user }: LoginSession) => {
     setAuthToken(token)
 }
 
-export const getInitials = (name: string) =>
-    name
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? "")
-        .join("")
-
 export function AuthProvider({ children }: PropsWithChildren) {
     const queryClient = useQueryClient()
     const [token, setToken] = useState<string | null>(() => readStoredToken())
@@ -125,7 +99,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const transitionTimeoutRef = useRef<number | null>(null)
     const bootstrapAbortControllerRef = useRef<AbortController | null>(null)
 
-    const startSessionTransition = () => {
+    const startSessionTransition = useCallback(() => {
         if (transitionTimeoutRef.current) {
             window.clearTimeout(transitionTimeoutRef.current)
         }
@@ -135,9 +109,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
             setIsSessionTransitioning(false)
             transitionTimeoutRef.current = null
         }, 450)
-    }
+    }, [])
 
-    const performLogout = useEffectEvent(() => {
+    const performLogout = useCallback(() => {
         if (isLoggingOutRef.current) {
             return
         }
@@ -150,7 +124,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         clearStoredSession()
         queryClient.clear()
         isLoggingOutRef.current = false
-    })
+    }, [queryClient, startSessionTransition])
 
     const logout = () => {
         performLogout()
@@ -302,14 +276,4 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export const useAuth = () => {
-    const context = useContext(AuthContext)
-
-    if (!context) {
-        throw new Error("useAuth debe usarse dentro de AuthProvider")
-    }
-
-    return context
 }

@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { changePassword, getCurrentSession } from "@/api/AuthAPI";
 import PasswordField from "@/components/auth/PasswordField";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 type ChangePasswordFormData = {
     currentPassword: string
@@ -54,7 +54,7 @@ export default function Profile() {
             reset()
             setIsChangingPassword(false)
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             // Si es error 401, el interceptor ya maneja el logout automático
             if (error.message?.includes("expiró") || error.message?.includes("inválida")) {
                 toast.error("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.")

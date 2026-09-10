@@ -7,7 +7,7 @@ import ModalView from "@/components/dashboard/ModalView";
 import CourseForm from "@/components/dashboard/CourseForm";
 import AssignCourseForm from "@/components/dashboard/AssignCourseForm";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import {
     useActiveCourseAssignments,

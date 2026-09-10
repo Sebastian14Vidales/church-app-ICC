@@ -8,6 +8,7 @@ import { createLifeGroup, getMyLifeGroups, updateLifeGroup } from "@/api/LifeGro
 import { getAllMembers } from "@/api/MemberAPI";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ModalView from "@/components/dashboard/ModalView";
+import { useAuth } from "@/hooks/useAuth";
 import { type LifeGroup, type LifeGroupFormData, type Member } from "@/types/index";
 import { formatFullName } from "@/utils/text";
 
@@ -28,12 +29,17 @@ const initialFormValues: LifeGroupFormData = {
 const isLider = (member: Member) =>
   member.role.name === "Lider" || member.user?.roles?.some((role) => role.name === "Lider");
 
+const isSupervisor = (member: Member) =>
+  member.role.name === "Supervisor" || member.user?.roles?.some((role) => role.name === "Supervisor");
+
 const isAttendee = (member: Member) => ["Asistente", "Miembro"].includes(member.role.name);
 
 export default function MyCoverage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<LifeGroup | null>(null);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdminUser = user?.roles.includes("Admin") || user?.roles.includes("Superadmin");
 
   const {
     register,
@@ -54,6 +60,7 @@ export default function MyCoverage() {
   });
 
   const leaders = members.filter(isLider);
+  const supervisors = members.filter(isSupervisor);
   const attendees = members.filter(isAttendee);
 
   const createMutation = useMutation({
@@ -90,6 +97,7 @@ export default function MyCoverage() {
       neighborhood: group.neighborhood,
       address: group.address,
       leader: group.leader._id,
+      supervisor: group.supervisor._id,
       type: group.type,
       attendees: group.attendees.map((attendee) => attendee._id),
     });
@@ -103,11 +111,13 @@ export default function MyCoverage() {
   };
 
   const onSubmit = (formData: LifeGroupFormData) => {
+    const payload = isAdminUser ? formData : { ...formData, supervisor: undefined };
+
     if (editingGroup) {
-      updateMutation.mutate({ id: editingGroup._id, formData });
+      updateMutation.mutate({ id: editingGroup._id, formData: payload });
       return;
     }
-    createMutation.mutate(formData);
+    createMutation.mutate(payload);
   };
 
   if (isLoadingGroups || isLoadingMembers) {
@@ -165,6 +175,10 @@ export default function MyCoverage() {
                 <p>
                   <span className="font-medium">Líder:</span>{" "}
                   {formatFullName(group.leader.firstName, group.leader.lastName)}
+                </p>
+                <p>
+                  <span className="font-medium">Supervisor:</span>{" "}
+                  {formatFullName(group.supervisor.firstName, group.supervisor.lastName)}
                 </p>
               </div>
 
@@ -276,6 +290,36 @@ export default function MyCoverage() {
                 {errors.leader && <span className="text-xs text-red-500">Este campo es requerido</span>}
               </div>
             </div>
+
+            {isAdminUser && (
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label htmlFor="coverage-supervisor" className="block text-sm font-medium text-slate-700">Supervisor responsable</label>
+                  <Controller
+                    name="supervisor"
+                    control={control}
+                    rules={{ required: isAdminUser }}
+                    render={({ field }) => (
+                      <Select
+                        id="coverage-supervisor"
+                        selectedKeys={field.value ? [field.value] : []}
+                        onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
+                        placeholder="Selecciona el supervisor"
+                        aria-label="Supervisor responsable"
+                        className="w-full"
+                      >
+                        {supervisors.map((supervisor) => (
+                          <SelectItem key={supervisor._id}>
+                            {formatFullName(supervisor.firstName, supervisor.lastName)}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                  {errors.supervisor && <span className="text-xs text-red-500">Este campo es requerido</span>}
+                </div>
+              </div>
+            )}
 
             <div>
               <label htmlFor="coverage-attendees" className="block text-sm font-medium text-slate-700">Asistentes</label>

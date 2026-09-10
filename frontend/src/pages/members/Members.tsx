@@ -21,7 +21,7 @@ import {
 import { useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import MemberFilters, { type MemberFiltersValue } from "@/components/dashboard/MemberFilters";
@@ -35,11 +35,13 @@ import {
     updateMember,
 } from "@/api/MemberAPI";
 import {
+    NO_SPIRITUAL_GROWTH_STAGE,
     spiritualGrowthStageSchema,
     type BulkImportResult,
     type Member,
     type MemberFormData,
     type SpiritualGrowthStage,
+    type SpiritualGrowthStageChoice,
 } from "@/types/index";
 import { roleColors, roleLabels } from "@/utils/constants/roleColors";
 import { parseStoredDate } from "@/utils/date";
@@ -74,10 +76,12 @@ const initialFilters: MemberFiltersValue = {
     profession: "",
 };
 
-const getGrowthProgress = (stage?: SpiritualGrowthStage) => {
+const getGrowthProgress = (stage?: SpiritualGrowthStageChoice) => {
     if (!stage) return 0;
+    if (stage === NO_SPIRITUAL_GROWTH_STAGE) return 0;
 
-    const stageIndex = SPIRITUAL_GROWTH_STAGES.indexOf(stage);
+    // Cast seguro: "Ninguna" ya fue filtrada; el resto pertenece a SPIRITUAL_GROWTH_STAGES.
+    const stageIndex = SPIRITUAL_GROWTH_STAGES.indexOf(stage as SpiritualGrowthStage);
     if (stageIndex === -1) return 0;
 
     return Math.round(((stageIndex + 1) / SPIRITUAL_GROWTH_STAGES.length) * 100);
@@ -185,7 +189,10 @@ export default function Members() {
             normalizeSearchText(member.spiritualGrowthStage ?? "").includes(normalizedSearchTerm);
         const matchesBloodType = !filters.bloodType || member.bloodType === filters.bloodType;
         const matchesGrowthStage =
-            !filters.spiritualGrowthStage || member.spiritualGrowthStage === filters.spiritualGrowthStage;
+            !filters.spiritualGrowthStage ||
+            (filters.spiritualGrowthStage === NO_SPIRITUAL_GROWTH_STAGE
+                ? !member.spiritualGrowthStage || member.spiritualGrowthStage === NO_SPIRITUAL_GROWTH_STAGE
+                : member.spiritualGrowthStage === filters.spiritualGrowthStage);
         const matchesBaptized =
             !filters.baptized || String(Boolean(member.baptized)) === filters.baptized;
         const matchesProfession =

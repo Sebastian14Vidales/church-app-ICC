@@ -1,5 +1,6 @@
 import { Menu, Bell } from "lucide-react"
-import { getInitials, useAuth } from "@/lib/auth"
+import { useAuth } from "@/hooks/useAuth"
+import { getInitials } from "@/utils/text"
 
 export default function AuthHeader() {
     const { user } = useAuth()

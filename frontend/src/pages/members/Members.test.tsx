@@ -62,7 +62,7 @@ vi.mock("@/components/dashboard/ModalView", () => ({
 }));
 
 const mockUseAuth = vi.fn(() => ADMIN_USER);
-vi.mock("@/lib/auth", () => ({
+vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
@@ -94,6 +94,7 @@ const makeMember = (overrides: {
   extraRoles?: string[];
   firstName?: string;
   lastName?: string;
+  spiritualGrowthStage?: string;
 }): {
   _id: string;
   firstName: string;
@@ -109,7 +110,7 @@ const makeMember = (overrides: {
   servesInMinistry: boolean;
   ministry: string | null;
   ministryInterest: string | null;
-  spiritualGrowthStage: string;
+  spiritualGrowthStage?: string;
 } => ({
   _id: overrides._id,
   firstName: overrides.firstName ?? "Nombre",
@@ -131,7 +132,7 @@ const makeMember = (overrides: {
   servesInMinistry: false,
   ministry: null,
   ministryInterest: null,
-  spiritualGrowthStage: "Consolidación",
+  spiritualGrowthStage: overrides.spiritualGrowthStage,
 });
 
 // ---- tests ----------------------------------------------------------------
@@ -333,3 +334,11 @@ describe("Members — ADR-0011 §D1: regla de badge 'Miembro'", () => {
     expect(screen.queryByText("Miembro")).not.toBeInTheDocument();
   });
 });
+
+// ---- ADR-0014 D5: filtro "Ninguna" — PENDIENTE --------------------------------
+// El componente HeroUI Select (MemberFilters) no expone label/for de forma testeable
+// con getByLabelText/getByRole en el harness actual (el for del <label> apunta al
+// input interno de HeroUI, no al botón visible). Tests de interacción con el filtro
+// requieren un approach de userEvent o深い conocimiento del DOM interno de HeroUI.
+// Pendiente: cover el filtro "Ninguna" con tests de integración o tests de lógica
+// pura (Members.tsx::matchesGrowthStage) extraídos a un helper testeable.
