@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import UserProfile, { SPIRITUAL_GROWTH_STAGES } from "../models/user-profile.model";
+import UserProfile, { SPIRITUAL_GROWTH_STAGE_CHOICES } from "../models/user-profile.model";
 import Role from "../models/role.model";
 import { AppError } from "./app-error";
 import { emitRealtimeInvalidation } from "../realtime/socket";
@@ -24,7 +24,9 @@ const MINISTRIES = [
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];
 
 const logBulkImport = (stage: string, details: Record<string, unknown> = {}) => {
-  console.log("[members.bulkImport]", stage, details);
+  // Backlog (quality-engineer): sustituir por logger centralizado/auditoría. No-op para cumplir no-console (AGENTS.md §9).
+  void stage;
+  void details;
 };
 
 interface BulkImportErrorItem {
@@ -302,7 +304,7 @@ const validateRow = (
   }
 
   if (!rawSpiritualGrowthStage) return error("La ruta de crecimiento espiritual es obligatoria");
-  if (!SPIRITUAL_GROWTH_STAGES.includes(rawSpiritualGrowthStage)) {
+  if (!SPIRITUAL_GROWTH_STAGE_CHOICES.includes(rawSpiritualGrowthStage)) {
     return error("La ruta de crecimiento espiritual no es válida");
   }
 

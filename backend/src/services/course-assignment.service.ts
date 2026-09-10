@@ -2,7 +2,10 @@ import mongoose from "mongoose";
 import CourseAssigned from "../models/course-assigned.model";
 import Course from "../models/course.model";
 import ClassSession from "../models/class-session.model";
-import UserProfile, { SPIRITUAL_GROWTH_STAGES } from "../models/user-profile.model";
+import UserProfile, {
+  NO_SPIRITUAL_GROWTH_STAGE,
+  SPIRITUAL_GROWTH_STAGES,
+} from "../models/user-profile.model";
 import { emitRealtimeInvalidation } from "../realtime/socket";
 import { AppError } from "./app-error";
 import type { CourseAssignedStatus } from "../models/course-assigned.model";
@@ -355,13 +358,16 @@ export const softDeleteAssignment = async (id: string) => {
 
 /**
  * Devuelve la siguiente etapa de crecimiento espiritual en la secuencia canónica.
- * - Sin etapa actual (null, undefined o vacío): "Consolidación".
+ * - Sin etapa actual (null, undefined, vacío o "Ninguna"): "Consolidación".
+ *   ADR-0014 D3: "Ninguna" se trata como sin etapa iniciada.
  * - Etapa inválida o última etapa ("Doctrina cristiana"): `null` (no hay siguiente).
  * Nota: la última etapa depende de `SPIRITUAL_GROWTH_STAGES`; insertar una
  * etapa intermedia no requiere cambios de lógica (ADR-0007).
  */
 export const getNextSpiritualGrowthStage = (currentStage?: string | null) => {
-  if (!currentStage) return SPIRITUAL_GROWTH_STAGES[0];
+  if (!currentStage || currentStage === NO_SPIRITUAL_GROWTH_STAGE) {
+    return SPIRITUAL_GROWTH_STAGES[0];
+  }
   const currentIndex = SPIRITUAL_GROWTH_STAGES.indexOf(currentStage);
   if (currentIndex === -1 || currentIndex === SPIRITUAL_GROWTH_STAGES.length - 1) return null;
   return SPIRITUAL_GROWTH_STAGES[currentIndex + 1];

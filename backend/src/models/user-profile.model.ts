@@ -43,6 +43,15 @@ export const SPIRITUAL_GROWTH_STAGES = [
   "Doctrina cristiana",
 ];
 
+/** Valor explícito "sin ruta iniciada" para el perfil (ADR-0014). No es una etapa de la secuencia. */
+export const NO_SPIRITUAL_GROWTH_STAGE = "Ninguna";
+
+/** Valores admisibles en UserProfile.spiritualGrowthStage (ADR-0014). Course usa solo SPIRITUAL_GROWTH_STAGES. */
+export const SPIRITUAL_GROWTH_STAGE_CHOICES = [
+  NO_SPIRITUAL_GROWTH_STAGE,
+  ...SPIRITUAL_GROWTH_STAGES,
+];
+
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];
 
 const userProfileSchema: Schema = new Schema(
@@ -91,7 +100,7 @@ const userProfileSchema: Schema = new Schema(
     },
     spiritualGrowthStage: {
       type: String,
-      enum: SPIRITUAL_GROWTH_STAGES,
+      enum: SPIRITUAL_GROWTH_STAGE_CHOICES, // ADR-0014: incluye "Ninguna"
     },
     encounterStage: {
       type: String,

@@ -1,11 +1,15 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import colors from "colors";
-import { SPIRITUAL_GROWTH_STAGES } from "../models/user-profile.model";
+import {
+  SPIRITUAL_GROWTH_STAGES,
+  SPIRITUAL_GROWTH_STAGE_CHOICES,
+} from "../models/user-profile.model";
 
 dotenv.config();
 
-const VALID_STAGES = SPIRITUAL_GROWTH_STAGES;
+const VALID_PROFILE_STAGES = SPIRITUAL_GROWTH_STAGE_CHOICES;
+const VALID_COURSE_STAGES = SPIRITUAL_GROWTH_STAGES;
 
 const run = async () => {
   const dbUrl = process.env.DATABASE_URL;
@@ -26,7 +30,7 @@ const run = async () => {
   const invalidProfileStages = await db
     .collection("userprofiles")
     .find({
-      spiritualGrowthStage: { $nin: VALID_STAGES, $ne: null },
+      spiritualGrowthStage: { $nin: VALID_PROFILE_STAGES, $ne: null },
     })
     .project({ _id: 1, spiritualGrowthStage: 1, firstName: 1, lastName: 1 })
     .toArray();
@@ -34,7 +38,7 @@ const run = async () => {
   const invalidCourseStages = await db
     .collection("courses")
     .find({
-      spiritualGrowthStage: { $nin: VALID_STAGES },
+      spiritualGrowthStage: { $nin: VALID_COURSE_STAGES },
     })
     .project({ _id: 1, spiritualGrowthStage: 1, name: 1 })
     .toArray();
@@ -53,7 +57,7 @@ const run = async () => {
     console.log("No hay perfiles con etapa de crecimiento definida.");
   } else {
     stageCounts.forEach((entry: { _id: string; count: number }) => {
-      const valid = VALID_STAGES.includes(entry._id)
+      const valid = VALID_PROFILE_STAGES.includes(entry._id)
         ? colors.green("✓ válido")
         : colors.red("✗ inválido");
       console.log(`  ${entry._id}: ${entry.count} ${valid}`);

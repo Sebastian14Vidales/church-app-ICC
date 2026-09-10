@@ -81,7 +81,17 @@ vi.mock("../../src/models/user-profile.model", () => {
     "Finanzas y Gobierno",
     "Doctrina cristiana",
   ];
-  return { default: userProfileModel, SPIRITUAL_GROWTH_STAGES };
+  const NO_SPIRITUAL_GROWTH_STAGE = "Ninguna";
+  const SPIRITUAL_GROWTH_STAGE_CHOICES = [
+    NO_SPIRITUAL_GROWTH_STAGE,
+    ...SPIRITUAL_GROWTH_STAGES,
+  ];
+  return {
+    default: userProfileModel,
+    SPIRITUAL_GROWTH_STAGES,
+    NO_SPIRITUAL_GROWTH_STAGE,
+    SPIRITUAL_GROWTH_STAGE_CHOICES,
+  };
 });
 
 import CourseAssigned from "../../src/models/course-assigned.model";
@@ -275,6 +285,10 @@ describe("course-assignment.service — getNextSpiritualGrowthStage", () => {
 
   it("etapa inválida devuelve null", () => {
     expect(getNextSpiritualGrowthStage("Etapa desconocida")).toBeNull();
+  });
+
+  it('"Ninguna" se trata como sin etapa → siguiente es "Consolidación" (ADR-0014 D3)', () => {
+    expect(getNextSpiritualGrowthStage("Ninguna")).toBe("Consolidación");
   });
 });
 
@@ -899,6 +913,57 @@ describe("course-assignment.service — addMembers", () => {
     ).rejects.toMatchObject({
       status: 400,
       message: 'Nombre Apellido no es elegible para el curso "Doctrina cristiana". Su siguiente etapa es "Finanzas y Gobierno".',
+    });
+  });
+
+  it("miembro con 'Ninguna' es elegible para curso 'Consolidación' (ADR-0014 D3)", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID, [], "active", {
+      course: { _id: VALID_COURSE_ID, name: "Consolidación", spiritualGrowthStage: "Consolidación" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Ninguna" }),
+      ]),
+    );
+    const populated = buildPopulatedAssignment({
+      course: { _id: VALID_COURSE_ID, name: "Consolidación", spiritualGrowthStage: "Consolidación" },
+      members: [{ _id: VALID_MEMBER_ID }],
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    const result = await addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID], {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    expect(result).toBe(populated);
+    expect(assignedFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: ASSIGNMENT_ID, deletedAt: null },
+      { $set: { members: [VALID_MEMBER_ID] } },
+      { new: true },
+    );
+  });
+
+  it("miembro con 'Ninguna' NO es elegible para 'Discipulado básico' — error con siguiente etapa 'Consolidación' (ADR-0014 D3)", async () => {
+    const assignment = buildActiveAssignmentWithProfessor(VALID_PROFESSOR_ID, [], "active", {
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(assignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Ninguna" }),
+      ]),
+    );
+
+    await expect(
+      addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID], {
+        callerProfileId: VALID_PROFESSOR_ID,
+        callerRoles: ["Profesor"],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Nombre Apellido no es elegible para el curso "Discipulado básico". Su siguiente etapa es "Consolidación".',
     });
   });
 });

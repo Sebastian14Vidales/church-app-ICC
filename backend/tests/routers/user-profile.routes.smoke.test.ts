@@ -73,12 +73,24 @@ vi.mock("../../src/models/user-profile.model", () => {
     return self;
   };
   return {
+    __esModule: true,
     default: {
       find: vi.fn(() => chain([])),
       findOne: vi.fn(),
       findById: vi.fn(),
       create: vi.fn(),
+      findByIdAndUpdate: vi.fn(),
     },
+    SPIRITUAL_GROWTH_STAGE_CHOICES: [
+      "Ninguna",
+      "Consolidación",
+      "Discipulado básico",
+      "Carácter cristiano",
+      "Sanidad y propósito",
+      "Cosmovisión bíblica",
+      "Finanzas y Gobierno",
+      "Doctrina cristiana",
+    ],
   };
 });
 
@@ -401,5 +413,141 @@ describe("user-profile.routes — POST /api/members/bulk", () => {
     expect(res.body.message).toBe("El archivo no es un archivo válido");
     expect(mockProcessBulkImport).not.toHaveBeenCalled();
   });
-
 });
+
+// ---- fixtures comunes para create/update ---------------------------------
+
+const VALID_MEMBER_PAYLOAD_BASE = {
+  firstName: "Juan",
+  lastName: "Pérez",
+  documentID: "12345678",
+  birthdate: "1990-05-15",
+  neighborhood: "Barrio Centro",
+  phoneNumber: "3001234567",
+  bloodType: "O+",
+  baptized: true,
+  servesInMinistry: false,
+  ministryInterest: "Ministerio de Jeunes",
+  spiritualGrowthStage: "Consolidación",
+  encounterStage: "Ninguno",
+  roleNames: ["Miembro"],
+};
+
+describe("user-profile.routes — validación spiritualGrowthStage en POST /api/members (create)", () => {
+  beforeEach(resetMocks);
+
+  // Payload COMPLETO para que no fallen otras validaciones
+  const buildBody = (stage: string) => ({
+    firstName: "Juan",
+    lastName: "Pérez",
+    documentID: "12345678",
+    birthdate: "1990-05-15",
+    neighborhood: "Barrio Centro",
+    phoneNumber: "3001234567",
+    bloodType: "O+",
+    baptized: true,
+    servesInMinistry: false,
+    ministryInterest: "Ministerio de Jeunes",
+    spiritualGrowthStage: stage,
+    encounterStage: "Ninguno",
+    roleNames: ["Miembro"],
+  });
+
+  it("POST / con spiritualGrowthStage='Ninguna' → pasa validación, respuesta 2xx (no 400 por etapa)", async () => {
+    // Mock Role.findOne para lookup de rol
+    const Role = await import("../../src/models/role.model").then(m => m.default);
+    const mockRoleFindOne = Role.findOne as unknown as ReturnType<typeof vi.fn>;
+    mockRoleFindOne.mockResolvedValueOnce({ _id: "role-miembro", name: "Miembro" });
+
+    // Mock User.findOne (email único)
+    const User = await import("../../src/models/user.model").then(m => m.default);
+    const mockUserFindOne = User.findOne as unknown as ReturnType<typeof vi.fn>;
+    mockUserFindOne.mockResolvedValueOnce(null);
+
+    // Mock UserProfile.create
+    const UserProfile = await import("../../src/models/user-profile.model").then(m => m.default);
+    const mockUserCreate = UserProfile.create as unknown as ReturnType<typeof vi.fn>;
+    mockUserCreate.mockResolvedValueOnce({
+      _id: "new-profile-id",
+      ...buildBody("Ninguna"),
+    });
+
+    const res = await request(app)
+      .post("/api/members")
+      .set(authHeader(ADMIN_AUTH))
+      .send(buildBody("Ninguna"));
+
+    // Pasa validación → no 400 por spiritualGrowthStage
+    // (puede ser 400 por otra razón del controller, pero no por la etapa)
+    const stageError = (res.body.errors ?? []).find(
+      (e: { path?: string }) => e.path === "spiritualGrowthStage",
+    );
+    expect(stageError).toBeUndefined();
+  });
+
+  it("POST / con spiritualGrowthStage='Inventado' → 400, errors contiene 'La etapa de crecimiento espiritual no es válida'", async () => {
+    const res = await request(app)
+      .post("/api/members")
+      .set(authHeader(ADMIN_AUTH))
+      .send(buildBody("Inventado"));
+
+    expect(res.status).toBe(400);
+    const stageErrors = (res.body.errors ?? []).filter(
+      (e: { path?: string; msg?: string }) =>
+        e.path === "spiritualGrowthStage" && e.msg?.includes("crecimiento espiritual"),
+    );
+    expect(stageErrors.length).toBeGreaterThan(0);
+    expect(stageErrors[0].msg).toContain("La etapa de crecimiento espiritual no es válida");
+  });
+});
+
+describe("user-profile.routes — validación spiritualGrowthStage en PUT /api/members/:id (update)", () => {
+  beforeEach(resetMocks);
+
+  const buildBody = (stage: string) => ({
+    spiritualGrowthStage: stage,
+  });
+
+  const chainUpdate = (resolved: unknown) => {
+    const self = {
+      populate: vi.fn(() => self),
+      then: <U>(onfulfilled: (value: unknown) => U | PromiseLike<U>) =>
+        Promise.resolve(resolved).then(onfulfilled),
+    };
+    return self;
+  };
+
+  it("PUT /:id con spiritualGrowthStage='Ninguna' → pasa validación, no hay error de etapa en errors", async () => {
+    const UserProfile = await import("../../src/models/user-profile.model").then(m => m.default);
+    const mockFindByIdAndUpdate = UserProfile.findByIdAndUpdate as unknown as ReturnType<typeof vi.fn>;
+    mockFindByIdAndUpdate.mockReturnValue(
+      chainUpdate({ _id: "profile-1", ...VALID_MEMBER_PAYLOAD_BASE, spiritualGrowthStage: "Ninguna" }),
+    );
+
+    const res = await request(app)
+      .put("/api/members/65a1f0c0c1d2a3b4f5e6f7b0")
+      .set(authHeader(ADMIN_AUTH))
+      .send(buildBody("Ninguna"));
+
+    const stageError = (res.body.errors ?? []).find(
+      (e: { path?: string }) => e.path === "spiritualGrowthStage",
+    );
+    expect(stageError).toBeUndefined();
+  });
+
+  it("PUT /:id con spiritualGrowthStage='Inventado' → 400, errors contiene 'La etapa de crecimiento espiritual no es válida'", async () => {
+    const res = await request(app)
+      .put("/api/members/65a1f0c0c1d2a3b4f5e6f7b0")
+      .set(authHeader(ADMIN_AUTH))
+      .send(buildBody("Inventado"));
+
+    expect(res.status).toBe(400);
+    const stageErrors = (res.body.errors ?? []).filter(
+      (e: { path?: string; msg?: string }) =>
+        e.path === "spiritualGrowthStage" && e.msg?.includes("crecimiento espiritual"),
+    );
+    expect(stageErrors.length).toBeGreaterThan(0);
+    expect(stageErrors[0].msg).toContain("La etapa de crecimiento espiritual no es válida");
+  });
+});
+

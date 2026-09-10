@@ -6,6 +6,7 @@ import { uploadExcel } from "../middleware/upload.middleware";
 import { handleInputErrors } from "../middleware/validation";
 import { ADMIN_ROLES, MEMBER_MANAGER_ROLES } from "../utils/auth.utils";
 import { MulterError } from "multer";
+import { SPIRITUAL_GROWTH_STAGE_CHOICES } from "../models/user-profile.model";
 
 const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor", "Lider"];
 const MINISTRIES = [
@@ -19,15 +20,6 @@ const MINISTRIES = [
   "Ministerio de Parejas y Familias",
   "Ministerio Iglesia Infantil",
   "Ministerio de Evangelismo y Consolidación G.V.E",
-];
-const SPIRITUAL_GROWTH_STAGES = [
-  "Consolidación",
-  "Discipulado básico",
-  "Carácter cristiano",
-  "Sanidad y propósito",
-  "Cosmovisión bíblica",
-  "Finanzas y Gobierno",
-  "Doctrina cristiana",
 ];
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];
 
@@ -114,7 +106,7 @@ router.post(
   body("spiritualGrowthStage")
     .notEmpty()
     .withMessage("El crecimiento espiritual es obligatorio")
-    .isIn(SPIRITUAL_GROWTH_STAGES)
+    .isIn(SPIRITUAL_GROWTH_STAGE_CHOICES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
   body("encounterStage")
     .notEmpty()
@@ -205,7 +197,7 @@ router.put(
     .withMessage("El ministerio de interés no es válido"),
   body("spiritualGrowthStage")
     .optional()
-    .isIn(SPIRITUAL_GROWTH_STAGES)
+    .isIn(SPIRITUAL_GROWTH_STAGE_CHOICES)
     .withMessage("La etapa de crecimiento espiritual no es válida"),
   body("encounterStage")
     .optional()

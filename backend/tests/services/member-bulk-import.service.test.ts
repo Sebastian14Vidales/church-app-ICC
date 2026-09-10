@@ -60,18 +60,28 @@ vi.mock("../../src/models/user-profile.model", () => {
   const mockFind = vi.fn(() => chainable([]));
   const mockInsertMany = vi.fn();
 
+  const SPIRITUAL_GROWTH_STAGES = [
+    "Consolidación",
+    "Discipulado básico",
+    "Carácter cristiano",
+    "Sanidad y propósito",
+    "Cosmovisión bíblica",
+    "Finanzas y Gobierno",
+    "Doctrina cristiana",
+  ];
+
+  const NO_SPIRITUAL_GROWTH_STAGE = "Ninguna";
+  const SPIRITUAL_GROWTH_STAGE_CHOICES = [
+    NO_SPIRITUAL_GROWTH_STAGE,
+    ...SPIRITUAL_GROWTH_STAGES,
+  ];
+
   return {
     __esModule: true,
     default: { find: mockFind, insertMany: mockInsertMany },
-    SPIRITUAL_GROWTH_STAGES: [
-      "Consolidación",
-      "Discipulado básico",
-      "Carácter cristiano",
-      "Sanidad y propósito",
-      "Cosmovisión bíblica",
-      "Finanzas y Gobierno",
-      "Doctrina cristiana",
-    ],
+    SPIRITUAL_GROWTH_STAGES,
+    NO_SPIRITUAL_GROWTH_STAGE,
+    SPIRITUAL_GROWTH_STAGE_CHOICES,
   };
 });
 
@@ -355,6 +365,30 @@ describe("member-bulk-import.service — processBulkImport", () => {
 
     expect(result.failedCount).toBe(1);
     expect(result.errors[0].reason).toBe("El campo Encuentro y Reencuentro no es válido");
+  });
+
+  it("CASO-4d: spiritualGrowthStage='Ninguna' → inserta sin error con spiritualGrowthStage:'Ninguna' (ADR-0014 D6)", async () => {
+    const row: (string | number)[] = [...VALID_ROW_1];
+    row[10] = "Ninguna";
+    registerRows([HEADERS, row]);
+
+    mockUserFind
+      .mockReturnValueOnce(chainable([]))
+      .mockReturnValueOnce(
+        chainable([{ documentID: "12345678", firstName: "Juan", lastName: "Pérez" }]),
+      );
+    mockUserInsertMany.mockResolvedValue([]);
+
+    const result = await processBulkImport(Buffer.from("fake"));
+
+    expect(result.insertedCount).toBe(1);
+    expect(result.failedCount).toBe(0);
+    expect(result.errors).toHaveLength(0);
+
+    expect(mockUserInsertMany).toHaveBeenCalled();
+    const insertCall = mockUserInsertMany.mock.calls[0];
+    const docs = insertCall[0] as Array<Record<string, unknown>>;
+    expect(docs[0]).toHaveProperty("spiritualGrowthStage", "Ninguna");
   });
 
   // ---- CASO 5: Validaciones de formato -----------------------------------
