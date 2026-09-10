@@ -73,7 +73,7 @@ documento previa aprobación del `chief-architect`.
 | `Sirve en un ministerio`       | `servesInMinistry`        | boolean normalizado: acepta `Si`/`No`, `Sí`/`No`, `true`/`false`, `1`/`0`            |
 | `Ministerio en el que sirve`   | `ministry`                | enum `MINISTRIES` (ver abajo); obligatorio si `servesInMinistry = true/Si`           |
 | `Ministerio de interes`        | `ministryInterest`        | enum `MINISTRIES` (ver abajo); obligatorio si `servesInMinistry = false/No`          |
-| `Ruta de crecimiento espiritual` | `spiritualGrowthStage`  | enum `SPIRITUAL_GROWTH_STAGES` (ver abajo)                                           |
+| `Ruta de crecimiento espiritual` | `spiritualGrowthStage`  | enum `SPIRITUAL_GROWTH_STAGE_CHOICES` (ver abajo; incluye `"Ninguna"`)              |
 | `Encuentro y Reencuentro`      | `encounterStage`          | enum: `Ninguno`, `Encuentro`, `Reencuentro`                                          |
 | `Profesión`                    | `profession`              | string opcional, libre, trim; puede aparecer duplicada por secciones condicionales (ver 1.2.1) |
 
@@ -101,7 +101,8 @@ MINISTRIES:
   "Ministerio Iglesia Infantil"
   "Ministerio de Evangelismo y Consolidación G.V.E"
 
-SPIRITUAL_GROWTH_STAGES:
+SPIRITUAL_GROWTH_STAGE_CHOICES (perfil de miembro):
+  "Ninguna"
   "Consolidación"
   "Discipulado básico"
   "Carácter cristiano"
@@ -152,7 +153,8 @@ individual, adaptadas al contexto de Asistente:
 8. `servesInMinistry` debe poder normalizarse a booleano.
 9. Si `servesInMinistry === true` → `ministry` obligatorio y válido en `MINISTRIES`.
 10. Si `servesInMinistry === false` → `ministryInterest` obligatorio y válido en `MINISTRIES`.
-11. `spiritualGrowthStage` obligatorio y válido en `SPIRITUAL_GROWTH_STAGES`.
+11. `spiritualGrowthStage` obligatorio y válido en `SPIRITUAL_GROWTH_STAGE_CHOICES`
+    (incluye `"Ninguna"` como elección explícita; ver ADR-0014 D6).
 12. `encounterStage` obligatorio y válido en `ENCOUNTER_STAGES`.
 
 Si una fila incumple alguna validación, se incluye en `errors` con un `reason` en español,

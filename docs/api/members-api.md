@@ -69,8 +69,19 @@ una especificación completa, el `doc-keeper` migrará estas notas al artefacto 
 
 ## 2. Campo `spiritualGrowthStage` en perfil
 
-- Fuente de verdad del enum: `backend/src/models/user-profile.model.ts` →
-  `SPIRITUAL_GROWTH_STAGES`.
-- Frontend: `frontend/src/types/index.ts` → `spiritualGrowthStageSchema`.
+- Fuente de verdad del enum (perfil): `backend/src/models/user-profile.model.ts` →
+  `SPIRITUAL_GROWTH_STAGE_CHOICES`.
+  - Valores permitidos: `"Ninguna"` + las 7 etapas canónicas
+    (`"Consolidación"`, `"Discipulado básico"`, `"Carácter cristiano"`,
+    `"Sanidad y propósito"`, `"Cosmovisión bíblica"`, `"Finanzas y Gobierno"`,
+    `"Doctrina cristiana"`).
+  - Ver decisión arquitectónica en `docs/adr/0014-spiritual-growth-stage-ninguna.md`.
+- Frontend: `frontend/src/types/index.ts` →
+  `spiritualGrowthStageChoiceSchema` / `SpiritualGrowthStageChoice`.
+- El campo sigue siendo **obligatorio** en formularios, validadores y bulk import:
+  `"Ninguna"` es una elección explícita, no la ausencia de respuesta.
+- **Nota sobre cursos**: el catálogo de cursos (`Course.spiritualGrowthStage`) sigue
+  restringido a las 7 etapas canónicas (`SPIRITUAL_GROWTH_STAGES`); "Ninguna" no es
+  una etapa de curso. Ver `docs/api/courses-api.md` para la elegibilidad.
 - El avance automático de esta etapa se documenta en `docs/api/courses-api.md`
   (`POST /api/courses/assignments/:id/close`).

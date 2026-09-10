@@ -66,7 +66,7 @@ A continuacion se listan los errores mas frecuentes y como corregirlos:
 | Sirve en un ministerio | `Si`, `Sí`, `No`, `true`, `false`, `1`, `0` | Cualquier otro texto |
 | Ministerio en el que sirve | Obligatorio solo si "Sirve en un ministerio" es `Si`. Debe ser un ministerio valido del sistema. | Dejarlo vacio cuando respondio `Si` |
 | Ministerio de interes | Obligatorio solo si "Sirve en un ministerio" es `No`. Debe ser un ministerio valido del sistema. | Dejarlo vacio cuando respondio `No` |
-| Ruta de crecimiento espiritual | Debe coincidir exactamente con una etapa del sistema: `Consolidación`, `Discipulado básico`, `Carácter cristiano`, `Sanidad y propósito`, `Cosmovisión bíblica`, `Finanzas y Gobierno`, `Doctrina cristiana` | Abreviaturas o nombres distintos |
+| Ruta de crecimiento espiritual | Debe coincidir exactamente con una etapa del sistema: `Ninguna`, `Consolidación`, `Discipulado básico`, `Carácter cristiano`, `Sanidad y propósito`, `Cosmovisión bíblica`, `Finanzas y Gobierno`, `Doctrina cristiana` | Abreviaturas o nombres distintos |
 | Encuentro y Reencuentro | Uno de estos valores exactos: `Ninguno`, `Encuentro`, `Reencuentro` | "Ninguna" u otro texto |
 
 ## Limitaciones importantes
@@ -129,7 +129,7 @@ A continuación encontrarás el diseño exacto de preguntas que recomendamos usa
 | 8 | Sirve en un ministerio | Opción múltiple | Sí | Sí, No |
 | 9 | Ministerio en el que sirve | Desplegable | No | ver lista de ministerios |
 | 10 | Ministerio de interes | Desplegable | No | ver lista de ministerios |
-| 11 | Ruta de crecimiento espiritual | Desplegable | Sí | ver lista de etapas |
+| 11 | Ruta de crecimiento espiritual | Desplegable | Sí | ver lista de etapas (incluye `Ninguna` para miembros que aún no han iniciado la ruta) |
 | 12 | Encuentro y Reencuentro | Desplegable | Sí | Ninguno, Encuentro, Reencuentro |
 | 13 | Profesión | Respuesta corta | No | — |
 
@@ -155,6 +155,7 @@ Ministerio de Evangelismo y Consolidación G.V.E
 Copia exactamente estos valores en la pregunta 11:
 
 ```text
+Ninguna
 Consolidación
 Discipulado básico
 Carácter cristiano

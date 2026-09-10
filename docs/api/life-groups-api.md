@@ -1,12 +1,13 @@
 # Contrato API del módulo de Grupos de Vida — `EPC-LIFE-GROUPS-001`
 
-> **Estado**: Vigente (paso 3 del ADR-0011).
+> **Estado**: Vigente (ADR-0011; asignación explícita de supervisor en POST según ADR-0015).
 > **Autoridad**: `api-contract-engineer` (única fuente de verdad sobre la forma de los payloads).
 > **Fuentes**: `AGENTS.md` (§3, §4, §5, §6, §8), `docs/adr/0011-life-groups-leader-remove-predicas-ui-tweaks.md`,
+> `docs/adr/0015-life-groups-supervisor-assignment.md`,
 > `backend/src/models/life-group.model.ts`, `frontend/src/api/LifeGroupAPI.ts`.
 > **Consumidores**: `database-engineer`, `backend-engineer`, `auth-security-engineer`,
 > `frontend-engineer`, `testing-engineer`, `quality-engineer`.
-> **Última revisión**: 2026-08-17
+> **Última revisión**: 2026-09-09
 
 Este documento **es la única especificación normativa** de los endpoints del módulo de Grupos de Vida
 para el alcance del ADR-0011. Cualquier divergencia entre este contrato y el código se considera
@@ -157,6 +158,10 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
 > **Nota**: `supervisor`, `leader`, `attendees` y `sessions.attendeesPresent` usan el **mismo
 > sub-shape de miembro** (el subset poblado que hoy usa `lifeGroupSchema.supervisor` en
 > `frontend/src/types/index.ts`). No se exponen campos sensibles.
+>
+> **Nota sobre `spiritualGrowthStage`**: el perfil de miembro admite `"Ninguna"` además de
+> las 7 etapas canónicas (ver ADR-0014). Los ejemplos JSON muestran etapas reales, pero el
+> campo poblado puede contener `"Ninguna"`.
 
 ---
 
@@ -198,14 +203,14 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
 | `leader`       | string (MongoId)                   | sí        | `profileId` del líder. Debe tener rol `Lider`.                           |
 | `type`         | `"life-group"` \| `"couple-group"` | sí        | `life-group` = semanal; `couple-group` = mensual.                        |
 | `attendees`    | string[] (MongoId[])               | sí        | Lista de `profileId` de asistentes (puede estar vacía).                  |
-| `supervisor`   | string (MongoId)                   | opcional  | Solo `Admin`/`Superadmin` pueden enviarlo; si no, se asigna al solicitante. |
+| `supervisor`   | string (MongoId)                   | obligatorio para `Admin`/`Superadmin`; omitido/auto-asignado para `Supervisor` | Solo `Admin`/`Superadmin` deben enviarlo; si falta: `400 { message: "Debes seleccionar el supervisor responsable" }`. Si el creador es `Supervisor`, el campo se ignora y se auto-asigna a sí mismo (ADR-0015 D1). |
 
 - **Validaciones**:
   - `name`, `neighborhood`, `address`: no vacíos.
   - `leader`: MongoId válido; el `UserProfile` referenciado debe existir y su usuario debe tener el rol `Lider`.
   - `attendees`: cada id debe ser MongoId válido y existir como `UserProfile`.
   - `type`: valor en enum `["life-group", "couple-group"]`.
-  - `supervisor` (si se envía): MongoId válido; solo permitido para `Admin`/`Superadmin`.
+  - `supervisor`: obligatorio para creadores `Admin`/`Superadmin`; si falta, `400 { message: "Debes seleccionar el supervisor responsable" }`. Si se envía, MongoId válido y solo permitido para `Admin`/`Superadmin`. Para creadores `Supervisor` el campo se ignora y se auto-asignan (ADR-0015 D1).
   - Un perfil solo puede ser líder de **un** grupo (unicidad a nivel aplicación).
 
 - **Respuesta 201** — `{ message: string, lifeGroup: LifeGroup }`.
@@ -223,9 +228,15 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
   - `400 { message: "El líder ya dirige otro grupo de vida" }`
   - `400 { message: "Uno o más asistentes no existen" }`
   - `400 { message: "Tipo de grupo inválido" }`
+  - `400 { message: "Debes seleccionar el supervisor responsable" }` — creador `Admin`/`Superadmin` no envió `supervisor`.
   - `401 { message: "No autorizado" }`
   - `403 { message: "No tienes permisos para esta acción" }`
   - `500 { message: "Error al crear el grupo de vida" }`
+
+> **Nota operativa (post-deploy)**: ejecutar el script de solo lectura
+> `backend/src/config/verify-life-groups.ts` para diagnosticar cobertura por supervisor,
+> asignaciones sospechosas (supervisor sin rol `Supervisor`), líderes sin rol `Lider` y grupos
+> huérfanos antes de entregar credenciales a los supervisores (ADR-0015 D3).
 
 ---
 
@@ -246,7 +257,7 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
 | `type`         | `"life-group"` \| `"couple-group"` | opcional  |                                                        |
 | `attendees`    | string[] (MongoId[])               | opcional  | Reemplaza la lista completa de asistentes.             |
 | `leader`       | string (MongoId)                   | opcional  | Debe cumplir las mismas reglas que en creación.        |
-| `supervisor`   | string (MongoId)                   | opcional  | Solo `Admin`/`Superadmin`.                             |
+| `supervisor`   | string (MongoId)                   | opcional  | Solo `Admin`/`Superadmin`; se usa para reasignar cobertura y reparar datos mal asignados (ADR-0015 D3). |
 
 - **Validaciones**:
   - Mismas reglas de `leader`, `attendees`, `type` y `supervisor` que en creación.
@@ -488,8 +499,7 @@ export const createLifeGroupResponseSchema = z.object({
 
 ### 3.7 `createLifeGroupFormDataSchema`
 
-Body de `POST /api/life-groups`. Incluye `supervisor` opcional para uso de
-`Admin`/`Superadmin`.
+Body de `POST /api/life-groups`. Incluye `supervisor` opcional a nivel de schema (Zod), pero el backend lo exige para creadores `Admin`/`Superadmin` y devuelve `400 { message: "Debes seleccionar el supervisor responsable" }` si falta; para creadores `Supervisor` el campo se ignora y se auto-asignan (ADR-0015 D1).
 
 ```ts
 const objectIdStringSchema = z.string().regex(/^[0-9a-fA-F]{24}$/);
@@ -581,7 +591,7 @@ Inventario puntual. Los ítems resueltos se marcan con ✅; los pendientes con �
 
 - ❌ **D-01** El modelo `LifeGroup` debe extenderse con `leader`, `type`, `attendees` y `sessions`.
 - ❌ **D-02** `GET /api/life-groups` debe filtrar por rol (`Admin`/`Superadmin`/`Supervisor`/`Lider`).
-- ❌ **D-03** `POST /api/life-groups` debe aceptar `leader`, `type`, `attendees` y asignar `supervisor` según solicitante.
+- ❌ **D-03** `POST /api/life-groups` debe aceptar `leader`, `type`, `attendees` y, para creadores `Admin`/`Superadmin`, exigir `supervisor`; para creadores `Supervisor`, auto-asignarse a sí mismo (ADR-0015 D1).
 - ❌ **D-04** `PATCH /api/life-groups/:id` debe permitir editar metadatos y roster.
 - ❌ **D-05** `POST /api/life-groups/:id/sessions` debe crear sesiones con `weekNumber` auto-computado.
 - ❌ **D-06** `PATCH /api/life-groups/:id/sessions/:sessionId` debe editar sesiones.

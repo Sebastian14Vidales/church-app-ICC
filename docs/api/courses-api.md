@@ -373,7 +373,7 @@ El schema zod formal está en §5.2 (`courseAssignedSchema` ampliado).
 - **Validaciones**:
   - La asignación debe tener `status: "active"` y `deletedAt: null` → `400 { message: "Solo puedes registrar miembros en cursos activos" }`.
   - Todos los `memberIds` deben existir y tener `role.name ∈ {"Asistente", "Miembro"}` → `400 { message: "Solo puedes registrar perfiles con rol Asistente o Miembro" }`.
-  - Elegibilidad por etapa de crecimiento espiritual (ADR-0006 §D3): la etapa del curso (`course.spiritualGrowthStage`) debe ser la **siguiente etapa** inmediata respecto a la etapa actual del miembro. Si el miembro no tiene etapa definida, su siguiente etapa es `"Consolidación"`. Si el miembro ya alcanzó o superó la etapa del curso, no es elegible.
+  - Elegibilidad por etapa de crecimiento espiritual (ADR-0006 §D3): la etapa del curso (`course.spiritualGrowthStage`) debe ser la **siguiente etapa** inmediata respecto a la etapa actual del miembro. Si el miembro no tiene etapa definida, su siguiente etapa es `"Consolidación"`. Los miembros con etapa `"Ninguna"` se tratan como sin etapa (su siguiente etapa es `"Consolidación"` — ADR-0014 D3). Si el miembro ya alcanzó o superó la etapa del curso, no es elegible.
   - Si algún `memberId` no es elegible → `409 { message: "El miembro <nombre> no está en la etapa requerida para este curso" }` (o `400` si se prefiere agrupar; el backend normaliza a `409` por conflicto de regla de negocio).
 - **200** — `{ message: "Miembros registrados correctamente en el curso", assignment: CourseAssigned }`.
 - **Errores**: `400` / `403` / `404 { message: "Asignación no encontrada" }` / `500`.

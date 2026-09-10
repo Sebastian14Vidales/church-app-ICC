@@ -21,6 +21,8 @@ consideradas y las consecuencias para el sistema.
 | [ADR-0011](0011-life-groups-leader-remove-predicas-ui-tweaks.md) | Grupos de vida con rol Lider, retirada de Predicas y ajustes de UI | Aceptado | 2026-08-17 |
 | [ADR-0012](0012-bulk-import-duplicate-columns.md) | Tolerancia a columnas duplicadas por secciones condicionales de Google Forms en el bulk import | Aceptado | 2026-08-23 |
 | [ADR-0013](0013-bulk-import-profession-date-formats.md) | Profesión opcional y tolerancia de formatos de fecha en el bulk import | Aceptado | 2026-09-07 |
+| [ADR-0014](0014-spiritual-growth-stage-ninguna.md) | Opción "Ninguna" en la ruta de crecimiento espiritual del perfil de miembro | Aceptado | 2026-09-09 |
+| [ADR-0015](0015-life-groups-supervisor-assignment.md) | Asignación explícita de supervisor en grupos de vida (fix de cobertura invisible) | Aceptado | 2026-09-09 |
 
 ---
 
