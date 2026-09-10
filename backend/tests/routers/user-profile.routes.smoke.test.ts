@@ -166,11 +166,11 @@ describe("user-profile.routes — POST /api/members/bulk", () => {
     return req;
   };
 
-  it("POST /bulk sin archivo → 400 { message: 'Debes adjuntar un archivo .xlsx' }", async () => {
+  it("POST /bulk sin archivo → 400 'Debes adjuntar un archivo .xlsx o .csv'", async () => {
     const res = await buildRequest(ADMIN_AUTH);
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe("Debes adjuntar un archivo .xlsx");
+    expect(res.body.message).toBe("Debes adjuntar un archivo .xlsx o .csv");
     expect(mockProcessBulkImport).not.toHaveBeenCalled();
   });
 
@@ -239,8 +239,9 @@ describe("user-profile.routes — POST /api/members/bulk", () => {
     expect(res.status).toBe(200);
   });
 
-  it("POST /bulk con mimetype inválido (text/plain) → 400 'El archivo no es un Excel válido'", async () => {
-    // Multer fileFilter rechaza text/plain
+  // ---- CASO 4b: texto plano sin extensión válida → 400 (ni mimetype ni extensión coinciden) ----
+  it("POST /bulk con mimetype inválido (text/plain) sin extensión válida → 400 'El archivo no es un archivo válido'", async () => {
+    // Multer fileFilter rechaza text/plain SIN extensión .csv/.xlsx
     const res = await request(app)
       .post("/api/members/bulk")
       .set(authHeader(ADMIN_AUTH))
@@ -250,7 +251,7 @@ describe("user-profile.routes — POST /api/members/bulk", () => {
       });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe("El archivo no es un Excel válido");
+    expect(res.body.message).toBe("El archivo no es un archivo válido");
     expect(mockProcessBulkImport).not.toHaveBeenCalled();
   });
 
@@ -296,4 +297,109 @@ describe("user-profile.routes — POST /api/members/bulk", () => {
 
     expect(res.status).toBe(500);
   });
+
+  // ---- CSV tests (ADR-0010 revisión 2026-08-18) --------------------------------
+
+  it("POST /bulk con archivo .csv mimetype text/csv y rol Admin → 200 + BulkImportResult shape", async () => {
+    const bulkResult = {
+      total: 1,
+      insertedCount: 1,
+      failedCount: 0,
+      inserted: [{ row: 2, documentID: "12345678", firstName: "Juan", lastName: "Pérez" }],
+      errors: [],
+    };
+    mockProcessBulkImport.mockResolvedValue(bulkResult);
+
+    const csvContent = Buffer.from(
+      "Nombre,Apellidos,Documento,Fecha de nacimiento,Barrio,Telefono,Tipo de sangre,Sirve en un ministerio,Ministerio en el que sirve,Ministerio de interes,Ruta de crecimiento espiritual,Encuentro y Reencuentro\n" +
+      "Juan,Pérez,12345678,1990-05-15,Barrio Centro,3001234567,O+,Sí,Ministerio de Alabanza,,Consolidación,Ninguno",
+      "utf-8",
+    );
+
+    const res = await request(app)
+      .post("/api/members/bulk")
+      .set(authHeader(ADMIN_AUTH))
+      .attach("file", csvContent, {
+        filename: "asistentes.csv",
+        contentType: "text/csv",
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      total: 1,
+      insertedCount: 1,
+      failedCount: 0,
+      inserted: expect.any(Array),
+      errors: expect.any(Array),
+    });
+    expect(mockProcessBulkImport).toHaveBeenCalled();
+  });
+
+  it("POST /bulk con archivo .csv mimetype text/plain y rol Superadmin → 200 (aceptado por extensión .csv)", async () => {
+    mockProcessBulkImport.mockResolvedValue({
+      total: 0,
+      insertedCount: 0,
+      failedCount: 0,
+      inserted: [],
+      errors: [],
+    });
+
+    const csvContent = Buffer.from(
+      "Nombre,Apellidos,Documento,Fecha de nacimiento,Barrio,Telefono,Tipo de sangre,Sirve en un ministerio,Ministerio en el que sirve,Ministerio de interes,Ruta de crecimiento espiritual,Encuentro y Reencuentro",
+      "utf-8",
+    );
+
+    const res = await request(app)
+      .post("/api/members/bulk")
+      .set(authHeader(SUPERADMIN_AUTH))
+      .attach("file", csvContent, {
+        filename: "asistentes.csv",
+        contentType: "text/plain",
+      });
+
+    expect(res.status).toBe(200);
+    expect(mockProcessBulkImport).toHaveBeenCalled();
+  });
+
+  it("POST /bulk con archivo .csv mimetype application/json → 200 (aceptado por extensión .csv)", async () => {
+    mockProcessBulkImport.mockResolvedValue({
+      total: 1,
+      insertedCount: 1,
+      failedCount: 0,
+      inserted: [{ row: 2, documentID: "12345678", firstName: "Ana", lastName: "García" }],
+      errors: [],
+    });
+
+    const csvContent = Buffer.from(
+      "Nombre,Apellidos,Documento,Fecha de nacimiento,Barrio,Telefono,Tipo de sangre,Sirve en un ministerio,Ministerio en el que sirve,Ministerio de interes,Ruta de crecimiento espiritual,Encuentro y Reencuentro\n" +
+      "Ana,García,12345678,1985-03-22,Barrio Sur,3009876543,A+,No,,Ministerio de Jóvenes,Discipulado básico,Encuentro",
+      "utf-8",
+    );
+
+    const res = await request(app)
+      .post("/api/members/bulk")
+      .set(authHeader(ADMIN_AUTH))
+      .attach("file", csvContent, {
+        filename: "asistentes.csv",
+        contentType: "application/json",
+      });
+
+    expect(res.status).toBe(200);
+    expect(mockProcessBulkImport).toHaveBeenCalled();
+  });
+
+  it("POST /bulk con archivo sin extensión y mimetype application/pdf → 400 'El archivo no es un archivo válido'", async () => {
+    const res = await request(app)
+      .post("/api/members/bulk")
+      .set(authHeader(ADMIN_AUTH))
+      .attach("file", Buffer.from("fake pdf content"), {
+        filename: "documento",
+        contentType: "application/pdf",
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("El archivo no es un archivo válido");
+    expect(mockProcessBulkImport).not.toHaveBeenCalled();
+  });
+
 });

@@ -19,6 +19,8 @@ consideradas y las consecuencias para el sistema.
 | [ADR-0009](0009-course-cascade-hard-delete.md) | Borrado fisico en cascada para el catalogo de `Course` | Aceptado | 2026-08-07 |
 | [ADR-0010](0010-members-bulk-import.md) | Bulk import de miembros/asistentes desde Excel | Aceptado | 2026-08-08 |
 | [ADR-0011](0011-life-groups-leader-remove-predicas-ui-tweaks.md) | Grupos de vida con rol Lider, retirada de Predicas y ajustes de UI | Aceptado | 2026-08-17 |
+| [ADR-0012](0012-bulk-import-duplicate-columns.md) | Tolerancia a columnas duplicadas por secciones condicionales de Google Forms en el bulk import | Aceptado | 2026-08-23 |
+| [ADR-0013](0013-bulk-import-profession-date-formats.md) | Profesión opcional y tolerancia de formatos de fecha en el bulk import | Aceptado | 2026-09-07 |
 
 ---
 

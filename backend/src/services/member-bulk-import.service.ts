@@ -23,6 +23,10 @@ const MINISTRIES = [
 
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];
 
+const logBulkImport = (stage: string, details: Record<string, unknown> = {}) => {
+  console.log("[members.bulkImport]", stage, details);
+};
+
 interface BulkImportErrorItem {
   row: number;
   documentID: string | null;
@@ -57,7 +61,8 @@ type HeaderKey =
   | "ministry"
   | "ministryInterest"
   | "spiritualGrowthStage"
-  | "encounterStage";
+  | "encounterStage"
+  | "profession";
 
 const HEADER_MAP: Record<string, HeaderKey> = {
   nombre: "firstName",
@@ -72,9 +77,23 @@ const HEADER_MAP: Record<string, HeaderKey> = {
   "ministerio de interes": "ministryInterest",
   "ruta de crecimiento espiritual": "spiritualGrowthStage",
   "encuentro y reencuentro": "encounterStage",
+  profesion: "profession",
 };
 
-const REQUIRED_HEADERS = Object.keys(HEADER_MAP);
+const REQUIRED_HEADERS = [
+  "nombre",
+  "apellidos",
+  "documento",
+  "fecha de nacimiento",
+  "barrio",
+  "telefono",
+  "tipo de sangre",
+  "sirve en un ministerio",
+  "ministerio en el que sirve",
+  "ministerio de interes",
+  "ruta de crecimiento espiritual",
+  "encuentro y reencuentro",
+];
 
 interface ParsedCandidate {
   row: number;
@@ -90,10 +109,15 @@ interface ParsedCandidate {
   ministryInterest?: string;
   spiritualGrowthStage: string;
   encounterStage: string;
+  profession?: string;
 }
 
 const normalizeHeader = (value: unknown): string =>
-  String(value ?? "").trim().toLowerCase();
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 
 const normalizeString = (value: unknown): string =>
   String(value ?? "").trim();
@@ -105,36 +129,58 @@ const parseBooleanCell = (value: unknown): boolean | null => {
   return null;
 };
 
+const isYearPlausible = (year: number): boolean => year >= 1900 && year <= 2100;
+
+const buildLocalMidnight = (year: number, month: number, day: number): Date | null => {
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  ) {
+    return date;
+  }
+  return null;
+};
+
 const parseDateCell = (value: unknown): Date | null => {
+  if (value instanceof Date) {
+    const year = value.getUTCFullYear();
+    const month = value.getUTCMonth() + 1;
+    const day = value.getUTCDate();
+    if (!isYearPlausible(year)) return null;
+    return buildLocalMidnight(year, month, day);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const days = Math.floor(value);
+    const utc = new Date(Date.UTC(1899, 11, 30) + days * 86400000);
+    const year = utc.getUTCFullYear();
+    const month = utc.getUTCMonth() + 1;
+    const day = utc.getUTCDate();
+    if (!isYearPlausible(year)) return null;
+    return buildLocalMidnight(year, month, day);
+  }
+
   const normalized = normalizeString(value);
   if (!normalized) return null;
 
-  const isoMatch = /^\d{4}-\d{2}-\d{2}$/.exec(normalized);
+  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(normalized);
   if (isoMatch) {
-    const [year, month, day] = normalized.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-    if (
-      date.getFullYear() === year &&
-      date.getMonth() === month - 1 &&
-      date.getDate() === day
-    ) {
-      return date;
-    }
-    return null;
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    if (!isYearPlausible(year)) return null;
+    return buildLocalMidnight(year, month, day);
   }
 
-  const latinMatch = /^\d{2}\/\d{2}\/\d{4}$/.exec(normalized);
-  if (latinMatch) {
-    const [day, month, year] = normalized.split("/").map(Number);
-    const date = new Date(year, month - 1, day);
-    if (
-      date.getFullYear() === year &&
-      date.getMonth() === month - 1 &&
-      date.getDate() === day
-    ) {
-      return date;
-    }
-    return null;
+  const dayFirstMatch = /^(\d{1,2})([/-])(\d{1,2})\2(\d{4})$/.exec(normalized);
+  if (dayFirstMatch) {
+    const day = Number(dayFirstMatch[1]);
+    const month = Number(dayFirstMatch[3]);
+    const year = Number(dayFirstMatch[4]);
+    if (!isYearPlausible(year)) return null;
+    return buildLocalMidnight(year, month, day);
   }
 
   return null;
@@ -155,34 +201,49 @@ const validatePhoneNumber = (value: unknown): string | null => {
   return normalized;
 };
 
-const buildHeaderIndex = (headerRow: unknown[]): Map<HeaderKey, number> => {
-  const indexByKey = new Map<HeaderKey, number>();
-  const seenHeaders = new Set<string>();
+const buildHeaderIndex = (headerRow: unknown[]): Map<HeaderKey, number[]> => {
+  const indexByKey = new Map<HeaderKey, number[]>();
 
   headerRow.forEach((rawHeader, index) => {
     const header = normalizeHeader(rawHeader);
-    if (!header || seenHeaders.has(header)) return;
-    seenHeaders.add(header);
+    if (!header) return;
 
     const key = HEADER_MAP[header];
-    if (key && !indexByKey.has(key)) {
-      indexByKey.set(key, index);
+    if (!key) return;
+
+    const existing = indexByKey.get(key);
+    if (existing) {
+      existing.push(index);
+    } else {
+      indexByKey.set(key, [index]);
     }
   });
 
   return indexByKey;
 };
 
-const getCellValue = (row: unknown[], indexByKey: Map<HeaderKey, number>, key: HeaderKey): unknown => {
-  const index = indexByKey.get(key);
-  if (index === undefined) return "";
-  return row[index];
+const getCellValue = (
+  row: unknown[],
+  indexByKey: Map<HeaderKey, number[]>,
+  key: HeaderKey,
+): unknown => {
+  const indices = indexByKey.get(key);
+  if (!indices || indices.length === 0) return "";
+
+  for (const index of indices) {
+    const cell = row[index];
+    if (normalizeString(cell) !== "") {
+      return cell;
+    }
+  }
+
+  return "";
 };
 
 const validateRow = (
   row: unknown[],
   rowNumber: number,
-  indexByKey: Map<HeaderKey, number>,
+  indexByKey: Map<HeaderKey, number[]>,
 ): ParsedCandidate | BulkImportErrorItem => {
   const firstName = normalizeString(getCellValue(row, indexByKey, "firstName"));
   const lastName = normalizeString(getCellValue(row, indexByKey, "lastName"));
@@ -198,6 +259,7 @@ const validateRow = (
     getCellValue(row, indexByKey, "spiritualGrowthStage"),
   );
   const rawEncounterStage = normalizeString(getCellValue(row, indexByKey, "encounterStage"));
+  const rawProfession = normalizeString(getCellValue(row, indexByKey, "profession"));
 
   const documentID = validateDocumentID(rawDocumentID);
   const birthdate = parseDateCell(rawBirthdate);
@@ -263,6 +325,7 @@ const validateRow = (
     ministryInterest,
     spiritualGrowthStage: rawSpiritualGrowthStage,
     encounterStage: rawEncounterStage,
+    profession: rawProfession || undefined,
   };
 };
 
@@ -321,39 +384,66 @@ const humanizeMongooseError = (message: string): string => {
 };
 
 export const processBulkImport = async (fileBuffer: Buffer): Promise<BulkImportResult> => {
+  logBulkImport("inicio", { bufferLength: fileBuffer.length });
+
   let workbook: XLSX.WorkBook;
   try {
-    workbook = XLSX.read(fileBuffer, { type: "buffer" });
-  } catch {
-    throw new AppError(400, "El archivo no es un Excel válido");
+    workbook = XLSX.read(fileBuffer, { type: "buffer", codepage: 65001 });
+  } catch (error) {
+    logBulkImport("error_leyendo_archivo", {
+      bufferLength: fileBuffer.length,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new AppError(400, "El archivo no es un archivo válido");
   }
 
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
-    throw new AppError(400, "El archivo no es un Excel válido");
+    logBulkImport("sin_hojas", { sheetNames: workbook.SheetNames });
+    throw new AppError(400, "El archivo no es un archivo válido");
   }
+
+  logBulkImport("hoja_detectada", { sheetName, sheetNames: workbook.SheetNames });
 
   const sheet = workbook.Sheets[sheetName];
   const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
+  logBulkImport("filas_leidas", {
+    sheetName,
+    totalRows: Array.isArray(rawRows) ? rawRows.length : 0,
+  });
+
   if (!Array.isArray(rawRows) || rawRows.length === 0) {
-    throw new AppError(400, "El archivo no es un Excel válido");
+    logBulkImport("archivo_sin_filas", { sheetName });
+    throw new AppError(400, "El archivo no es un archivo válido");
   }
 
   const headerRow = rawRows[0];
   if (!Array.isArray(headerRow)) {
-    throw new AppError(400, "El archivo no es un Excel válido");
+    logBulkImport("fila_cabecera_invalida", { sheetName, headerRowType: typeof headerRow });
+    throw new AppError(400, "El archivo no es un archivo válido");
   }
 
   const indexByKey = buildHeaderIndex(headerRow);
   const missingHeaders = REQUIRED_HEADERS.filter((header) => !indexByKey.has(HEADER_MAP[header]));
   if (missingHeaders.length > 0) {
-    throw new AppError(400, "El archivo no es un Excel válido");
+    logBulkImport("cabeceras_incompletas", {
+      sheetName,
+      foundHeaders: headerRow.map((value) => normalizeHeader(value)),
+      missingHeaders,
+    });
+    throw new AppError(400, "El archivo no es un archivo válido");
   }
+
+  logBulkImport("cabeceras_validas", {
+    sheetName,
+    headers: headerRow.map((value) => normalizeHeader(value)),
+  });
 
   const dataRows = rawRows.slice(1) as unknown[][];
   if (dataRows.length === 0) {
-    throw new AppError(400, "El archivo no es un Excel válido");
+    logBulkImport("sin_datos", { sheetName });
+    throw new AppError(400, "El archivo no es un archivo válido");
   }
 
   const errors: BulkImportErrorItem[] = [];
@@ -362,17 +452,31 @@ export const processBulkImport = async (fileBuffer: Buffer): Promise<BulkImportR
 
   for (let index = 0; index < dataRows.length; index += 1) {
     const row = dataRows[index];
-    if (!Array.isArray(row)) continue;
+    if (!Array.isArray(row)) {
+      logBulkImport("fila_omitida_no_es_array", { rowIndex: index + 2, rowType: typeof row });
+      continue;
+    }
 
     const rowNumber = index + 2;
     const result = validateRow(row, rowNumber, indexByKey);
 
     if ("reason" in result) {
+      logBulkImport("fila_invalida", {
+        rowNumber,
+        documentID: result.documentID,
+        firstName: result.firstName,
+        reason: result.reason,
+      });
       errors.push(result);
       continue;
     }
 
     if (seenDocuments.has(result.documentID)) {
+      logBulkImport("documento_duplicado_en_archivo", {
+        rowNumber,
+        documentID: result.documentID,
+        firstSeenRow: seenDocuments.get(result.documentID),
+      });
       errors.push({
         row: rowNumber,
         documentID: result.documentID,
@@ -390,14 +494,31 @@ export const processBulkImport = async (fileBuffer: Buffer): Promise<BulkImportR
   let inserted: BulkImportInsertedItem[] = [];
 
   if (candidates.length > 0) {
+    logBulkImport("candidatos_validos", {
+      candidatesCount: candidates.length,
+      candidateRows: candidates.map((candidate) => ({
+        row: candidate.row,
+        documentID: candidate.documentID,
+      })),
+    });
+
     const existingProfiles = await UserProfile.find({
       documentID: { $in: candidates.map((candidate) => candidate.documentID) },
     }).select("documentID");
 
     const existingDocumentIds = new Set(existingProfiles.map((profile) => profile.documentID));
 
+    logBulkImport("documentos_existentes_en_bd", {
+      existingCount: existingDocumentIds.size,
+      existingDocumentIDs: Array.from(existingDocumentIds),
+    });
+
     toInsertCandidates = candidates.filter((candidate) => {
       if (existingDocumentIds.has(candidate.documentID)) {
+        logBulkImport("documento_ya_existia_en_bd", {
+          rowNumber: candidate.row,
+          documentID: candidate.documentID,
+        });
         errors.push({
           row: candidate.row,
           documentID: candidate.documentID,
@@ -410,8 +531,14 @@ export const processBulkImport = async (fileBuffer: Buffer): Promise<BulkImportR
     });
 
     if (toInsertCandidates.length > 0) {
+      logBulkImport("preparando_insercion", {
+        toInsertCount: toInsertCandidates.length,
+        toInsertDocumentIDs: toInsertCandidates.map((candidate) => candidate.documentID),
+      });
+
       const asistenteRole = await Role.findOne({ name: "Asistente" });
       if (!asistenteRole) {
+        logBulkImport("rol_asistente_no_encontrado", { roleName: "Asistente" });
         throw new AppError(500, "No se encontró el rol Asistente en la base de datos");
       }
 
@@ -431,6 +558,7 @@ export const processBulkImport = async (fileBuffer: Buffer): Promise<BulkImportR
         spiritualGrowthStage: candidate.spiritualGrowthStage,
         encounterStage: candidate.encounterStage,
         role: asistenteRole._id,
+        ...(candidate.profession ? { profession: candidate.profession } : {}),
       }));
 
       let insertError: InsertManyError | null = null;
@@ -439,12 +567,26 @@ export const processBulkImport = async (fileBuffer: Buffer): Promise<BulkImportR
       } catch (error) {
         if (isInsertManyError(error)) {
           insertError = error;
+          logBulkImport("error_insertando_lote", {
+            message: error.message,
+            writeErrorsCount: error.writeErrors?.length ?? 0,
+            errorsCount: error.errors?.length ?? 0,
+          });
+        } else {
+          logBulkImport("error_insertando_lote_desconocido", {
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
       const insertedProfiles = await UserProfile.find({
         documentID: { $in: toInsertDocs.map((doc) => doc.documentID) },
       }).select("documentID firstName lastName");
+
+      logBulkImport("resultado_insercion", {
+        requestedCount: toInsertDocs.length,
+        insertedCount: insertedProfiles.length,
+      });
 
       const insertedDocumentIds = new Set(insertedProfiles.map((profile) => profile.documentID));
       const candidateByDocumentId = new Map(toInsertCandidates.map((c) => [c.documentID, c]));
@@ -486,6 +628,12 @@ export const processBulkImport = async (fileBuffer: Buffer): Promise<BulkImportR
   // Ver ADR-0001 §ET-1.
 
   emitRealtimeInvalidation("members.changed", MEMBER_QUERY_KEYS);
+
+  logBulkImport("fin", {
+    total: dataRows.length,
+    insertedCount: inserted.length,
+    failedCount: errors.length,
+  });
 
   return {
     total: dataRows.length,

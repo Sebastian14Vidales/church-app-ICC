@@ -149,6 +149,96 @@ Se declara **excepción temporal** para permitir el merge de la feature bulk imp
 
 El `chief-architect` no aprueba esta excepción como normalización del drift, sino como permiso puntual para no bloquear la entrega de valor al Sponsor mientras se acomete la limpieza transversal separadamente.
 
+## Revisión 2026-08-18 — Aceptar CSV además de XLSX
+
+### Contexto de la revisión
+
+La premisa original del ADR-0010 (sección Contexto) decía: *"El formulario se exporta
+como archivo `.xlsx`"*. Esta premisa era **incorrecta**: Google Forms entrega por defecto
+las respuestas descargadas como archivo `.csv`, no `.xlsx`. El Sponsor descarga el CSV
+directo del Google Form y al subirlo al sistema recibía el error
+`"El archivo no es un Excel válido"` porque el middleware de multer rechazaba el mimetype
+`text/csv`.
+
+### Decisión
+
+Se amplía el endpoint `POST /api/members/bulk` para aceptar **dos** formatos de archivo:
+
+1. `.xlsx` (formato original, sin cambios).
+2. `.csv` (formato por defecto de Google Forms).
+
+Lo demás **no cambia**:
+
+- Mismas cabeceras esperadas (sección 1.2 del contrato API).
+- Mismas validaciones por fila.
+- Misma deduplicación por `documentID` (archivo + BD).
+- Misma inserción parcial con `insertMany({ ordered: false })`.
+- Mismo shape de respuesta `BulkImportResult`.
+- Mismo límite de **5 MB**.
+- Mismos roles autorizados (`Admin`, `Superadmin`).
+
+### Cambios técnicos
+
+- **`backend/src/middleware/upload.middleware.ts`**: `fileFilter` amplía los mimetypes
+  válidos para incluir CSV (`text/csv`, `application/csv`, `application/vnd.ms-excel`)
+  además del mimetype de `.xlsx`. Se valida también por extensión de `originalname`
+  (`.xlsx` o `.csv`) para robustez frente a mimetypes inconsistentes según navegador/OS.
+  El mimetype `text/plain` **se excluye** deliberadamente por ser demasiado genérico (un
+  `.txt` cualquiera se aceptaría por mimetype solo); si un navegador entrega un CSV real
+  con mimetype `text/plain`, la extensión `.csv` del `originalname` lo rescata vía la
+  validación por extensión. Esto alinea con `AGENTS.md` §8 (validación de entrada estricta).
+- **`backend/src/services/member-bulk-import.service.ts`**: la librería `xlsx` (SheetJS)
+  ya instalada en backend parsea CSV nativamente vía
+  `XLSX.read(buffer, { type: "buffer", codepage: 65001 })`, que detecta el formato por
+  contenido. Se añadió `codepage: 65001` para forzar UTF-8 tras detectar que un CSV sin BOM
+  producía valores acentuados mal codificados (p. ej. `"PÃ©rez"` en lugar de `"Pérez"`); esta
+  opción es segura para `.xlsx` porque SheetJS la ignora para ese formato. No se añade ninguna
+  dependencia nueva. No cambia `HEADER_MAP`, `validateRow`, ni la lógica de dedup/inserción.
+- **`backend/src/controller/user-profile.controller.ts`**: el mensaje
+  `"Debes adjuntar un archivo .xlsx"` se actualiza a
+  `"Debes adjuntar un archivo .xlsx o .csv"`.
+- **`frontend/src/pages/members/Members.tsx`**: el atributo `accept` del `<input type="file">`
+  añade `.csv` y sus mimetypes; los textos del modal y el `aria-label` mencionan CSV.
+- **Contrato API** (`docs/api/members-bulk-import.md`): sección 1.1 y mensajes de error 400
+  actualizados para reflejar ambos formatos.
+- **Doc funcional** (`docs/functional/members-bulk-import.md`): menciona que puede subirse
+  un `.csv` (proveniente directo de Google Forms) o un `.xlsx`.
+
+### Mensajes de error actualizados
+
+| Caso | Mensaje anterior | Mensaje nuevo |
+| ---- | ---------------- | ------------- |
+| No se adjuntó archivo | `"Debes adjuntar un archivo .xlsx"` | `"Debes adjuntar un archivo .xlsx o .csv"` |
+| Archivo no válido / vacío / sin cabeceras | `"El archivo no es un Excel válido"` | `"El archivo no es un archivo válido"` |
+
+### Consideraciones sobre el CSV de Google Forms
+
+- **Separador**: coma (estándar RFC 4180); SheetJS lo maneja correctamente, incluyendo
+  valores entre comillas y escaping.
+- **Encoding**: Google Forms entrega UTF-8 (con o sin BOM). Se añadió `codepage: 65001` a
+  `XLSX.read` para forzar UTF-8 tras detectar que un CSV sin BOM producía valores acentuados
+  mal codificados; SheetJS ignora esta opción para `.xlsx`, por lo que es segura en ambos
+  formatos.
+- **Columna "Marca temporal"**: Google Forms la añade como primera columna tanto en CSV
+  como en XLSX. El backend ignora cabeceras no reconocidas y solo exige que estén las 12
+  esperadas; por tanto no rompe.
+- **Fechas**: se mantiene el requisito de formato `DD/MM/YYYY` o `YYYY-MM-DD` como texto.
+  Si el Sponsor usa el tipo "Fecha" nativo de Google Forms, el CSV puede entregar la fecha
+  en otro formato según la configuración regional; se recomienda usar "Respuesta corta" con
+  validación de texto `DD/MM/YYYY` (ver doc funcional).
+
+### Sin nueva dependencia
+
+La librería `xlsx` ya está autorizada en backend (ADR-0008). SheetJS soporta CSV
+nativamente. No se introduce ninguna dependencia nueva; por tanto esta revisión no requiere
+un ADR de dependencia separado.
+
+### No se reabre el resto del ADR
+
+Las decisiones D1 (endpoint), D2 (rol Asistente fijo), D3 (dedup), D4 (insertMany parcial),
+D5 (renuncia a soft-delete), D6 (auditoría pendiente) y D7 (frontend) siguen vigentes sin
+modificación. La excepción temporal declarada previamente tampoco se ve afectada.
+
 ## Referencias
 
 - `AGENTS.md` §3 (estructura del repositorio: controladores, servicios, rutas y cliente API).

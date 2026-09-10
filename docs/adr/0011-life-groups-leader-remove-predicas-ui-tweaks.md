@@ -208,6 +208,34 @@ carrusel y las tarjetas de recaudo/ocupación. Si el resultado es vacío, **no s
 sección de eventos (ni el artículo, ni el fallback textual actual). Las stat-cards generales del
 dashboard no se ven afectadas.
 
+### D9 — Jerarquía y exclusión mutua Líder ↔ Supervisor
+
+El Sponsor estableció la jerarquía de roles de cobertura: **Líder está por debajo de Supervisor**
+("líder y después supervisor"). En consecuencia, **un mismo usuario no puede ser Líder y
+Supervisor a la vez**: los dos roles son **mutuamente excluyentes**.
+
+Esto no generaliza a otras combinaciones (Profesor+Pastor, Pastor+Supervisor, etc. siguen
+siendo combinables como hoy). La restricción es únicamente entre `Lider` y `Supervisor`.
+
+Implementación:
+
+- **Backend** (`backend/src/routes/user-profile.routes.ts`): el validador `body().custom(...)`
+  de `POST /` y `PUT /:id` rechaza con `400` si `roleNames` contiene simultáneamente `"Lider"`
+  y `"Supervisor"`. Mensaje: "Un usuario no puede ser Líder y Supervisor al mismo tiempo
+  (jerarquía: Líder luego Supervisor)".
+- **Frontend** (`frontend/src/components/dashboard/MemberForm.tsx`): el `Select` de roles
+  (multi-selección) hace la exclusión visualmente — al marcar `Lider` se desmarca
+  `Supervisor` y viceversa — más una nota de ayuda explicando la jerarquía. El envío al backend
+  nunca contiene ambos.
+- **`PRIMARY_ROLE_PRIORITY`** (`backend/src/controller/user-profile.controller.ts`): se añade
+  `"Lider"` a la lista de prioridad (entre `Profesor` y `Miembro`) para que `resolvePrimaryRole`
+  sea determinista cuando un perfil tiene solo el rol `Lider`. Al ser mutuamente excluyentes con
+  `Supervisor`, el orden relativo entre ambos no genera ambigüedad.
+
+Esta regla **deroga el hallazgo N4** del informe del `quality-engineer` (el caso "Supervisor +
+Lider" no puede ocurrir por construcción; la lógica `isLiderOnly`/`isSupervisorOnly` del
+`Dashboard.tsx` y `Sidebar.tsx` ya es correcta bajo esta premisa).
+
 ## Consecuencias
 
 ### Positivas
@@ -299,9 +327,9 @@ de pruebas futuras:
 - **N2** (resuelto): mensaje stale en `user.controller.ts` corregido a
   "Este usuario no tiene un rol con acceso al login".
 - **N3** (menor): `Sidebar.tsx` `icon: any` — drift heredado (excepción ADR-0010/0011).
-- **N4** (menor, UX): un usuario con ambos roles `Supervisor` + `Lider` no es `isLiderOnly` ni
-  `isSupervisorOnly`, por lo que aterriza en el dashboard general en vez del de supervisor.
-  Decisión de producto pendiente (`product-owner`/`frontend-engineer`).
+- **N4** (invalidado por D9): un usuario con ambos roles `Supervisor` + `Lider` ya no puede
+  existir por construcción (exclusión mutua D9). La lógica `isLiderOnly`/`isSupervisorOnly` del
+  `Dashboard.tsx` y `Sidebar.tsx` es correcta bajo esa premisa.
 - **N5** (menor): `leader`/`type` opcionales en la interfaz TS de `life-group.model.ts` (patrón
   transición). Ahora que el controller siempre los provee, pueden restringirse a required.
 - **N6** (nit): los subdocumentos de sesión tienen `timestamps: true` y devuelven

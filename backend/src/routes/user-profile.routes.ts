@@ -140,6 +140,9 @@ router.post(
     .isLength({ min: 8 })
     .withMessage("La contraseña debe tener al menos 8 caracteres"),
   body().custom((value) => {
+    if (value.roleNames && Array.isArray(value.roleNames) && value.roleNames.includes("Lider") && value.roleNames.includes("Supervisor")) {
+      throw new Error("Un usuario no puede ser Líder y Supervisor al mismo tiempo (jerarquía: Líder luego Supervisor)");
+    }
     const hasLoginRole = (value.roleNames || []).some((role: string) =>
       LOGIN_ENABLED_ROLES.includes(role),
     );
@@ -225,6 +228,9 @@ router.put(
     .isLength({ min: 8 })
     .withMessage("La contraseña debe tener al menos 8 caracteres"),
   body().custom((value) => {
+    if (value.roleNames && Array.isArray(value.roleNames) && value.roleNames.includes("Lider") && value.roleNames.includes("Supervisor")) {
+      throw new Error("Un usuario no puede ser Líder y Supervisor al mismo tiempo (jerarquía: Líder luego Supervisor)");
+    }
     if (value.servesInMinistry === true && !value.ministry) {
       throw new Error("Debes seleccionar el ministerio en el que sirve");
     }

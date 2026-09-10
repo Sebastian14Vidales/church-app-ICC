@@ -39,6 +39,7 @@ const PRIMARY_ROLE_PRIORITY = [
   "Pastor",
   "Supervisor",
   "Profesor",
+  "Lider",
   "Miembro",
   "Asistente",
 ] as const;
@@ -208,16 +209,33 @@ export class UserProfileController {
   static bulkCreate = async (req: AuthenticatedRequestWithFile, res: Response) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ message: "Debes adjuntar un archivo .xlsx" });
+        console.error("[members.bulkCreate] archivo no recibido");
+        return res.status(400).json({ message: "Debes adjuntar un archivo .xlsx o .csv" });
       }
 
+      console.log("[members.bulkCreate] archivo recibido", {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      });
+
       const result = await processBulkImport(req.file.buffer);
+      console.log("[members.bulkCreate] importacion completada", {
+        total: result.total,
+        insertedCount: result.insertedCount,
+        failedCount: result.failedCount,
+      });
       return res.status(200).json(result);
     } catch (error) {
       if (error instanceof AppError) {
+        console.error("[members.bulkCreate] error controlado", {
+          status: error.status,
+          message: error.message,
+        });
         return res.status(error.status).json({ message: error.message });
       }
 
+      console.error("[members.bulkCreate] error inesperado", error);
       return handleControllerError(res, error, "Error al procesar el archivo");
     }
   };

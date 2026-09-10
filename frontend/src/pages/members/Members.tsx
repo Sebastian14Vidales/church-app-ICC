@@ -203,13 +203,14 @@ export default function Members() {
 
     const handleSelectFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
+        
         setBulkFile(file);
         setBulkResult(null);
     };
 
     const handleBulkImport = () => {
         if (!bulkFile) {
-            toast.error("Selecciona un archivo .xlsx primero");
+            toast.error("Selecciona un archivo .xlsx o .csv primero");
             return;
         }
         bulkImportMutation.reset();
@@ -409,7 +410,7 @@ export default function Members() {
             <ModalView
                 isOpen={bulkModalOpen}
                 onClose={closeBulkModal}
-                title="Cargar miembros desde Excel"
+                title="Cargar miembros desde Excel o CSV"
                 size="4xl"
                 scrollBehavior="inside"
             >
@@ -418,13 +419,13 @@ export default function Members() {
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                             <div className="mb-3 flex items-center gap-2 text-slate-700">
                                 <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                                <span className="font-medium">Selecciona un archivo Excel (.xlsx)</span>
+                                <span className="font-medium">Selecciona un archivo Excel (.xlsx) o CSV (.csv)</span>
                             </div>
                             <input
                                 type="file"
-                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/vnd.ms-excel"
                                 onChange={handleSelectFile}
-                                aria-label="Selecciona archivo .xlsx"
+                                aria-label="Selecciona archivo .xlsx o .csv"
                                 className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:font-semibold hover:file:bg-slate-200"
                             />
                             {bulkFile && (
@@ -436,7 +437,7 @@ export default function Members() {
 
                         <details className="rounded-lg border border-slate-200 bg-white p-3">
                             <summary className="cursor-pointer text-sm font-medium text-slate-700">
-                                Formato esperado del Excel
+                                Formato esperado del archivo (Excel o CSV)
                             </summary>
                             <p className="mt-2 text-sm text-slate-600">
                                 La primera fila debe contener exactamente estas cabeceras:

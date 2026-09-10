@@ -283,7 +283,30 @@ export default function MemberForm({
                       <Select
                         selectionMode="multiple"
                         selectedKeys={field.value || []}
-                        onSelectionChange={(keys) => field.onChange(Array.from(keys))}
+                        onSelectionChange={(keys) => {
+                          const selected = Array.from(keys) as string[];
+                          const previous = (field.value || []) as string[];
+
+                          // ADR-0011 §D9: Líder y Supervisor son mutuamente excluyentes (jerarquía: Líder < Supervisor)
+                          if (selected.includes("Lider") && selected.includes("Supervisor")) {
+                            const newlyAdded = selected.filter((role) => !previous.includes(role));
+                            const exclusiveNewlyAdded = newlyAdded.find(
+                              (role) => role === "Lider" || role === "Supervisor",
+                            );
+
+                            if (exclusiveNewlyAdded === "Lider") {
+                              field.onChange(selected.filter((role) => role !== "Supervisor"));
+                            } else if (exclusiveNewlyAdded === "Supervisor") {
+                              field.onChange(selected.filter((role) => role !== "Lider"));
+                            } else {
+                              // Ambos añadidos en el mismo lote: preferir Supervisor por jerarquía
+                              field.onChange(selected.filter((role) => role !== "Lider"));
+                            }
+                            return;
+                          }
+
+                          field.onChange(selected);
+                        }}
                         placeholder="Selecciona roles adicionales si aplica"
                         aria-label="Roles en la Iglesia"
                         className="input"
@@ -299,7 +322,7 @@ export default function MemberForm({
                 {errors.roleNames && <span className="text-xs text-red-500">{errors.roleNames.message}</span>}
                 <p className="mt-1 text-xs text-slate-500">
                   Si está bautizado será miembro automáticamente. Los roles son opcionales y solo aplican a cargos
-                  dentro de la iglesia.
+                  dentro de la iglesia. Líder y Supervisor son mutuamente excluyentes (jerarquía: Líder → Supervisor).
                 </p>
               </>
             )}

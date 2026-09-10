@@ -1,14 +1,15 @@
-# Contrato API — Bulk import de miembros/asistentes desde Excel
+# Contrato API — Bulk import de miembros/asistentes desde Excel o CSV
 
 > **Estado**: Vigente.
 > **Autoridad**: `api-contract-engineer` (única fuente de verdad sobre la forma de los payloads).
-> **Fuentes**: `AGENTS.md` (§3, §4, §5, §8), `backend/src/models/user-profile.model.ts`,
+> **Fuentes**: `AGENTS.md` (§3, §4, §5, §8), `ADR-0012` (tolerancia a cabeceras duplicadas),
+> `ADR-0013` (profesión opcional y formatos de fecha), `backend/src/models/user-profile.model.ts`,
 > `backend/src/routes/user-profile.routes.ts`.
 > **Consumidores**: `backend-engineer`, `frontend-engineer`, `testing-engineer`, `quality-engineer`.
-> **Última revisión**: 2026-08-08
+> **Última revisión**: 2026-09-07
 
 Este documento define el contrato del endpoint que permite a un `Admin` o `Superadmin`
-cargar un archivo `.xlsx` (proveniente de un Google Form) para crear masivamente perfiles
+cargar un archivo `.xlsx` o `.csv` (proveniente de un Google Form) para crear masivamente perfiles
 de `UserProfile` con rol fijo **"Asistente"**. El backend parsea el archivo, valida cada
 fila, deduplica por `documentID`, inserta los registros válidos y devuelve un reporte
 detallado con insertados y errores.
@@ -30,11 +31,12 @@ documento previa aprobación del `chief-architect`.
 - **Rol fijo**: el bulk import crea siempre `UserProfile` con rol **"Asistente"**.
   - `baptized` queda implícito como `false`.
   - **No** se crea documento `User`, **no** se genera login y **no** se envía correo.
-  - Los campos `email`, `profession`, `roleNames` y `user` **no** forman parte del Excel.
+  - Los campos `email`, `roleNames` y `user` **no** forman parte del Excel (.xlsx) o CSV (.csv).
+    La columna `Profesión` es **opcional** y, si aparece, se importa como `profession`.
 
 ---
 
-## 1. `POST /api/members/bulk` — Bulk import desde Excel
+## 1. `POST /api/members/bulk` — Bulk import desde Excel o CSV
 
 ### 1.1 Request
 
@@ -42,19 +44,29 @@ documento previa aprobación del `chief-architect`.
 - **Content-Type**: `multipart/form-data`.
 - **Campo file**:
   - Nombre: `file`.
-  - Tipo: un único archivo `.xlsx`.
+  - Tipo: un único archivo `.xlsx` o `.csv`.
   - Límite: **5 MB** (configurado por backend en multer).
-- **Cabeceras del Excel**: primera fila (fila 1) debe contener exactamente los nombres
-  listados en la tabla de mapeo. El cuerpo de datos comienza en la fila 2.
+  - **Mimetypes aceptados**:
+    - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (.xlsx)
+    - `text/csv` (.csv)
+    - `application/csv` (.csv)
+    - `application/vnd.ms-excel` (.csv)
+  - **Nota sobre `text/plain`**: se excluye deliberadamente del filtro por mimetype porque es demasiado genérico y aceptaría cualquier archivo `.txt` sin más validación, violando `AGENTS.md` §8. Si un navegador entrega un CSV real como `text/plain`, el contrato lo rescata mediante la validación por extensión `.csv` del `originalname`.
+  - El backend valida también por extensión de `originalname` (`.xlsx` o `.csv`).
+- **Cabeceras del Excel/CSV**: primera fila (fila 1) debe contener las **12 cabeceras
+  obligatorias** listadas en la tabla de mapeo. La columna `Profesión` es **opcional** y no
+  cuenta dentro de las 12 obligatorias. Las cabeceras esperadas son **las mismas** para CSV y
+  XLSX. El cuerpo de datos comienza en la fila 2. Ver sección 1.2 para la regla de cabeceras
+  duplicadas.
 
-### 1.2 Mapeo de cabeceras del Excel a campos de `UserProfile`
+### 1.2 Mapeo de cabeceras del archivo (Excel o CSV) a campos de `UserProfile`
 
 | Cabecera Excel (fila 1)        | Campo `UserProfile`       | Tipo / restricciones                                                                 |
 | ------------------------------ | ------------------------- | ------------------------------------------------------------------------------------ |
 | `Nombre`                       | `firstName`               | string, no vacío, trim                                                               |
 | `Apellidos`                    | `lastName`                | string, no vacío, trim                                                               |
 | `Documento`                    | `documentID`              | string, solo dígitos, 6–10 caracteres                                                |
-| `Fecha de nacimiento`          | `birthdate`               | fecha válida en formato **ISO `YYYY-MM-DD`** o **`DD/MM/YYYY`**; backend normaliza   |
+| `Fecha de nacimiento`          | `birthdate`               | fecha real válida. Acepta ISO `YYYY-MM-DD` (mes/día 1–2 dígitos), day-first `DD/MM/YYYY`, `D/M/YYYY`, `DD-MM-YYYY`, `D-M-YYYY` (1–2 dígitos día/mes; locale español; **no** `MM/DD/YYYY`) y celdas de fecha reales de `.xlsx` (número serial de Excel, fracción = hora descartada). Se persiste siempre como `Date` con año en `[1900, 2100]`. |
 | `Barrio`                       | `neighborhood`            | string, no vacío, trim                                                               |
 | `Telefono`                     | `phoneNumber`             | string, solo dígitos, exactamente 10 caracteres                                      |
 | `Tipo de sangre`               | `bloodType`               | enum: `O+`, `O-`, `A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`                               |
@@ -63,12 +75,15 @@ documento previa aprobación del `chief-architect`.
 | `Ministerio de interes`        | `ministryInterest`        | enum `MINISTRIES` (ver abajo); obligatorio si `servesInMinistry = false/No`          |
 | `Ruta de crecimiento espiritual` | `spiritualGrowthStage`  | enum `SPIRITUAL_GROWTH_STAGES` (ver abajo)                                           |
 | `Encuentro y Reencuentro`      | `encounterStage`          | enum: `Ninguno`, `Encuentro`, `Reencuentro`                                          |
+| `Profesión`                    | `profession`              | string opcional, libre, trim; puede aparecer duplicada por secciones condicionales (ver 1.2.1) |
+
+> **Nota**: la columna `Profesión` es **opcional**; las 12 cabeceras originales siguen siendo
+> obligatorias y un archivo que no incluya la columna `Profesión` sigue siendo válido.
 
 **Campos del Excel que NO se importan / NO se solicitan**:
 
 - `baptized` → siempre `false` (implícito por rol Asistente).
 - `email` → no se crea `User`, por tanto no aplica.
-- `profession` → fuera del alcance de este bulk import.
 - `roleNames` / `role` → fijo "Asistente".
 
 **Enums de negocio** (copia de `backend/src/models/user-profile.model.ts`):
@@ -101,6 +116,27 @@ ENCOUNTER_STAGES:
   "Reencuentro"
 ```
 
+### 1.2.1 Cabeceras duplicadas y consolidación
+
+El archivo debe incluir las 12 cabeceras obligatorias listadas en la tabla de mapeo
+(la columna `Profesión` es opcional). Una misma cabecera
+**puede aparecer más de una vez** en la fila 1; esto es habitual en exports de Google Forms
+que usan la lógica **"Ir a la sección según la respuesta"** (secciones condicionales), donde
+preguntas como *Ruta de crecimiento espiritual*, *Encuentro y Reencuentro* o *Profesión*
+pueden repetirse en ramas distintas.
+
+Cuando una cabecera está duplicada, el backend **consolida** las columnas correspondientes
+tomando el **primer valor no vacío** en orden de aparición de izquierda a derecha
+(_leftmost first_). Si todas las columnas duplicadas están vacías para una fila, el valor se
+considera vacío. Si varias columnas duplicadas tuvieran valor para una misma fila, gana la
+columna más a la izquierda.
+
+Una celda se considera vacía cuando su texto normalizado y recortado es `""`. Los valores
+numéricos (por ejemplo, `documentID` o `phoneNumber` entregados como número por Excel) se
+convierten a cadena antes de evaluar el vacío.
+
+> **Ver también**: decisión arquitectónica en `docs/adr/0012-bulk-import-duplicate-columns.md`.
+
 ### 1.3 Validaciones por fila
 
 Cada fila de datos se valida con las mismas reglas que `POST /api/members` para creación
@@ -109,7 +145,7 @@ individual, adaptadas al contexto de Asistente:
 1. `firstName` no vacío.
 2. `lastName` no vacío.
 3. `documentID` no vacío, solo dígitos, longitud 6–10.
-4. `birthdate` fecha válida (acepta `YYYY-MM-DD` o `DD/MM/YYYY`).
+4. `birthdate` fecha real válida. Acepta ISO `YYYY-MM-DD` (mes/día 1–2 dígitos), day-first `DD/MM/YYYY`, `D/M/YYYY`, `DD-MM-YYYY`, `D-M-YYYY` (1–2 dígitos día/mes; primer componente es el día; **no** `MM/DD/YYYY`) y celdas de fecha reales de `.xlsx` (número serial de Excel, fracción = hora descartada). Se persiste como `Date` con año en `[1900, 2100]`.
 5. `neighborhood` no vacío.
 6. `phoneNumber` no vacío, solo dígitos, exactamente 10.
 7. `bloodType` debe pertenecer al enum de tipos de sangre.
@@ -147,7 +183,7 @@ Se aplica en dos niveles, en este orden:
 
 ### 1.6 Respuesta exitosa — `200 OK`
 
-Siempre que el archivo sea un Excel válido y no esté vacío, se devuelve **200 OK** con el
+Siempre que el archivo sea un Excel o CSV válido y no esté vacío, se devuelve **200 OK** con el
 reporte, **incluso si algunas filas fallaron**.
 
 Shape: `BulkImportResult`
@@ -186,11 +222,11 @@ Shape: `BulkImportResult`
 
 - **400** — No se adjuntó archivo:
   ```jsonc
-  { "message": "Debes adjuntar un archivo .xlsx" }
+  { "message": "Debes adjuntar un archivo .xlsx o .csv" }
   ```
-- **400** — El archivo no es un Excel válido, está vacío o no tiene cabeceras:
+- **400** — El archivo no es un archivo válido, está vacío o no tiene cabeceras:
   ```jsonc
-  { "message": "El archivo no es un Excel válido" }
+  { "message": "El archivo no es un archivo válido" }
   ```
 - **401** — No autenticado (middleware `authenticate`).
 - **403** — Rol no autorizado (middleware `authorizeRoles`).
@@ -240,7 +276,7 @@ export type BulkImportResult = z.infer<typeof bulkImportResultSchema>;
 | `bulkImportMembers(file)` | `POST /api/members/bulk` | `FormData` con campo `file` | `BulkImportResult`  |
 
 El frontend debe construir un `FormData`, adjuntar el archivo con el campo `file` y enviarlo
-con `Content-Type: multipart/form-data`. No se añade librería de parseo de Excel en el
+con `Content-Type: multipart/form-data`. No se añade librería de parseo de Excel o CSV en el
 frontend; solo se sube el archivo.
 
 ---
@@ -262,6 +298,8 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 <binary excel content>
 ------WebKitFormBoundary--
 ```
+
+> **Nota**: el `filename` también puede ser `.csv` con `Content-Type: text/csv`.
 
 ### 4.2 Respuesta 200 con mix de insertados y errores
 
@@ -311,7 +349,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 
 ```jsonc
 {
-  "message": "El archivo no es un Excel válido"
+  "message": "El archivo no es un archivo válido"
 }
 ```
 
@@ -326,6 +364,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 - ✅ Mensajes de error en español, legibles para el Sponsor.
 - ✅ No se expone `_id` de Mongo en el reporte de insertados; solo `row`, `documentID`,
   `firstName`, `lastName`.
+- ✅ Formatos aceptados: `.xlsx` y `.csv`; ambos con las mismas cabeceras y validaciones.
 
 ---
 
@@ -353,8 +392,8 @@ Ninguna excepción bloqueante. Items a confirmar:
 
 ## 8. Verificación de autosuficiencia del artefacto
 
-- ✅ Endpoint con método, ruta, roles, content-type, campo file y límite.
-- ✅ Cabeceras del Excel y mapeo a campos de `UserProfile`.
+- ✅ Endpoint con método, ruta, roles, content-type, campo file (`.xlsx` o `.csv`), mimetypes aceptados y límite.
+- ✅ Cabeceras del Excel/CSV y mapeo a campos de `UserProfile`.
 - ✅ Validaciones por fila y reglas de negocio (`ministry` vs `ministryInterest`).
 - ✅ Criterio de deduplicación (archivo + BD).
 - ✅ Estrategia de inserción parcial (`insertMany` con `ordered: false`).
