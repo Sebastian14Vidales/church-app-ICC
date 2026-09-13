@@ -26,11 +26,11 @@ El supervisor es el encargado de **crear y mantener** los grupos de vida que est
 
 - Registrar un nuevo grupo de vida o grupo de pareja.
 - Asignarle un **líder** elegido entre los miembros que ya tengan el rol de **Líder** en el sistema.
-- Agregar o quitar **asistentes** del grupo.
-- Editar datos básicos: nombre, barrio/sector y dirección de reunión.
-- Revisar las sesiones registradas por el líder.
+- Editar datos básicos: nombre, barrio/sector, dirección de reunión, tipo y líder.
+- Revisar las sesiones registradas por el líder y el conteo de asistentes.
 
 > El supervisor **no** crea líderes. El administrador (o superadministrador) es quien les asigna el rol de Líder; el supervisor solo los selecciona para su grupo.
+> El supervisor **no** carga el listado de asistentes: esa tarea corresponde al líder desde **"Mi grupo de vida"** una vez asignado.
 
 ### 2.2 Líder
 
@@ -39,11 +39,12 @@ El líder es una persona designada por el supervisor para dirigir un grupo. Al i
 Desde allí el líder puede:
 
 - Ver la información de su grupo (nombre, dirección, asistentes).
+- Gestionar el **roster de asistentes** en la sección "Roster del grupo": seleccionar miembros con rol **Asistente** o **Miembro** y guardar el listado oficial del grupo.
 - Registrar cada sesión/reunión: fecha, asistentes que asistieron, ofrenda recogida y notas.
 - Editar o eliminar una sesión ya registrada, por ejemplo si se cometió un error.
 - Ver el historial de semanas o meses pasados, la asistencia acumulada y las ofrendas semanales/mensuales.
 
-> El líder **no** puede cambiar el nombre del grupo, la dirección ni la lista de asistentes. Eso corresponde al supervisor o al administrador.
+> El líder **no** puede cambiar el nombre del grupo, la dirección ni reasignar el líder. Eso corresponde al supervisor o al administrador.
 
 ### 2.3 Administrador / Superadministrador
 
@@ -70,8 +71,9 @@ Antes de armar un grupo, el administrador (o superadministrador) debe asegurarse
    - Dirección de reunión.
    - Tipo: **Grupo de vida (semanal)** o **Grupo de pareja (mensual)**.
    - Líder (seleccionado de la lista de líderes habilitados).
-   - Asistentes (miembros o asistentes de su cobertura).
 3. Guarda el grupo.
+
+> El listado de asistentes **no** se carga al crear el grupo. Una vez asignado, el líder lo gestiona desde **"Mi grupo de vida"**.
 
 ### Paso 3: El líder registra las reuniones
 
@@ -98,6 +100,7 @@ Tanto el líder como el supervisor pueden consultar:
 ## 4. Reglas importantes
 
 - Un mismo perfil **solo puede ser líder de un grupo a la vez**.
+- El roster de asistentes solo admite perfiles con rol **Asistente** o **Miembro**.
 - Los asistentes marcados como "presentes" en una sesión deben pertenecer al listado oficial del grupo.
 - Las ofrendas siempre son valores mayores o iguales a cero.
 - Si se retira un asistente del grupo, las sesiones anteriores conservan su asistencia tal como quedó registrada.
@@ -107,7 +110,7 @@ Tanto el líder como el supervisor pueden consultar:
 
 ## 5. Referencias técnicas
 
-- **Decisión de arquitectura**: [`docs/adr/0011-life-groups-leader-remove-predicas-ui-tweaks.md`](../adr/0011-life-groups-leader-remove-predicas-ui-tweaks.md)
+- **Decisión de arquitectura**: [`docs/adr/0011-life-groups-leader-remove-predicas-ui-tweaks.md`](../adr/0011-life-groups-leader-remove-predicas-ui-tweaks.md), [`docs/adr/0018-life-groups-attendees-leader-owned.md`](../adr/0018-life-groups-attendees-leader-owned.md)
 - **Contrato API del módulo**: [`docs/api/life-groups-api.md`](../api/life-groups-api.md)
 
 _Estos documentos están escritos para el equipo de desarrollo y detallan los endpoints, permisos y estructuras de datos que soportan el flujo descrito aquí._

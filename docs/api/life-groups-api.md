@@ -1,13 +1,15 @@
 # Contrato API del módulo de Grupos de Vida — `EPC-LIFE-GROUPS-001`
 
-> **Estado**: Vigente (ADR-0011; asignación explícita de supervisor en POST según ADR-0015).
+> **Estado**: Vigente (ADR-0011; asignación explícita de supervisor en POST según ADR-0015;
+> endpoint de roster del líder según ADR-0018).
 > **Autoridad**: `api-contract-engineer` (única fuente de verdad sobre la forma de los payloads).
 > **Fuentes**: `AGENTS.md` (§3, §4, §5, §6, §8), `docs/adr/0011-life-groups-leader-remove-predicas-ui-tweaks.md`,
 > `docs/adr/0015-life-groups-supervisor-assignment.md`,
+> `docs/adr/0018-life-groups-attendees-leader-owned.md`,
 > `backend/src/models/life-group.model.ts`, `frontend/src/api/LifeGroupAPI.ts`.
 > **Consumidores**: `database-engineer`, `backend-engineer`, `auth-security-engineer`,
 > `frontend-engineer`, `testing-engineer`, `quality-engineer`.
-> **Última revisión**: 2026-09-09
+> **Última revisión**: 2026-09-12
 
 Este documento **es la única especificación normativa** de los endpoints del módulo de Grupos de Vida
 para el alcance del ADR-0011. Cualquier divergencia entre este contrato y el código se considera
@@ -202,13 +204,13 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
 | `address`      | string                             | sí        | Dirección de reunión.                                                    |
 | `leader`       | string (MongoId)                   | sí        | `profileId` del líder. Debe tener rol `Lider`.                           |
 | `type`         | `"life-group"` \| `"couple-group"` | sí        | `life-group` = semanal; `couple-group` = mensual.                        |
-| `attendees`    | string[] (MongoId[])               | sí        | Lista de `profileId` de asistentes (puede estar vacía).                  |
+| `attendees`    | string[] (MongoId[])               | opcional  | Lista de `profileId` de asistentes. Si se omite, el backend asume `[]`.  |
 | `supervisor`   | string (MongoId)                   | obligatorio para `Admin`/`Superadmin`; omitido/auto-asignado para `Supervisor` | Solo `Admin`/`Superadmin` deben enviarlo; si falta: `400 { message: "Debes seleccionar el supervisor responsable" }`. Si el creador es `Supervisor`, el campo se ignora y se auto-asigna a sí mismo (ADR-0015 D1). |
 
 - **Validaciones**:
   - `name`, `neighborhood`, `address`: no vacíos.
   - `leader`: MongoId válido; el `UserProfile` referenciado debe existir y su usuario debe tener el rol `Lider`.
-  - `attendees`: cada id debe ser MongoId válido y existir como `UserProfile`.
+  - `attendees`: opcional. Si se envía, cada id debe ser MongoId válido y existir como `UserProfile`; si se omite, el backend asume `[]`.
   - `type`: valor en enum `["life-group", "couple-group"]`.
   - `supervisor`: obligatorio para creadores `Admin`/`Superadmin`; si falta, `400 { message: "Debes seleccionar el supervisor responsable" }`. Si se envía, MongoId válido y solo permitido para `Admin`/`Superadmin`. Para creadores `Supervisor` el campo se ignora y se auto-asignan (ADR-0015 D1).
   - Un perfil solo puede ser líder de **un** grupo (unicidad a nivel aplicación).
@@ -240,7 +242,7 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
 
 ---
 
-### 1.3 `PATCH /api/life-groups/:id` — Editar metadatos y roster
+### 1.3 `PATCH /api/life-groups/:id` — Editar metadatos
 
 - **Roles / pertenencia**:
   - `Admin` / `Superadmin`.
@@ -255,14 +257,16 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
 | `neighborhood` | string                             | opcional  |                                                        |
 | `address`      | string                             | opcional  |                                                        |
 | `type`         | `"life-group"` \| `"couple-group"` | opcional  |                                                        |
-| `attendees`    | string[] (MongoId[])               | opcional  | Reemplaza la lista completa de asistentes.             |
 | `leader`       | string (MongoId)                   | opcional  | Debe cumplir las mismas reglas que en creación.        |
 | `supervisor`   | string (MongoId)                   | opcional  | Solo `Admin`/`Superadmin`; se usa para reasignar cobertura y reparar datos mal asignados (ADR-0015 D3). |
 
+> ⚠️ **Breaking change menor pre-lanzamiento (ADR-0018 D2)**: este endpoint ya no acepta
+> `attendees`. El roster tiene una única vía canónica: `PATCH /api/life-groups/:id/attendees`.
+> El `POST /api/life-groups` conserva `attendees` opcional para seed/scripts; la UI de cobertura
+> deja de enviarlo.
+
 - **Validaciones**:
-  - Mismas reglas de `leader`, `attendees`, `type` y `supervisor` que en creación.
-  - Si `attendees` se reduce, las sesiones históricas **no** se revalidan; el frontend muestra
-    la asistencia tal cual quedó registrada.
+  - Mismas reglas de `leader`, `type` y `supervisor` que en creación.
 
 - **Respuesta 200** — `{ message: string, lifeGroup: LifeGroup }`.
 
@@ -277,10 +281,60 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
   - `400 { errors: [...] }` — `id` no es MongoId válido o body inválido.
   - `400 { message: "El líder seleccionado no tiene el rol Lider" }`
   - `400 { message: "El líder ya dirige otro grupo de vida" }`
-  - `400 { message: "Uno o más asistentes no existen" }`
   - `403 { message: "No tienes permisos para esta acción" }`
   - `404 { message: "Grupo de vida no encontrado" }`
   - `500 { message: "Error al actualizar el grupo de vida" }`
+
+---
+
+### 1.4 `PATCH /api/life-groups/:id/attendees` — Actualizar roster de asistentes (ADR-0018)
+
+- **Roles / pertenencia**:
+  - **Líder del grupo** (`group.leader == req.auth.profileId`). **Novedad**: el líder ahora es
+    el gestor natural del roster de su propio grupo.
+  - `Supervisor` del grupo (`group.supervisor == req.auth.profileId`).
+  - `Admin` / `Superadmin`.
+- **Path**: `id` MongoId.
+- **Body** (requerido):
+
+| Nombre      | Tipo                 | Requerido | Notas                                                                 |
+| ----------- | -------------------- | --------- | --------------------------------------------------------------------- |
+| `attendees` | string[] (MongoId[]) | sí        | Reemplaza la lista completa de asistentes del grupo. Puede ser vacío. |
+
+```jsonc
+{
+  "attendees": ["65c3...", "65d4..."]
+}
+```
+
+- **Validaciones**:
+  - `attendees` debe ser un array (puede estar vacío).
+  - Cada id debe ser MongoId válido.
+  - Cada id debe existir como `UserProfile`.
+  - **Rol elegible**: cada perfil debe tener `role.name` igual a `"Asistente"` o `"Miembro"`.
+    Si algún id no cumple, `400 { message: "Uno o más asistentes no tienen un rol elegible" }`.
+  - La regla de rol elegible aplica **solo a escrituras nuevas**; no se migra ni revalida
+    roster legacy existente (decisión ADR-0018, ver §5.1).
+  - Si el roster se reduce, las sesiones históricas **no** se revalidan; los `attendeesPresent`
+    de sesiones pasadas se conservan tal cual. El frontend muestra la asistencia histórica
+    con el roster vigente como denominador.
+
+- **Respuesta 200** — `{ message: string, lifeGroup: LifeGroup }` (mismo shape que §1.3).
+
+```jsonc
+{
+  "message": "Asistentes del grupo actualizados correctamente",
+  "lifeGroup": { /* LifeGroup shape */ }
+}
+```
+
+- **Errores**:
+  - `400 { errors: [...] }` — `id` no es MongoId válido o `attendees` no es un array de MongoId.
+  - `400 { message: "Uno o más asistentes no existen" }`
+  - `400 { message: "Uno o más asistentes no tienen un rol elegible" }`
+  - `403 { message: "No tienes permisos para esta acción" }`
+  - `404 { message: "Grupo de vida no encontrado" }`
+  - `500 { message: "Error al actualizar los asistentes del grupo" }`
 
 ---
 
@@ -534,8 +588,8 @@ export type SessionFormData = z.infer<typeof sessionFormDataSchema>;
 
 ### 3.9 `LifeGroupFormData` (actualización)
 
-El tipo usado por el formulario de creación/edición de grupo en el frontend. Ahora incluye
-`leader`, `type` y `attendees`.
+El tipo usado por el formulario de creación/edición de metadatos del grupo en el frontend.
+Incluye `leader`, `type` y `supervisor` opcional; **no incluye `attendees`** (ADR-0018 D1).
 
 ```ts
 export type LifeGroupFormData = {
@@ -543,14 +597,28 @@ export type LifeGroupFormData = {
   neighborhood: string;
   address: string;
   leader: string;
+  supervisor?: string;
   type: LifeGroupType;
-  attendees: string[];
 };
 ```
 
-> **Nota**: el formulario de edición (`PATCH`) puede enviar un subconjunto parcial de estos
-> campos. El tipo `LifeGroupFormData` representa la forma completa de creación; la edición
-> puede tiparse como `Partial<LifeGroupFormData>` en el cliente si se prefiere.
+> **Nota**: el roster se gestiona exclusivamente vía `updateLifeGroupAttendees` contra
+> `PATCH /api/life-groups/:id/attendees` (ADR-0018 D1/D2). La edición de metadatos puede
+> tiparse como `Partial<LifeGroupFormData>`.
+
+### 3.10 `updateLifeGroupAttendeesSchema`
+
+Body de `PATCH /api/life-groups/:id/attendees` (ADR-0018 D2).
+
+```ts
+export const updateLifeGroupAttendeesSchema = z.object({
+  attendees: z.array(objectIdStringSchema),
+});
+
+export type UpdateLifeGroupAttendeesInput = z.infer<typeof updateLifeGroupAttendeesSchema>;
+```
+
+La respuesta se valida con `createLifeGroupResponseSchema` (§3.6).
 
 ---
 
@@ -559,14 +627,15 @@ export type LifeGroupFormData = {
 El `frontend-engineer` debe exponer estas funciones semánticas. Las funciones legacy se
 conservan sin cambios de firma.
 
-| Función                              | Método + Ruta                                          | Return schema                         | Estado |
-| ------------------------------------ | ------------------------------------------------------ | ------------------------------------- | ------ |
-| `getLifeGroups()`                    | `GET /api/life-groups`                                 | `LifeGroup[]`                         | Extiende |
-| `createLifeGroup(body)`              | `POST /api/life-groups`                                | `{ message, lifeGroup: LifeGroup }`   | Extiende |
-| `updateLifeGroup(id, body)`          | `PATCH /api/life-groups/:id`                           | `{ message, lifeGroup: LifeGroup }`   | Nuevo  |
-| `createSession(id, body)`            | `POST /api/life-groups/:id/sessions`                   | `{ message, session, lifeGroup }`     | Nuevo  |
-| `updateSession(id, sessionId, body)` | `PATCH /api/life-groups/:id/sessions/:sessionId`       | `{ message, session, lifeGroup }`     | Nuevo  |
-| `deleteSession(id, sessionId)`       | `DELETE /api/life-groups/:id/sessions/:sessionId`      | `{ message, lifeGroup: LifeGroup }`   | Nuevo  |
+| Función                                   | Método + Ruta                                          | Return schema                         | Estado |
+| ----------------------------------------- | ------------------------------------------------------ | ------------------------------------- | ------ |
+| `getLifeGroups()`                         | `GET /api/life-groups`                                 | `LifeGroup[]`                         | Extiende |
+| `createLifeGroup(body)`                   | `POST /api/life-groups`                                | `{ message, lifeGroup: LifeGroup }`   | Extiende |
+| `updateLifeGroup(id, body)`               | `PATCH /api/life-groups/:id`                           | `{ message, lifeGroup: LifeGroup }`   | Nuevo  |
+| `updateLifeGroupAttendees(id, attendees)` | `PATCH /api/life-groups/:id/attendees`                 | `{ message, lifeGroup: LifeGroup }`   | Nuevo  |
+| `addSession(lifeGroupId, data)`           | `POST /api/life-groups/:id/sessions`                   | `{ message, session, lifeGroup }`     | Nuevo  |
+| `updateSession(id, sessionId, body)`      | `PATCH /api/life-groups/:id/sessions/:sessionId`       | `{ message, session, lifeGroup }`     | Nuevo  |
+| `deleteSession(id, sessionId)`            | `DELETE /api/life-groups/:id/sessions/:sessionId`      | `{ message, lifeGroup: LifeGroup }`   | Nuevo  |
 
 ---
 
@@ -581,6 +650,21 @@ conservan sin cambios de firma.
 - ✅ `offeringAmount` aplica a cualquier tipo de sesión (semanal o mensual); no hay campo separado.
 - ✅ Las sesiones son subdocumentos embebidos en `LifeGroup` (ADR-0011 §D3).
 
+### 5.1 Decisión ADR-0018: rol elegible del roster
+
+**Decisión**: SÍ se exige que cada id del roster tenga `role.name` igual a `"Asistente"` o
+`"Miembro"` en escrituras nuevas de `PATCH /api/life-groups/:id/attendees`.
+
+**Justificación**:
+- Higiene de datos: el roster representa a las personas que asisten al grupo de vida como
+  asistentes/miembros, no a líderes, supervisores, pastores ni administradores.
+- Previene inclusiones accidentales de perfiles con otros roles que no deberían figurar como
+  asistentes contables del grupo.
+- Alinea el contrato con el dominio sin migrar datos legacy: los grupos existentes conservan
+  su roster actual (incluso si contuviera perfiles no elegibles), pero toda escritura nueva
+  debe cumplir la regla. Esto evita una migración riesgosa pre-lanzamiento y aplica la regla
+  de forma progresiva.
+
 ---
 
 ## 6. Drift detectado entre contrato actual y contrato objetivo
@@ -589,26 +673,30 @@ Inventario puntual. Los ítems resueltos se marcan con ✅; los pendientes con �
 
 ### 6.1 Backend — `life-group.model.ts` / `life-group.controller.ts` / `life-group.routes.ts`
 
-- ❌ **D-01** El modelo `LifeGroup` debe extenderse con `leader`, `type`, `attendees` y `sessions`.
-- ❌ **D-02** `GET /api/life-groups` debe filtrar por rol (`Admin`/`Superadmin`/`Supervisor`/`Lider`).
-- ❌ **D-03** `POST /api/life-groups` debe aceptar `leader`, `type`, `attendees` y, para creadores `Admin`/`Superadmin`, exigir `supervisor`; para creadores `Supervisor`, auto-asignarse a sí mismo (ADR-0015 D1).
-- ❌ **D-04** `PATCH /api/life-groups/:id` debe permitir editar metadatos y roster.
-- ❌ **D-05** `POST /api/life-groups/:id/sessions` debe crear sesiones con `weekNumber` auto-computado.
-- ❌ **D-06** `PATCH /api/life-groups/:id/sessions/:sessionId` debe editar sesiones.
-- ❌ **D-07** `DELETE /api/life-groups/:id/sessions/:sessionId` debe eliminar sesiones.
-- ❌ **D-08** Validar que `leader` tenga rol `Lider` y que `attendeesPresent` sea subconjunto de `attendees`.
+- ✅ **D-01** El modelo `LifeGroup` debe extenderse con `leader`, `type`, `attendees` y `sessions` (ver `backend/src/models/life-group.model.ts`).
+- ✅ **D-02** `GET /api/life-groups` debe filtrar por rol (`Admin`/`Superadmin`/`Supervisor`/`Lider`) (ver `backend/src/services/life-group.service.ts` `findMine`).
+- ✅ **D-03** `POST /api/life-groups` debe aceptar `leader`, `type`, `attendees` y, para creadores `Admin`/`Superadmin`, exigir `supervisor`; para creadores `Supervisor`, auto-asignarse a sí mismo (ADR-0015 D1) (ver `backend/src/routes/life-group.routes.ts` POST `/` y `backend/src/services/life-group.service.ts` `createLifeGroup`).
+- ✅ **D-04** `PATCH /api/life-groups/:id` debe permitir editar **solo metadatos**;
+  ya no acepta `attendees` (breaking change menor ADR-0018 D2) (ver `backend/src/routes/life-group.routes.ts` PATCH `/:id` y `backend/src/services/life-group.service.ts` `UpdateLifeGroupBody`).
+- ✅ **D-04b** Nuevo `PATCH /api/life-groups/:id/attendees` para reemplazo canónico del roster,
+  con permiso para líder, supervisor y Admin/Superadmin, validación de ids y rol elegible
+  (`Asistente`/`Miembro`) (ADR-0018 D2) (ver `backend/src/routes/life-group.routes.ts` PATCH `/:id/attendees` y `backend/src/services/life-group.service.ts` `updateAttendees`).
+- ✅ **D-05** `POST /api/life-groups/:id/sessions` debe crear sesiones con `weekNumber` auto-computado (ver `backend/src/services/life-group.service.ts` `addSession`).
+- ✅ **D-06** `PATCH /api/life-groups/:id/sessions/:sessionId` debe editar sesiones (ver `backend/src/routes/life-group.routes.ts` PATCH `/:id/sessions/:sessionId` y `backend/src/services/life-group.service.ts` `updateSession`).
+- ✅ **D-07** `DELETE /api/life-groups/:id/sessions/:sessionId` debe eliminar sesiones (ver `backend/src/routes/life-group.routes.ts` DELETE `/:id/sessions/:sessionId` y `backend/src/services/life-group.service.ts` `deleteSession`).
+- ✅ **D-08** Validar que `leader` tenga rol `Lider` y que `attendeesPresent` sea subconjunto de `attendees` (ver `backend/src/services/life-group.service.ts` `validateLeader` y `validateSessionBody`).
 
 ### 6.2 Frontend — `frontend/src/types/index.ts` / `LifeGroupAPI.ts`
 
-- ❌ **D-09** Extender `lifeGroupSchema` con `leader`, `type`, `attendees`, `sessions`.
-- ❌ **D-10** Añadir `lifeGroupSessionSchema`, `lifeGroupTypeSchema`, `lifeGroupMemberSchema`.
-- ❌ **D-11** Actualizar `LifeGroupFormData` con `leader`, `type`, `attendees`.
-- ❌ **D-12** Añadir `sessionFormDataSchema` y `createLifeGroupFormDataSchema`.
-- ❌ **D-13** Extender `LifeGroupAPI.ts` con `updateLifeGroup`, `createSession`, `updateSession`, `deleteSession`.
+- ✅ **D-09** Extender `lifeGroupSchema` con `leader`, `type`, `attendees`, `sessions` (ver `frontend/src/types/index.ts`).
+- ✅ **D-10** Añadir `lifeGroupSessionSchema`, `lifeGroupTypeSchema`, `lifeGroupMemberSchema` (ver `frontend/src/types/index.ts`).
+- ✅ **D-11** Actualizar `LifeGroupFormData` con `leader`, `type` (sin `attendees`; el roster se gestiona vía `PATCH /api/life-groups/:id/attendees` por ADR-0018 D1/D2) (ver `frontend/src/types/index.ts`).
+- ✅ **D-12** Añadir `sessionFormDataSchema` y `createLifeGroupFormDataSchema` (ver `frontend/src/types/index.ts`).
+- ✅ **D-13** Extender `LifeGroupAPI.ts` con `updateLifeGroup`, `updateLifeGroupAttendees`, `addSession`, `updateSession`, `deleteSession` (ver `frontend/src/api/LifeGroupAPI.ts`).
 
 ### 6.3 Roles
 
-- ❌ **D-14** Añadir `Lider` al enum de roles en backend, seed y frontend (ADR-0011 §D2).
+- ✅ **D-14** Añadir `Lider` al enum de roles en backend, seed y frontend (ADR-0011 §D2) (ver `backend/src/models/role.model.ts`, `backend/src/config/seed.ts`, `frontend/src/types/index.ts` y `frontend/src/utils/constants/roleColors.ts`).
 
 ### 6.4 Documentación
 
@@ -626,7 +714,7 @@ Inventario puntual. Los ítems resueltos se marcan con ✅; los pendientes con �
    del ADR-0011 §D3. Si el volumen de sesiones crece, se migrará a una colección separada con un
    ADR posterior.
 
-> **Bloqueantes detectados**: ninguno. Los drifts documentados están pendientes de implementación.
+> **Bloqueantes detectados**: ninguno. Los drifts D-01..D-14 quedan resueltos en el árbol de trabajo actual.
 
 ---
 

@@ -25,6 +25,8 @@ consideradas y las consecuencias para el sistema.
 | [ADR-0015](0015-life-groups-supervisor-assignment.md) | Asignación explícita de supervisor en grupos de vida (fix de cobertura invisible) | Aceptado | 2026-09-09 |
 | [ADR-0016](0016-seed-non-destructive-roles.md) | Seed no destructivo para roles y bootstrap de superadmin sin credenciales hardcodeadas | Aceptado | 2026-09-09 |
 | [ADR-0017](0017-courses-attendance-export-close-hint.md) | Cursos: exportación Excel de asistencia y cierre sugerido | Aceptado | 2026-09-09 |
+| [ADR-0018](0018-life-groups-attendees-leader-owned.md) | El roster de asistentes del grupo de vida lo gestiona el Líder | Aceptado (implementado) | 2026-09-12 |
+| [ADR-0019](0019-frontend-render-hardening.md) | Hardening de render frontend: selección estable, defaults de React Query y scroll único | Aceptado | 2026-09-12 |
 
 ---
 
