@@ -4,12 +4,14 @@ import { handleControllerError } from "../services/app-error";
 import {
   createLifeGroup,
   updateLifeGroup,
+  updateAttendees,
   addSession,
   updateSession,
   deleteSession,
   findMine,
   type CreateLifeGroupBody,
   type UpdateLifeGroupBody,
+  type UpdateAttendeesBody,
   type SessionBody,
 } from "../services/life-group.service";
 
@@ -55,6 +57,25 @@ export class LifeGroupController {
       });
     } catch (error) {
       return handleControllerError(res, error, "Error al actualizar el grupo de vida");
+    }
+  };
+
+  static updateAttendees = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const lifeGroup = await updateAttendees(
+        req.params.id,
+        req.body as UpdateAttendeesBody,
+        {
+          profileId: req.auth?.profileId,
+          roles: req.auth?.roles ?? [],
+        },
+      );
+      return res.status(200).json({
+        message: "Asistentes del grupo actualizados correctamente",
+        lifeGroup,
+      });
+    } catch (error) {
+      return handleControllerError(res, error, "Error al actualizar los asistentes del grupo");
     }
   };
 

@@ -7,6 +7,7 @@ import {
   authHeader,
   noAuthHeader,
   VALID_ID,
+  OTHER_VALID_ID,
   INVALID_ID,
   type TestAuth,
 } from "../_setup/test-helpers";
@@ -62,6 +63,7 @@ const {
   mockFindMine,
   mockCreateLifeGroup,
   mockUpdateLifeGroup,
+  mockUpdateAttendees,
   mockAddSession,
   mockUpdateSession,
   mockDeleteSession,
@@ -69,6 +71,7 @@ const {
   mockFindMine: vi.fn(),
   mockCreateLifeGroup: vi.fn(),
   mockUpdateLifeGroup: vi.fn(),
+  mockUpdateAttendees: vi.fn(),
   mockAddSession: vi.fn(),
   mockUpdateSession: vi.fn(),
   mockDeleteSession: vi.fn(),
@@ -78,6 +81,7 @@ vi.mock("../../src/services/life-group.service", () => ({
   findMine: mockFindMine,
   createLifeGroup: mockCreateLifeGroup,
   updateLifeGroup: mockUpdateLifeGroup,
+  updateAttendees: mockUpdateAttendees,
   addSession: mockAddSession,
   updateSession: mockUpdateSession,
   deleteSession: mockDeleteSession,
@@ -129,6 +133,14 @@ const LIDERSUPERVISOR_AUTH: TestAuth = {
   profileId: "profile-lider-sup",
 };
 
+const LIDER_AUTH: TestAuth = {
+  userId: "u-lider",
+  email: "lider-only@icc.test",
+  name: "Lider Test",
+  roles: ["Lider"],
+  profileId: "profile-lider",
+};
+
 // ---- montar router bajo /api/life-groups ---------------------------------
 
 const mountRouter = (): Express => {
@@ -147,6 +159,7 @@ const resetMocks = () => {
   mockFindMine.mockReset();
   mockCreateLifeGroup.mockReset();
   mockUpdateLifeGroup.mockReset();
+  mockUpdateAttendees.mockReset();
   mockAddSession.mockReset();
   mockUpdateSession.mockReset();
   mockDeleteSession.mockReset();
@@ -351,6 +364,101 @@ describe("life-group.routes — PATCH /api/life-groups/:id", () => {
       .send({ supervisor: VALID_ID });
     expect(res.status).toBe(200);
     expect(mockUpdateLifeGroup).toHaveBeenCalled();
+  });
+
+  // ---- ADR-0018 D2: el endpoint general PATCH ignora attendees ----
+  // El PATCH /:id NO gestiona asistentes (esa responsabilidad es de PATCH /:id/attendees).
+  // Verificar que si se envía attendees en el body del PATCH general, se acepta
+  // (no es un error de validación) pero se delega al servicio para que lo ignore.
+  it("PATCH general con attendees en body → 200 (el servicio ignora attendees, ADR-0018 D2)", async () => {
+    mockUpdateLifeGroup.mockResolvedValue({});
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}`)
+      .set(authHeader(ADMIN_AUTH))
+      .send({ name: "Nuevo Nombre", attendees: [VALID_ID, OTHER_VALID_ID] });
+    expect(res.status).toBe(200);
+    // El controller/delegate se invocó (attendees se ignora a nivel de servicio)
+    expect(mockUpdateLifeGroup).toHaveBeenCalled();
+  });
+});
+
+describe("life-group.routes — PATCH /api/life-groups/:id/attendees", () => {
+  beforeEach(resetMocks);
+
+  const validBody = {
+    attendees: [VALID_ID, OTHER_VALID_ID],
+  };
+
+  it("sin autenticación → 401", async () => {
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}/attendees`)
+      .set(noAuthHeader())
+      .send(validBody);
+    expect(res.status).toBe(401);
+  });
+
+  it("Asistente (rol no autorizado) → 403", async () => {
+    mockUpdateAttendees.mockResolvedValue({});
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}/attendees`)
+      .set(authHeader(ASISTENTE_AUTH))
+      .send(validBody);
+    expect(res.status).toBe(403);
+    expect(mockUpdateAttendees).not.toHaveBeenCalled();
+  });
+
+  it("id no es MongoId → 400", async () => {
+    const res = await request(app)
+      .patch("/api/life-groups/not-a-mongoid/attendees")
+      .set(authHeader(LIDER_AUTH))
+      .send(validBody);
+    expect(res.status).toBe(400);
+  });
+
+  it("attendees no es array → 400", async () => {
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}/attendees`)
+      .set(authHeader(LIDER_AUTH))
+      .send({ attendees: "not-an-array" });
+    expect(res.status).toBe(400);
+  });
+
+  it("attendees.* con MongoId inválido → 400", async () => {
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}/attendees`)
+      .set(authHeader(LIDER_AUTH))
+      .send({ attendees: [INVALID_ID] });
+    expect(res.status).toBe(400);
+  });
+
+  it("Lider + body válido → 200 + delegates al controller", async () => {
+    mockUpdateAttendees.mockResolvedValue({});
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}/attendees`)
+      .set(authHeader(LIDER_AUTH))
+      .send(validBody);
+    expect(res.status).toBe(200);
+    expect(mockUpdateAttendees).toHaveBeenCalled();
+  });
+
+  it("Supervisor + body válido → 200", async () => {
+    mockUpdateAttendees.mockResolvedValue({});
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}/attendees`)
+      .set(authHeader(SUPERVISOR_AUTH))
+      .send(validBody);
+    expect(res.status).toBe(200);
+    expect(mockUpdateAttendees).toHaveBeenCalled();
+  });
+
+  it("Admin + body válido → 200", async () => {
+    mockUpdateAttendees.mockResolvedValue({});
+    const res = await request(app)
+      .patch(`/api/life-groups/${VALID_ID}/attendees`)
+      .set(authHeader(ADMIN_AUTH))
+      .send(validBody);
+    expect(res.status).toBe(200);
+    expect(mockUpdateAttendees).toHaveBeenCalled();
   });
 });
 

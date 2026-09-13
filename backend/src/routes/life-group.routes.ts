@@ -30,8 +30,8 @@ router.post(
   body("address").notEmpty().withMessage("La dirección es obligatoria"),
   body("leader").isMongoId().withMessage("El líder no es válido"),
   lifeGroupTypeValidator("type"),
-  body("attendees").isArray().withMessage("Los asistentes deben ser un arreglo"),
-  body("attendees.*").isMongoId().withMessage("Uno o más asistentes no son válidos"),
+  body("attendees").optional().isArray().withMessage("Los asistentes deben ser un arreglo"),
+  body("attendees.*").optional().isMongoId().withMessage("Uno o más asistentes no son válidos"),
   body("supervisor").optional().isMongoId().withMessage("El supervisor no es válido"),
   handleInputErrors,
   LifeGroupController.create,
@@ -46,14 +46,21 @@ router.patch(
   body("address").optional().notEmpty().withMessage("La dirección no puede estar vacía"),
   body("leader").optional().isMongoId().withMessage("El líder no es válido"),
   lifeGroupTypeValidator("type", true),
-  body("attendees").optional().isArray().withMessage("Los asistentes deben ser un arreglo"),
-  body("attendees.*")
-    .optional()
-    .isMongoId()
-    .withMessage("Uno o más asistentes no son válidos"),
   body("supervisor").optional().isMongoId().withMessage("El supervisor no es válido"),
   handleInputErrors,
   LifeGroupController.update,
+);
+
+const attendeesAuthRoles = ["Lider", "Supervisor", "Admin", "Superadmin"];
+
+router.patch(
+  "/:id/attendees",
+  authorizeRoles(attendeesAuthRoles),
+  param("id").isMongoId().withMessage("El ID del grupo no es válido"),
+  body("attendees").isArray().withMessage("Los asistentes deben ser un arreglo"),
+  body("attendees.*").isMongoId().withMessage("Uno o más asistentes no son válidos"),
+  handleInputErrors,
+  LifeGroupController.updateAttendees,
 );
 
 const sessionAuthRoles = ["Lider", "Supervisor", "Admin", "Superadmin"];

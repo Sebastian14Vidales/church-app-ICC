@@ -25,11 +25,24 @@ type ProfileWithRole = {
   user?: { roles?: Array<{ name?: string } | null> } | null;
 };
 
+const ELIGIBLE_ATTENDEE_ROLES = ["Asistente", "Miembro"];
+
 const hasLiderRole = (profile: ProfileWithRole | null): boolean => {
   if (!profile) return false;
   if (profile.role?.name === "Lider") return true;
   const userRoles = profile.user?.roles ?? [];
   return userRoles.some((role) => role?.name === "Lider");
+};
+
+const hasEligibleAttendeeRole = (profile: ProfileWithRole | null): boolean => {
+  if (!profile) return false;
+  if (profile.role?.name && ELIGIBLE_ATTENDEE_ROLES.includes(profile.role.name)) {
+    return true;
+  }
+  const userRoles = profile.user?.roles ?? [];
+  return userRoles.some(
+    (role) => role?.name && ELIGIBLE_ATTENDEE_ROLES.includes(role.name),
+  );
 };
 
 const isAdminOrSuperadmin = (roles: string[]): boolean =>
@@ -72,6 +85,22 @@ const validateAttendeesExist = async (attendeeIds: string[]) => {
   }
 };
 
+const validateAttendeeEligibility = async (attendeeIds: string[]) => {
+  if (attendeeIds.length === 0) return;
+  const profiles = await UserProfile.find({ _id: { $in: attendeeIds } })
+    .populate("role")
+    .populate({ path: "user", populate: { path: "roles" } });
+  if (profiles.length !== attendeeIds.length) {
+    throw new AppError(400, "Uno o más asistentes no existen");
+  }
+  const allEligible = profiles.every((profile) =>
+    hasEligibleAttendeeRole(profile as unknown as ProfileWithRole),
+  );
+  if (!allEligible) {
+    throw new AppError(400, "Uno o más asistentes no tienen un rol elegible");
+  }
+};
+
 const validateType = (type: string): LifeGroupType => {
   if (!LIFE_GROUP_TYPES.includes(type as LifeGroupType)) {
     throw new AppError(400, "Tipo de grupo inválido");
@@ -110,7 +139,7 @@ export type CreateLifeGroupBody = {
   address: string;
   leader: string;
   type: LifeGroupType;
-  attendees: string[];
+  attendees?: string[];
   supervisor?: string;
 };
 
@@ -153,7 +182,7 @@ export const createLifeGroup = async (body: CreateLifeGroupBody, context: Caller
   return populated;
 };
 
-export type UpdateLifeGroupBody = Partial<Omit<CreateLifeGroupBody, "supervisor">> & {
+export type UpdateLifeGroupBody = Partial<Omit<CreateLifeGroupBody, "supervisor" | "attendees">> & {
   supervisor?: string;
 };
 
@@ -186,17 +215,49 @@ export const updateLifeGroup = async (
     await validateLeader(body.leader, id);
     group.leader = new mongoose.Types.ObjectId(body.leader);
   }
-  if (body.attendees !== undefined) {
-    await validateAttendeesExist(body.attendees);
-    group.attendees = body.attendees.map(
-      (attendeeId) => new mongoose.Types.ObjectId(attendeeId),
-    );
-  }
 
   await group.save();
   const populated = await LifeGroup.findById(id).populate(sharedLifeGroupPopulate);
   if (!populated) {
     throw new AppError(500, "Error al actualizar el grupo de vida");
+  }
+  return populated;
+};
+
+export type UpdateAttendeesBody = {
+  attendees: string[];
+};
+
+export const updateAttendees = async (
+  id: string,
+  body: UpdateAttendeesBody,
+  context: CallerContext,
+) => {
+  const group = await LifeGroup.findById(id);
+  if (!group) {
+    throw new AppError(404, "Grupo de vida no encontrado");
+  }
+
+  const isAdmin = isAdminOrSuperadmin(context.roles);
+  const isSupervisorOfGroup = String(group.supervisor) === context.profileId;
+  const isLeaderOfGroup =
+    context.profileId && String(group.leader) === context.profileId;
+  if (!isAdmin && !isSupervisorOfGroup && !isLeaderOfGroup) {
+    throw new AppError(403, "No tienes permisos para esta acción");
+  }
+
+  const attendeeIds = body.attendees ?? [];
+  await validateAttendeesExist(attendeeIds);
+  await validateAttendeeEligibility(attendeeIds);
+
+  group.attendees = attendeeIds.map(
+    (attendeeId) => new mongoose.Types.ObjectId(attendeeId),
+  );
+
+  await group.save();
+  const populated = await LifeGroup.findById(id).populate(sharedLifeGroupPopulate);
+  if (!populated) {
+    throw new AppError(500, "Error al actualizar los asistentes del grupo");
   }
   return populated;
 };
