@@ -1,6 +1,7 @@
 import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
     type PropsWithChildren,
@@ -126,11 +127,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         isLoggingOutRef.current = false
     }, [queryClient, startSessionTransition])
 
-    const logout = () => {
+    const logout = useCallback(() => {
         performLogout()
-    }
+    }, [performLogout])
 
-    const login = (session: LoginSession) => {
+    const login = useCallback((session: LoginSession) => {
         // Defensa en profundidad: si ya existe una sesión activa en el
         // almacenamiento compartido (por ejemplo, abierta en otra pestaña),
         // no se permite que la pantalla de login la sobrescriba.
@@ -142,7 +143,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         persistSession(session)
         setToken(session.token)
         setUser(session.user)
-    }
+    }, [startSessionTransition])
 
     useEffect(() => {
         return () => {
@@ -265,15 +266,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
     }, [performLogout])
 
-    const value: AuthContextValue = {
-        token,
-        user,
-        isAuthenticated: Boolean(token && user),
-        isBootstrapping,
-        isSessionTransitioning,
-        login,
-        logout,
-    }
+    const value: AuthContextValue = useMemo(
+        () => ({
+            token,
+            user,
+            isAuthenticated: Boolean(token && user),
+            isBootstrapping,
+            isSessionTransitioning,
+            login,
+            logout,
+        }),
+        [token, user, isBootstrapping, isSessionTransitioning, login, logout],
+    )
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

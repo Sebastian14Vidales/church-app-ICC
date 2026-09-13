@@ -23,23 +23,13 @@ import { closeCourseAssignment, exportAttendanceExcel, getMyAttendanceOverview, 
 import { type ClassSession, type CourseAssigned } from "@/types/index"
 import { downloadAttendancePdfReport } from "@/utils/attendanceReport"
 import { buildCourseAttendanceMetrics, buildStudentAttendanceSummaries } from "@/utils/attendanceInsights"
+import { triggerFileDownload } from "@/utils/file-download"
 import { COURSE_LEVEL_LABELS } from "@/utils/constants/courses"
 import PATHS from "@/utils/constants/routes"
 import { getLocationNameById } from "@/utils/constants/locations"
 import { formatFullName, normalizeSearchText } from "@/utils/text"
 
 type AttendanceState = Record<string, boolean | null>
-
-const triggerFileDownload = (blob: Blob, filename: string) => {
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    window.URL.revokeObjectURL(url);
-};
 
 const buildAttendanceState = (
     assignment: CourseAssigned | null,
@@ -235,7 +225,7 @@ export default function AttendanceView() {
     }
 
     if (isLoading) {
-        return <LoadingSpinner label="Cargando asistencias..." className="min-h-screen" />
+        return <LoadingSpinner label="Cargando asistencias..." className="min-h-[40vh]" />
     }
 
     if (!assignment) {

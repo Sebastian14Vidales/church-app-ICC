@@ -52,7 +52,7 @@ export default function StudentQuickViewModal({
             scrollBehavior="inside"
         >
             {summary ? (
-                <div className="max-h-[72vh] space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="space-y-6 pb-4 pr-2">
                     <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>

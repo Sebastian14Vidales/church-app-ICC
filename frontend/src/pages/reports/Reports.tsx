@@ -5,6 +5,7 @@ import { BarChart3, BookOpen, CalendarDays, Coins, Users } from "lucide-react";
 import { getCourseAssignments } from "@/api/CourseAPI";
 import { getAllEvents } from "@/api/EventAPI";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
+import { useStableSelection } from "@/hooks/useStableSelection";
 import { COURSE_STATUS_LABELS } from "@/utils/constants/courses";
 import { getStoredDateYear, parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
@@ -41,6 +42,7 @@ export default function Reports() {
 
   const [selectedYear, setSelectedYear] = useState<string>("");
   const effectiveYear = selectedYear || String(availableYears[0] ?? new Date().getFullYear());
+  const selectedYearKeys = useStableSelection(effectiveYear);
 
   const coursesByYear = useMemo(
     () =>
@@ -85,7 +87,7 @@ export default function Reports() {
   }, [eventsByYear]);
 
   if (isLoadingAssignments || isLoadingEvents) {
-    return <LoadingSpinner label="Cargando reportes..." className="min-h-screen" />;
+    return <LoadingSpinner label="Cargando reportes..." className="min-h-[40vh]" />;
   }
 
   return (
@@ -104,7 +106,7 @@ export default function Reports() {
           </label>
           <Select
             id="report-year"
-            selectedKeys={effectiveYear ? [effectiveYear] : []}
+            selectedKeys={selectedYearKeys}
             onSelectionChange={(keys) => setSelectedYear(String(Array.from(keys)[0] ?? ""))}
             placeholder="Selecciona un año"
           >

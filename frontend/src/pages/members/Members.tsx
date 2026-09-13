@@ -341,7 +341,7 @@ export default function Members() {
         filters.searchTerm || filters.bloodType || filters.baptized || filters.spiritualGrowthStage || filters.profession,
     );
 
-    if (isLoading) return <LoadingSpinner label="Cargando miembros..." className="min-h-screen" />;
+    if (isLoading) return <LoadingSpinner label="Cargando miembros..." className="min-h-[40vh]" />;
     if (isError) return <h1>{error.message}</h1>;
 
     return (

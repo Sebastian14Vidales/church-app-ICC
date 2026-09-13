@@ -6,7 +6,15 @@ import SessionOverlay from "@/components/auth/SessionOverlay";
 import RealtimeBridge from "@/components/auth/RealtimeBridge";
 import { AuthProvider } from "@/lib/auth";
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 60_000,
+      retry: 2,
+    },
+  },
+})
 function App() {
   return (
     <QueryClientProvider client={queryClient}>

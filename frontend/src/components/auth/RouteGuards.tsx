@@ -12,7 +12,7 @@ export function RequireAuth({ allowedRoles }: RequireAuthProps) {
     const location = useLocation()
 
     if (isBootstrapping) {
-        return <LoadingSpinner label="Validando sesion..." className="min-h-screen" />
+        return <LoadingSpinner label="Validando sesion..." className="min-h-[40vh]" />
     }
 
     if (!isAuthenticated || !user) {
@@ -30,7 +30,7 @@ export function GuestOnly() {
     const { isAuthenticated, isBootstrapping } = useAuth()
 
     if (isBootstrapping) {
-        return <LoadingSpinner label="Cargando..." className="min-h-screen" />
+        return <LoadingSpinner label="Cargando..." className="min-h-[40vh]" />
     }
 
     if (isAuthenticated) {

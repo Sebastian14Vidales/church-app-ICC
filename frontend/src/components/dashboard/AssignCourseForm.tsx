@@ -1,9 +1,10 @@
 import { Controller, useWatch, type Control, type FieldErrors, type UseFormSetValue } from "react-hook-form";
-import { DatePicker, Input, Select, SelectItem } from "@heroui/react";
+import { DatePicker, Input, SelectItem } from "@heroui/react";
 import { parseDate, today, getLocalTimeZone } from "@internationalized/date";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCourses, getCourseAssignments } from "@/api/CourseAPI";
 import { getAllMembers } from "@/api/MemberAPI";
+import FormSelect from "@/components/common/FormSelect";
 import { type CourseAssignmentCreateBody } from "@/types/index";
 import { LOCATIONS } from "@/utils/constants/locations";
 import { START_TIME_OPTIONS } from "@/utils/date";
@@ -93,23 +94,17 @@ export default function AssignCourseForm({
             <div>
                 <label className="mb-1 block text-sm font-medium">Curso</label>
 
-                <Controller
+                <FormSelect
                     name="course"
                     control={control}
                     rules={{ required: "Curso requerido" }}
-                    render={({ field }) => (
-                        <Select
-                            selectedKeys={field.value ? [field.value] : []}
-                            onSelectionChange={(keys) => field.onChange(Array.from(keys)[0])}
-                            className="w-full"
-                            placeholder="Selecciona un curso"
-                        >
-                            {courses.map((course) => (
-                                <SelectItem key={course._id}>{course.name}</SelectItem>
-                            ))}
-                        </Select>
-                    )}
-                />
+                    className="w-full"
+                    placeholder="Selecciona un curso"
+                >
+                    {courses.map((course) => (
+                        <SelectItem key={course._id}>{course.name}</SelectItem>
+                    ))}
+                </FormSelect>
 
                 {errors.course && <span className="text-xs text-red-500">{errors.course.message}</span>}
             </div>
@@ -117,26 +112,20 @@ export default function AssignCourseForm({
             <div>
                 <label className="mb-1 block text-sm font-medium">Profesor</label>
 
-                <Controller
+                <FormSelect
                     name="professor"
                     control={control}
                     rules={{ required: "Profesor requerido" }}
-                    render={({ field }) => (
-                        <Select
-                            selectedKeys={field.value ? [field.value] : []}
-                            onSelectionChange={(keys) => field.onChange(Array.from(keys)[0])}
-                            className="w-full"
-                            placeholder={professors.length ? "Selecciona un profesor" : "No hay profesores registrados"}
-                            isDisabled={!professors.length}
-                        >
-                            {professors.map((professor) => (
-                                <SelectItem key={professor._id}>
-                                    {formatFullName(professor.firstName, professor.lastName)}
-                                </SelectItem>
-                            ))}
-                        </Select>
-                    )}
-                />
+                    className="w-full"
+                    placeholder={professors.length ? "Selecciona un profesor" : "No hay profesores registrados"}
+                    isDisabled={!professors.length}
+                >
+                    {professors.map((professor) => (
+                        <SelectItem key={professor._id}>
+                            {formatFullName(professor.firstName, professor.lastName)}
+                        </SelectItem>
+                    ))}
+                </FormSelect>
 
                 {errors.professor && <span className="text-xs text-red-500">{errors.professor.message}</span>}
             </div>
@@ -162,24 +151,18 @@ export default function AssignCourseForm({
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label className="mb-1 block text-sm font-medium">Hora de inicio</label>
-                    <Controller
-                        name="startTime"
-                        control={control}
-                        rules={{ required: "Hora de inicio requerida" }}
-                        render={({ field }) => (
-                            <Select
-                                selectedKeys={field.value ? [field.value] : []}
-                                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                                className="w-full"
-                                placeholder="Selecciona una hora"
-                                aria-label="Hora de inicio"
-                            >
-                                {START_TIME_OPTIONS.map((option) => (
-                                    <SelectItem key={option.value}>{option.label}</SelectItem>
-                                ))}
-                            </Select>
-                        )}
-                    />
+                        <FormSelect
+                            name="startTime"
+                            control={control}
+                            rules={{ required: "Hora de inicio requerida" }}
+                            className="w-full"
+                            placeholder="Selecciona una hora"
+                            aria-label="Hora de inicio"
+                        >
+                            {START_TIME_OPTIONS.map((option) => (
+                                <SelectItem key={option.value}>{option.label}</SelectItem>
+                            ))}
+                        </FormSelect>
                     {errors.startTime && <span className="text-xs text-red-500">{errors.startTime.message}</span>}
                 </div>
 
@@ -214,23 +197,17 @@ export default function AssignCourseForm({
             <div>
                 <label className="mb-1 block text-sm font-medium">Salon</label>
 
-                <Controller
+                <FormSelect
                     name="location"
                     control={control}
                     rules={{ required: "Salon requerido" }}
-                    render={({ field }) => (
-                        <Select
-                            selectedKeys={field.value ? [field.value] : []}
-                            onSelectionChange={(keys) => field.onChange(Array.from(keys)[0])}
-                            className="w-full"
-                            placeholder="Selecciona un salon"
-                        >
-                            {LOCATIONS.map((location) => (
-                                <SelectItem key={location.id}>{location.name}</SelectItem>
-                            ))}
-                        </Select>
-                    )}
-                />
+                    className="w-full"
+                    placeholder="Selecciona un salon"
+                >
+                    {LOCATIONS.map((location) => (
+                        <SelectItem key={location.id}>{location.name}</SelectItem>
+                    ))}
+                </FormSelect>
 
                 {errors.location && <span className="text-xs text-red-500">{errors.location.message}</span>}
             </div>

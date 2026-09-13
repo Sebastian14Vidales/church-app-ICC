@@ -1,5 +1,6 @@
 ﻿import {
   Controller,
+  useController,
   useWatch,
   type Control,
   type FieldErrors,
@@ -11,8 +12,10 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { getAllRoles } from "@/api/MemberAPI";
+import FormSelect from "@/components/common/FormSelect";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/hooks/useAuth";
+import { useStableSelection } from "@/hooks/useStableSelection";
 import { spiritualGrowthStageChoiceSchema, type MemberFormData } from "@/types/index";
 
 
@@ -45,6 +48,74 @@ type MemberFormProps = {
   control: Control<MemberFormData>;
   setValue: UseFormSetValue<MemberFormData>;
 };
+
+type RoleOption = {
+  _id: string;
+  name: string;
+};
+
+type ChurchRolesSelectProps = {
+  control: Control<MemberFormData>;
+  visibleRoles: RoleOption[];
+  baptized: string;
+  isLoading: boolean;
+};
+
+function ChurchRolesSelect({
+  control,
+  visibleRoles,
+  baptized,
+  isLoading,
+}: ChurchRolesSelectProps) {
+  const { field } = useController({
+    name: "roleNames",
+    control,
+  });
+  const selectedKeys = useStableSelection(field.value);
+
+  if (isLoading) {
+    return <LoadingSpinner label="Cargando roles..." className="min-h-[120px]" />;
+  }
+
+  return (
+    <Select
+      selectionMode="multiple"
+      selectedKeys={selectedKeys}
+      onSelectionChange={(keys) => {
+        const selected = Array.from(keys) as string[];
+        const previous = (field.value || []) as string[];
+
+        // ADR-0011 §D9: Líder y Supervisor son mutuamente excluyentes (jerarquía: Líder < Supervisor)
+        if (selected.includes("Lider") && selected.includes("Supervisor")) {
+          const newlyAdded = selected.filter((role) => !previous.includes(role));
+          const exclusiveNewlyAdded = newlyAdded.find(
+            (role) => role === "Lider" || role === "Supervisor",
+          );
+
+          if (exclusiveNewlyAdded === "Lider") {
+            field.onChange(selected.filter((role) => role !== "Supervisor"));
+          } else if (exclusiveNewlyAdded === "Supervisor") {
+            field.onChange(selected.filter((role) => role !== "Lider"));
+          } else {
+            // Ambos añadidos en el mismo lote: preferir Supervisor por jerarquía
+            field.onChange(selected.filter((role) => role !== "Lider"));
+          }
+          return;
+        }
+
+        field.onChange(selected);
+      }}
+      placeholder="Selecciona roles adicionales si aplica"
+      aria-label="Roles en la Iglesia"
+      className="input"
+      isDisabled={baptized !== "true" || visibleRoles.length === 0}
+    >
+      {visibleRoles.map((role) => (
+        <SelectItem key={role.name}>{role.name}</SelectItem>
+      ))}
+    </Select>
+  );
+}
 
 export default function MemberForm({
   register,
@@ -205,50 +276,52 @@ export default function MemberForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className={isRestrictedMemberManager ? "md:col-span-2" : ""}>
+        <div className={isRestrictedMemberManager && !showProfession ? "md:col-span-2" : ""}>
           <label className="block text-sm font-medium text-gray-700">Tipo de sangre</label>
-          <Controller
+          <FormSelect
             name="bloodType"
             control={control}
             rules={{ required: true }}
-            render={({ field }) => (
-              <Select
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                placeholder="Seleccione el tipo de sangre"
-                aria-label="Tipo de sangre"
-                className="input"
-              >
-                {BLOOD_TYPES.map((bloodType) => (
-                  <SelectItem key={bloodType}>{bloodType}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
+            placeholder="Seleccione el tipo de sangre"
+            aria-label="Tipo de sangre"
+            className="input"
+          >
+            {BLOOD_TYPES.map((bloodType) => (
+              <SelectItem key={bloodType}>{bloodType}</SelectItem>
+            ))}
+          </FormSelect>
           {errors.bloodType && <span className="text-xs text-red-500">Este campo es requerido</span>}
         </div>
 
-        {!isRestrictedMemberManager && (
+        {isRestrictedMemberManager ? (
+          showProfession ? (
+            <div>
+              <label htmlFor="profession" className="block text-sm font-medium text-gray-700">
+                Profesión
+              </label>
+              <Input
+                id="profession"
+                {...register("profession")}
+                placeholder="Ingrese la profesión"
+                classNames={{ inputWrapper: "border-none shadow-none" }}
+              />
+            </div>
+          ) : null
+        ) : (
           <div>
             <label className="block text-sm font-medium text-gray-700">Bautizado</label>
-            <Controller
+            <FormSelect
               name="baptized"
               control={control}
               rules={{ required: true }}
-              render={({ field }) => (
-                <Select
-                  selectedKeys={field.value ? [field.value] : []}
-                  onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                  placeholder="Seleccione una opción"
-                  aria-label="Bautizado"
-                  className="input"
-                >
-                  {BOOLEAN_OPTIONS.map((option) => (
-                    <SelectItem key={option.key}>{option.label}</SelectItem>
-                  ))}
-                </Select>
-              )}
-            />
+              placeholder="Seleccione una opción"
+              aria-label="Bautizado"
+              className="input"
+            >
+              {BOOLEAN_OPTIONS.map((option) => (
+                <SelectItem key={option.key}>{option.label}</SelectItem>
+              ))}
+            </FormSelect>
             {errors.baptized && <span className="text-xs text-red-500">Este campo es requerido</span>}
           </div>
         )}
@@ -273,52 +346,12 @@ export default function MemberForm({
               </>
             ) : (
               <>
-                {isLoading ? (
-                  <LoadingSpinner label="Cargando roles..." className="min-h-[120px]" />
-                ) : (
-                  <Controller
-                    name="roleNames"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        selectionMode="multiple"
-                        selectedKeys={field.value || []}
-                        onSelectionChange={(keys) => {
-                          const selected = Array.from(keys) as string[];
-                          const previous = (field.value || []) as string[];
-
-                          // ADR-0011 §D9: Líder y Supervisor son mutuamente excluyentes (jerarquía: Líder < Supervisor)
-                          if (selected.includes("Lider") && selected.includes("Supervisor")) {
-                            const newlyAdded = selected.filter((role) => !previous.includes(role));
-                            const exclusiveNewlyAdded = newlyAdded.find(
-                              (role) => role === "Lider" || role === "Supervisor",
-                            );
-
-                            if (exclusiveNewlyAdded === "Lider") {
-                              field.onChange(selected.filter((role) => role !== "Supervisor"));
-                            } else if (exclusiveNewlyAdded === "Supervisor") {
-                              field.onChange(selected.filter((role) => role !== "Lider"));
-                            } else {
-                              // Ambos añadidos en el mismo lote: preferir Supervisor por jerarquía
-                              field.onChange(selected.filter((role) => role !== "Lider"));
-                            }
-                            return;
-                          }
-
-                          field.onChange(selected);
-                        }}
-                        placeholder="Selecciona roles adicionales si aplica"
-                        aria-label="Roles en la Iglesia"
-                        className="input"
-                        isDisabled={baptized !== "true" || visibleRoles.length === 0}
-                      >
-                        {visibleRoles.map((role) => (
-                          <SelectItem key={role.name}>{role.name}</SelectItem>
-                        ))}
-                      </Select>
-                    )}
-                  />
-                )}
+                <ChurchRolesSelect
+                  control={control}
+                  visibleRoles={visibleRoles}
+                  baptized={baptized}
+                  isLoading={isLoading}
+                />
                 {errors.roleNames && <span className="text-xs text-red-500">{errors.roleNames.message}</span>}
                 <p className="mt-1 text-xs text-slate-500">
                   Si está bautizado será miembro automáticamente. Los roles son opcionales y solo aplican a cargos
@@ -330,7 +363,7 @@ export default function MemberForm({
         </div>
       )}
 
-      {showProfession && (
+      {showProfession && !isRestrictedMemberManager && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700">Profesión</label>
@@ -347,24 +380,18 @@ export default function MemberForm({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">Ruta de Crecimiento Espiritual</label>
-          <Controller
+          <FormSelect
             name="spiritualGrowthStage"
             control={control}
             rules={{ required: true }}
-            render={({ field }) => (
-              <Select
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                placeholder="Seleccione una etapa"
-                aria-label="Ruta de Crecimiento Espiritual"
-                className="input"
-              >
-                {SPIRITUAL_GROWTH_STAGES.map((stage) => (
-                  <SelectItem key={stage}>{stage}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
+            placeholder="Seleccione una etapa"
+            aria-label="Ruta de Crecimiento Espiritual"
+            className="input"
+          >
+            {SPIRITUAL_GROWTH_STAGES.map((stage) => (
+              <SelectItem key={stage}>{stage}</SelectItem>
+            ))}
+          </FormSelect>
           {errors.spiritualGrowthStage && (
             <span className="text-xs text-red-500">Este campo es requerido</span>
           )}
@@ -372,24 +399,18 @@ export default function MemberForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Encuentro y Reencuentro</label>
-          <Controller
+          <FormSelect
             name="encounterStage"
             control={control}
             rules={{ required: true }}
-            render={({ field }) => (
-              <Select
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                placeholder="Seleccione una opción"
-                aria-label="Encuentro y Reencuentro"
-                className="input"
-              >
-                {ENCOUNTER_STAGES.map((stage) => (
-                  <SelectItem key={stage}>{stage}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
+            placeholder="Seleccione una opción"
+            aria-label="Encuentro y Reencuentro"
+            className="input"
+          >
+            {ENCOUNTER_STAGES.map((stage) => (
+              <SelectItem key={stage}>{stage}</SelectItem>
+            ))}
+          </FormSelect>
           {errors.encounterStage && <span className="text-xs text-red-500">Este campo es requerido</span>}
           {encounterStage === "Ninguno" && (
             <p className="mt-1 text-xs text-slate-500">La persona aún no ha ido ni a Encuentro ni a Reencuentro.</p>
@@ -406,24 +427,18 @@ export default function MemberForm({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">¿Sirve en algún ministerio?</label>
-          <Controller
+          <FormSelect
             name="servesInMinistry"
             control={control}
             rules={{ required: true }}
-            render={({ field }) => (
-              <Select
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                placeholder="Seleccione una opción"
-                aria-label="¿Sirve en algún ministerio?"
-                className="input"
-              >
-                {BOOLEAN_OPTIONS.map((option) => (
-                  <SelectItem key={option.key}>{option.label}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
+            placeholder="Seleccione una opción"
+            aria-label="¿Sirve en algún ministerio?"
+            className="input"
+          >
+            {BOOLEAN_OPTIONS.map((option) => (
+              <SelectItem key={option.key}>{option.label}</SelectItem>
+            ))}
+          </FormSelect>
           {errors.servesInMinistry && (
             <span className="text-xs text-red-500">Este campo es requerido</span>
           )}
@@ -433,24 +448,18 @@ export default function MemberForm({
           {servesInMinistry === "true" && (
             <>
               <label className="block text-sm font-medium text-gray-700">¿En qué ministerio sirve?</label>
-              <Controller
+              <FormSelect
                 name="ministry"
                 control={control}
                 rules={{ required: true }}
-                render={({ field }) => (
-                  <Select
-                    selectedKeys={field.value ? [field.value] : []}
-                    onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                    placeholder="Seleccione un ministerio"
-                    aria-label="¿En qué ministerio sirve?"
-                    className="input"
-                  >
-                    {MINISTRIES.map((ministry) => (
-                      <SelectItem key={ministry}>{ministry}</SelectItem>
-                    ))}
-                  </Select>
-                )}
-              />
+                placeholder="Seleccione un ministerio"
+                aria-label="¿En qué ministerio sirve?"
+                className="input"
+              >
+                {MINISTRIES.map((ministry) => (
+                  <SelectItem key={ministry}>{ministry}</SelectItem>
+                ))}
+              </FormSelect>
             </>
           )}
 
@@ -459,24 +468,18 @@ export default function MemberForm({
               <label className="block text-sm font-medium text-gray-700">
                 ¿En qué ministerio está interesado servir?
               </label>
-              <Controller
+              <FormSelect
                 name="ministryInterest"
                 control={control}
                 rules={{ required: true }}
-                render={({ field }) => (
-                  <Select
-                    selectedKeys={field.value ? [field.value] : []}
-                    onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                    placeholder="Seleccione un ministerio"
-                    aria-label="¿En qué ministerio está interesado servir?"
-                    className="input"
-                  >
-                    {MINISTRIES.map((ministry) => (
-                      <SelectItem key={ministry}>{ministry}</SelectItem>
-                    ))}
-                  </Select>
-                )}
-              />
+                placeholder="Seleccione un ministerio"
+                aria-label="¿En qué ministerio está interesado servir?"
+                className="input"
+              >
+                {MINISTRIES.map((ministry) => (
+                  <SelectItem key={ministry}>{ministry}</SelectItem>
+                ))}
+              </FormSelect>
             </>
           )}
 

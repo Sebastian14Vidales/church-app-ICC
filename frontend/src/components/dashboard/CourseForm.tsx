@@ -1,6 +1,7 @@
-import { type UseFormRegister, type FieldErrors, Controller, type Control } from "react-hook-form";
+import { type UseFormRegister, type FieldErrors, type Control } from "react-hook-form";
 import { spiritualGrowthStageSchema, type CourseFormData } from '@/types/index';
-import { Input, Select, SelectItem, Textarea } from "@heroui/react";
+import { Input, SelectItem, Textarea } from "@heroui/react";
+import FormSelect from "@/components/common/FormSelect";
 import { COURSE_LEVEL_OPTIONS } from "@/utils/constants/courses";
 
 const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options;
@@ -54,25 +55,17 @@ export default function CourseForm({ register, errors, control }: CourseFormProp
             Nivel
           </label>
 
-          <Controller
+          <FormSelect
             name="level"
             control={control}
             rules={{ required: true }}
-            render={({ field }) => (
-              <Select
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => {
-                  field.onChange([...keys][0] ?? "");
-                }}
-                placeholder="Seleccione un nivel"
-                className="input"
-              >
-                {COURSE_LEVEL_OPTIONS.map((level) => (
-                  <SelectItem key={level.value}>{level.label}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
+            placeholder="Seleccione un nivel"
+            className="input"
+          >
+            {COURSE_LEVEL_OPTIONS.map((level) => (
+              <SelectItem key={level.value}>{level.label}</SelectItem>
+            ))}
+          </FormSelect>
 
           {errors.level && (
             <span className="text-red-500 text-xs">
@@ -86,23 +79,17 @@ export default function CourseForm({ register, errors, control }: CourseFormProp
             Etapa de crecimiento espiritual
           </label>
 
-          <Controller
+          <FormSelect
             name="spiritualGrowthStage"
             control={control}
             rules={{ required: true }}
-            render={({ field }) => (
-              <Select
-                selectedKeys={field.value ? [field.value] : []}
-                onSelectionChange={(keys) => field.onChange([...keys][0] ?? "")}
-                placeholder="Seleccione una etapa"
-                className="input"
-              >
-                {SPIRITUAL_GROWTH_STAGES.map((stage) => (
-                  <SelectItem key={stage}>{stage}</SelectItem>
-                ))}
-              </Select>
-            )}
-          />
+            placeholder="Seleccione una etapa"
+            className="input"
+          >
+            {SPIRITUAL_GROWTH_STAGES.map((stage) => (
+              <SelectItem key={stage}>{stage}</SelectItem>
+            ))}
+          </FormSelect>
 
           {errors.spiritualGrowthStage && (
             <span className="text-red-500 text-xs">
