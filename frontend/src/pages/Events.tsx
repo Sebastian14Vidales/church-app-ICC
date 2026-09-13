@@ -52,6 +52,7 @@ import { getAllMembers } from "@/api/MemberAPI";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { extractDateOnly, parseStoredDate, START_TIME_OPTIONS } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
+import { triggerFileDownload } from "@/utils/file-download";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -131,17 +132,6 @@ const handleTabKeyDown =
       onChange(matched.id);
       target.focus();
     };
-
-const triggerFileDownload = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  window.URL.revokeObjectURL(url);
-};
 
 const initialEventValues: EventFormData = {
   name: "",

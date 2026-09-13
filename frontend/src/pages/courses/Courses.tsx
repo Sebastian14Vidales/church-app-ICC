@@ -35,6 +35,7 @@ import {
 import { LOCATIONS, getLocationNameById } from "@/utils/constants/locations";
 import { parseStoredDate } from "@/utils/date";
 import { formatFullName } from "@/utils/text";
+import { triggerFileDownload } from "@/utils/file-download";
 import type {
     CourseAssignmentCreateBody,
     CourseAssignedCanonical,
@@ -123,17 +124,6 @@ const emptyAssignmentForm: CourseAssignmentCreateBody = {
 };
 
 const formatDate = (value: string) => parseStoredDate(value).toLocaleDateString("es-CO");
-
-const triggerFileDownload = (blob: Blob, filename: string) => {
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    window.URL.revokeObjectURL(url);
-};
 
 export default function Courses() {
     const { user } = useAuth();

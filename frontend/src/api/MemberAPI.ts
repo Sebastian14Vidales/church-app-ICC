@@ -142,12 +142,6 @@ export const getAllRoles = async (): Promise<Role[]> => {
 
 export const bulkImportMembers = async (file: File): Promise<BulkImportResult> => {
     try {
-        console.log("[members.bulkImport][frontend] enviando archivo", {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-        });
-
         const formData = new FormData();
         formData.append("file", file);
         const { data } = await api.post("/members/bulk", formData);
@@ -155,7 +149,6 @@ export const bulkImportMembers = async (file: File): Promise<BulkImportResult> =
         if (parsed.success) return parsed.data;
         throw new Error("Respuesta de importacion masiva invalida");
     } catch (error) {
-        console.error("[members.bulkImport][frontend] error", error);
         throw new Error(getApiErrorMessage(error, "No se pudo procesar el archivo"));
     }
 };
