@@ -11,7 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
-coverage
+# Vitest coverage reports (anchored: only frontend/coverage, not src/pages/coverage)
+/coverage/
 
 # Editor directories and files
 .vscode/*

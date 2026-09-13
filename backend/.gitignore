@@ -2,5 +2,5 @@
 node_modules
 .env
 
-# Test coverage reports (regenerable via `npm run test:coverage`)
-coverage
+# Test coverage reports (regenerable via `npm run test:coverage`; anchored to backend root)
+/coverage/
