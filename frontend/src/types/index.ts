@@ -468,6 +468,13 @@ export const sessionFormDataSchema = z.object({
 
 export type SessionFormData = z.infer<typeof sessionFormDataSchema>
 
+// ADR-0018: body de PATCH /api/life-groups/:id/attendees (roster canónico del líder).
+export const updateLifeGroupAttendeesSchema = z.object({
+    attendees: z.array(objectIdStringSchema),
+})
+
+export type UpdateLifeGroupAttendeesInput = z.infer<typeof updateLifeGroupAttendeesSchema>
+
 export const authUserSchema = z.object({
     id: z.string(),
     email: z.string().email(),
@@ -504,7 +511,6 @@ export type LifeGroupFormData = {
     leader: string
     supervisor?: string
     type: LifeGroupType
-    attendees: string[]
 }
 export type MemberFormData = {
     firstName: string

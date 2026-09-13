@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Select, SelectItem } from "@heroui/react";
+import { Button, Input, SelectItem } from "@heroui/react";
 import { Heart, Pencil, Plus, Users } from "lucide-react";
 import { toast } from "react-toastify";
 import { createLifeGroup, getMyLifeGroups, updateLifeGroup } from "@/api/LifeGroupAPI";
 import { getAllMembers } from "@/api/MemberAPI";
+import FormSelect from "@/components/common/FormSelect";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ModalView from "@/components/dashboard/ModalView";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,7 +24,6 @@ const initialFormValues: LifeGroupFormData = {
   address: "",
   leader: "",
   type: "life-group",
-  attendees: [],
 };
 
 const isLider = (member: Member) =>
@@ -31,8 +31,6 @@ const isLider = (member: Member) =>
 
 const isSupervisor = (member: Member) =>
   member.role.name === "Supervisor" || member.user?.roles?.some((role) => role.name === "Supervisor");
-
-const isAttendee = (member: Member) => ["Asistente", "Miembro"].includes(member.role.name);
 
 export default function MyCoverage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,7 +59,6 @@ export default function MyCoverage() {
 
   const leaders = members.filter(isLider);
   const supervisors = members.filter(isSupervisor);
-  const attendees = members.filter(isAttendee);
 
   const createMutation = useMutation({
     mutationFn: createLifeGroup,
@@ -99,7 +96,6 @@ export default function MyCoverage() {
       leader: group.leader._id,
       supervisor: group.supervisor._id,
       type: group.type,
-      attendees: group.attendees.map((attendee) => attendee._id),
     });
     setIsModalOpen(true);
   };
@@ -121,7 +117,7 @@ export default function MyCoverage() {
   };
 
   if (isLoadingGroups || isLoadingMembers) {
-    return <LoadingSpinner label="Cargando cobertura..." className="min-h-screen" />;
+    return <LoadingSpinner label="Cargando cobertura..." className="min-h-[40vh]" />;
   }
 
   return (
@@ -244,49 +240,35 @@ export default function MyCoverage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label htmlFor="coverage-type" className="block text-sm font-medium text-slate-700">Tipo de grupo</label>
-                <Controller
+                <FormSelect
                   name="type"
                   control={control}
                   rules={{ required: true }}
-                  render={({ field }) => (
-                    <Select
-                      id="coverage-type"
-                      selectedKeys={field.value ? [field.value] : []}
-                      onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                      placeholder="Selecciona el tipo"
-                      aria-label="Tipo de grupo"
-                      className="w-full"
-                    >
-                      <SelectItem key="life-group">Grupo de vida</SelectItem>
-                      <SelectItem key="couple-group">Grupo de pareja</SelectItem>
-                    </Select>
-                  )}
-                />
+                  placeholder="Selecciona el tipo"
+                  aria-label="Tipo de grupo"
+                  className="w-full"
+                >
+                  <SelectItem key="life-group">Grupo de vida</SelectItem>
+                  <SelectItem key="couple-group">Grupo de pareja</SelectItem>
+                </FormSelect>
                 {errors.type && <span className="text-xs text-red-500">Este campo es requerido</span>}
               </div>
               <div>
                 <label htmlFor="coverage-leader" className="block text-sm font-medium text-slate-700">Líder</label>
-                <Controller
+                <FormSelect
                   name="leader"
                   control={control}
                   rules={{ required: true }}
-                  render={({ field }) => (
-                    <Select
-                      id="coverage-leader"
-                      selectedKeys={field.value ? [field.value] : []}
-                      onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                      placeholder="Selecciona un líder"
-                      aria-label="Líder"
-                      className="w-full"
-                    >
-                      {leaders.map((leader) => (
-                        <SelectItem key={leader._id}>
-                          {formatFullName(leader.firstName, leader.lastName)}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  )}
-                />
+                  placeholder="Selecciona un líder"
+                  aria-label="Líder"
+                  className="w-full"
+                >
+                  {leaders.map((leader) => (
+                    <SelectItem key={leader._id}>
+                      {formatFullName(leader.firstName, leader.lastName)}
+                    </SelectItem>
+                  ))}
+                </FormSelect>
                 {errors.leader && <span className="text-xs text-red-500">Este campo es requerido</span>}
               </div>
             </div>
@@ -295,56 +277,28 @@ export default function MyCoverage() {
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label htmlFor="coverage-supervisor" className="block text-sm font-medium text-slate-700">Supervisor responsable</label>
-                  <Controller
+                  <FormSelect
                     name="supervisor"
                     control={control}
                     rules={{ required: isAdminUser }}
-                    render={({ field }) => (
-                      <Select
-                        id="coverage-supervisor"
-                        selectedKeys={field.value ? [field.value] : []}
-                        onSelectionChange={(keys) => field.onChange(Array.from(keys)[0] ?? "")}
-                        placeholder="Selecciona el supervisor"
-                        aria-label="Supervisor responsable"
-                        className="w-full"
-                      >
-                        {supervisors.map((supervisor) => (
-                          <SelectItem key={supervisor._id}>
-                            {formatFullName(supervisor.firstName, supervisor.lastName)}
-                          </SelectItem>
-                        ))}
-                      </Select>
-                    )}
-                  />
+                    placeholder="Selecciona el supervisor"
+                    aria-label="Supervisor responsable"
+                    className="w-full"
+                  >
+                    {supervisors.map((supervisor) => (
+                      <SelectItem key={supervisor._id}>
+                        {formatFullName(supervisor.firstName, supervisor.lastName)}
+                      </SelectItem>
+                    ))}
+                  </FormSelect>
                   {errors.supervisor && <span className="text-xs text-red-500">Este campo es requerido</span>}
                 </div>
               </div>
             )}
 
-            <div>
-              <label htmlFor="coverage-attendees" className="block text-sm font-medium text-slate-700">Asistentes</label>
-              <Controller
-                name="attendees"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    id="coverage-attendees"
-                    selectionMode="multiple"
-                    selectedKeys={field.value}
-                    onSelectionChange={(keys) => field.onChange(Array.from(keys) as string[])}
-                    placeholder="Selecciona los asistentes"
-                    aria-label="Asistentes"
-                    className="w-full"
-                  >
-                    {attendees.map((attendee) => (
-                      <SelectItem key={attendee._id}>
-                        {formatFullName(attendee.firstName, attendee.lastName)}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                )}
-              />
-            </div>
+            <p className="text-xs text-slate-500">
+              Los asistentes los gestiona el líder desde "Mi grupo de vida" una vez asignado.
+            </p>
           </div>
 
           <Button

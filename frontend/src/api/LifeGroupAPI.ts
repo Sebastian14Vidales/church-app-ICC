@@ -69,6 +69,23 @@ export const updateLifeGroup = async (id: string, formData: Partial<LifeGroupFor
     }
 }
 
+export const updateLifeGroupAttendees = async (lifeGroupId: string, attendeeIds: string[]) => {
+    try {
+        const { data } = await api.patch(`/life-groups/${lifeGroupId}/attendees`, {
+            attendees: attendeeIds,
+        })
+        const response = createLifeGroupResponseSchema.safeParse(data)
+
+        if (response.success) {
+            return response.data
+        }
+
+        throw new Error("Respuesta de actualizacion de asistentes invalida")
+    } catch (error) {
+        throw new Error(getApiErrorMessage(error, "No se pudo actualizar los asistentes del grupo"))
+    }
+}
+
 const sessionMutationResponseSchema = createLifeGroupResponseSchema.extend({
     session: lifeGroupSessionSchema,
 })

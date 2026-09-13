@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, DatePicker, Input, Select, SelectItem, Textarea } from "@heroui/react";
+import { Button, DatePicker, Input, SelectItem, Textarea } from "@heroui/react";
 import { getLocalTimeZone, parseDate } from "@internationalized/date";
 import { Coins, Edit3, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "react-toastify";
-import { addSession, deleteSession, getMyLifeGroups, updateSession } from "@/api/LifeGroupAPI";
+import { addSession, deleteSession, getMyLifeGroups, updateLifeGroupAttendees, updateSession } from "@/api/LifeGroupAPI";
+import { getAllMembers } from "@/api/MemberAPI";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
+import FormSelect from "@/components/common/FormSelect";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ModalView from "@/components/dashboard/ModalView";
-import { type LifeGroupSession, type SessionFormData } from "@/types/index";
+import { useAuth } from "@/hooks/useAuth";
+import { type LifeGroupSession, type Member, type SessionFormData } from "@/types/index";
+import { areArraysEqual } from "@/utils/array";
 import { parseStoredDate } from "@/utils/date";
-import { formatFullName } from "@/utils/text";
+import { formatFullName, getInitials } from "@/utils/text";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -44,10 +48,18 @@ const sessionToFormData = (session: LifeGroupSession): SessionFormData => ({
   notes: session.notes ?? "",
 });
 
+const isAttendee = (member: Member) => ["Asistente", "Miembro"].includes(member.role.name);
+
+type AttendeesFormData = {
+  attendees: string[];
+};
+
 export default function MyLifeGroup() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<LifeGroupSession | null>(null);
+  const [isEditingAttendees, setIsEditingAttendees] = useState(false);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const {
     register,
@@ -57,12 +69,24 @@ export default function MyLifeGroup() {
     formState: { errors },
   } = useForm<SessionFormData>({ defaultValues: initialSessionValues });
 
+  const {
+    control: attendeesControl,
+    handleSubmit: handleAttendeesSubmit,
+    reset: resetAttendees,
+  } = useForm<AttendeesFormData>({ defaultValues: { attendees: [] } });
+
   const { data: lifeGroups = [], isLoading } = useQuery({
     queryKey: ["lifeGroups"],
     queryFn: getMyLifeGroups,
   });
 
+  const { data: members = [], isLoading: isLoadingMembers } = useQuery({
+    queryKey: ["members"],
+    queryFn: getAllMembers,
+  });
+
   const group = lifeGroups[0] ?? null;
+  const eligibleMembers = members.filter(isAttendee);
 
   const addSessionMutation = useMutation({
     mutationFn: (data: SessionFormData) => {
@@ -102,6 +126,19 @@ export default function MyLifeGroup() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const updateAttendeesMutation = useMutation({
+    mutationFn: (attendeeIds: string[]) => {
+      if (!group) throw new Error("No hay un grupo seleccionado");
+      return updateLifeGroupAttendees(group._id, attendeeIds);
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ["lifeGroups"] });
+      setIsEditingAttendees(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const handleOpenCreate = () => {
     setEditingSession(null);
     reset(initialSessionValues);
@@ -118,6 +155,29 @@ export default function MyLifeGroup() {
     setIsModalOpen(false);
     setEditingSession(null);
     reset(initialSessionValues);
+  };
+
+  const handleStartEditAttendees = () => {
+    resetAttendees({ attendees: group?.attendees.map((attendee) => attendee._id) ?? [] });
+    setIsEditingAttendees(true);
+  };
+
+  const handleCancelEditAttendees = () => {
+    setIsEditingAttendees(false);
+    resetAttendees();
+  };
+
+  const onAttendeesSubmit = (data: AttendeesFormData) => {
+    if (!group) return;
+
+    const currentIds = group.attendees.map((attendee) => attendee._id);
+    if (areArraysEqual(currentIds, data.attendees)) {
+      toast.info("No hay cambios para guardar");
+      setIsEditingAttendees(false);
+      return;
+    }
+
+    updateAttendeesMutation.mutate(data.attendees);
   };
 
   const handleDelete = (session: LifeGroupSession) => {
@@ -148,7 +208,7 @@ export default function MyLifeGroup() {
   };
 
   if (isLoading) {
-    return <LoadingSpinner label="Cargando grupo de vida..." className="min-h-screen" />;
+    return <LoadingSpinner label="Cargando grupo de vida..." className="min-h-[40vh]" />;
   }
 
   if (!group) {
@@ -160,6 +220,22 @@ export default function MyLifeGroup() {
   }
 
   const totalOfferings = group.sessions.reduce((sum, session) => sum + session.offeringAmount, 0);
+
+  const canManageAttendees = (() => {
+    if (!user) return false;
+
+    const isAdmin = user.roles.includes("Admin") || user.roles.includes("Superadmin");
+    const isGroupOwner = Boolean(
+      user.profileId &&
+        (user.profileId === group.leader._id || user.profileId === group.supervisor._id),
+    );
+    // Fallback para líderes/supervisores cuya sesión no tenga profileId poblado:
+    // se muestra el botón y el backend responde 403 si no pertenece al grupo.
+    const isLeaderOrSupervisorWithoutProfile =
+      (user.roles.includes("Lider") || user.roles.includes("Supervisor")) && !user.profileId;
+
+    return isAdmin || isGroupOwner || isLeaderOrSupervisorWithoutProfile;
+  })();
 
   return (
     <div className="space-y-6">
@@ -189,6 +265,100 @@ export default function MyLifeGroup() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Asistentes</p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-900">Roster del grupo</h2>
+          </div>
+          {canManageAttendees && !isEditingAttendees && (
+            <Button
+              className="rounded-lg bg-blue-600 font-semibold text-white"
+              startContent={<Users className="h-4 w-4" />}
+              onPress={handleStartEditAttendees}
+            >
+              Editar asistentes
+            </Button>
+          )}
+        </div>
+
+        {isEditingAttendees ? (
+          <form onSubmit={handleAttendeesSubmit(onAttendeesSubmit)} noValidate className="mt-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">
+                Selecciona los asistentes
+              </label>
+              <FormSelect
+                name="attendees"
+                control={attendeesControl}
+                selectionMode="multiple"
+                placeholder="Busca y selecciona miembros"
+                aria-label="Asistentes del grupo"
+                className="w-full"
+                isDisabled={isLoadingMembers}
+              >
+                {eligibleMembers.map((member) => (
+                  <SelectItem key={member._id}>
+                    {formatFullName(member.firstName, member.lastName)}
+                  </SelectItem>
+                ))}
+              </FormSelect>
+              <p className="mt-1 text-xs text-slate-500">
+                Solo se muestran miembros con rol Asistente o Miembro.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                color="primary"
+                isLoading={updateAttendeesMutation.isPending}
+                className="rounded-lg font-semibold"
+              >
+                Guardar asistentes
+              </Button>
+              <Button
+                type="button"
+                variant="flat"
+                onPress={handleCancelEditAttendees}
+                className="rounded-lg"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-6">
+            {group.attendees.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-slate-500">
+                Aún no hay asistentes en el grupo. Agrega los asistentes para poder registrar sesiones con asistencia.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {group.attendees.map((attendee) => (
+                  <div
+                    key={attendee._id}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                      {getInitials(formatFullName(attendee.firstName, attendee.lastName))}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">
+                        {formatFullName(attendee.firstName, attendee.lastName)}
+                      </p>
+                      <p className="text-xs text-slate-500">{attendee.documentID}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-4 text-sm text-slate-500">
+              Total: {group.attendees.length} asistente{group.attendees.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/70">
@@ -294,27 +464,20 @@ export default function MyLifeGroup() {
 
             <div>
               <label htmlFor="session-attendees" className="block text-sm font-medium text-slate-700">Asistentes presentes</label>
-              <Controller
+              <FormSelect
                 name="attendeesPresent"
                 control={control}
-                render={({ field }) => (
-                  <Select
-                    id="session-attendees"
-                    selectionMode="multiple"
-                    selectedKeys={field.value}
-                    onSelectionChange={(keys) => field.onChange(Array.from(keys) as string[])}
-                    placeholder="Selecciona los asistentes presentes"
-                    aria-label="Asistentes presentes"
-                    className="w-full"
-                  >
-                    {group.attendees.map((attendee) => (
-                      <SelectItem key={attendee._id}>
-                        {formatFullName(attendee.firstName, attendee.lastName)}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                )}
-              />
+                selectionMode="multiple"
+                placeholder="Selecciona los asistentes presentes"
+                aria-label="Asistentes presentes"
+                className="w-full"
+              >
+                {group.attendees.map((attendee) => (
+                  <SelectItem key={attendee._id}>
+                    {formatFullName(attendee.firstName, attendee.lastName)}
+                  </SelectItem>
+                ))}
+              </FormSelect>
             </div>
 
             <div>
