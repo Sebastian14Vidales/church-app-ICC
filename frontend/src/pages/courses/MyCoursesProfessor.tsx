@@ -2,8 +2,11 @@ import { useMemo, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { Button, Checkbox, Input } from "@heroui/react";
 import { BookOpen, CalendarDays, ClipboardCheck, Clock3, GraduationCap, MapPin, Search, Trophy } from "lucide-react";
+import { toast } from "react-toastify";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import LoadingSpinner from "@/components/common/LoadingSpinner";
+import HistoryCourseDetail from "@/components/courses/HistoryCourseDetail";
 import ModalView from "@/components/dashboard/ModalView";
 import { showSweetAlert } from "@/components/alert/SweetAlert";
 import {
@@ -14,13 +17,15 @@ import {
     useMyCourseAssignmentHistory,
     useUpdateCourseMembers,
 } from "@/hooks/courses";
+import { exportAttendanceExcel } from "@/api/CourseAPI";
 import { getAllMembers } from "@/api/MemberAPI";
-import { useQuery } from "@tanstack/react-query";
 import { COURSE_LEVEL_LABELS } from "@/utils/constants/courses";
 import PATHS from "@/utils/constants/routes";
 import { getLocationNameById } from "@/utils/constants/locations";
 import { parseStoredDate } from "@/utils/date";
 import { formatFullName, normalizeSearchText } from "@/utils/text";
+import { downloadAttendancePdfReport } from "@/utils/attendanceReport";
+import { triggerFileDownload } from "@/utils/file-download";
 import { NO_SPIRITUAL_GROWTH_STAGE, spiritualGrowthStageSchema, type CourseAssignedCanonical, type Member, type SpiritualGrowthStage } from "@/types/index";
 
 const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageSchema.options;
@@ -230,59 +235,115 @@ export default function MyCoursesProfessor() {
         [historyItems, expandedHistoryId],
     );
 
-    const historyDetailBody = useMemo(() => {
-        if (historyDetail.isLoading) {
-            return <LoadingSpinner label="Cargando sesiones..." className="min-h-[160px]" />;
-        }
-        if (historyDetail.isError) {
-            return <p className="text-sm text-rose-600">No se pudo cargar el detalle.</p>;
-        }
-        if (!expandedDetail || !expandedSummary.length) {
-            return <p className="text-sm text-slate-500">Sin sesiones registradas.</p>;
-        }
-        return (
-            <ul className="space-y-2">
-                {expandedSummary.map(({ member, present, count, rate }) => (
-                    <li key={member._id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                        <p className="font-medium text-slate-900">
-                            {formatFullName(member.firstName, member.lastName)}
-                        </p>
-                        <p className="text-slate-600">
-                            {present}/{count} clases presentes · {rate}% asistencia
-                        </p>
-                    </li>
-                ))}
-            </ul>
-        );
-    }, [historyDetail.isLoading, historyDetail.isError, expandedDetail, expandedSummary]);
+    const exportAttendanceMutation = useMutation({
+        mutationFn: exportAttendanceExcel,
+        onSuccess: (blob, assignmentId) => {
+            const item = historyItems.find((historyItem) => historyItem._id === assignmentId);
+            const filename = item ? `asistencia-${item.course.name}.xlsx` : "asistencia-curso.xlsx";
+            triggerFileDownload(blob, filename);
+            toast.success("Descarga iniciada");
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || "No se pudo descargar el Excel");
+        },
+    });
+
+    const handleDownloadHistoryPdf = () => {
+        if (!expandedDetail) return;
+        downloadAttendancePdfReport({
+            assignment: expandedDetail,
+            sessions: expandedDetail.sessions,
+            filename: `asistencia-${expandedDetail.course.name}.pdf`,
+        });
+    };
+
+    const handleExportHistoryExcel = () => {
+        if (!expandedHistoryId) return;
+        exportAttendanceMutation.mutate(expandedHistoryId);
+    };
+
+    const historyHeroState = useMemo(() => {
+        if (!expandedHistoryId) return null;
+        if (historyDetail.isLoading) return { kind: "loading" as const };
+        if (historyDetail.isError || !expandedDetail) return null;
+        const registered = expandedDetail.sessions.length;
+        return {
+            kind: "ready" as const,
+            courseName: expandedDetail.course.name,
+            sessionsProgress: `${registered}/${expandedDetail.totalClasses}`,
+            attendanceRate: computeAttendanceRate(registered, expandedDetail.totalClasses),
+            enrolledCount: expandedDetail.members.length,
+        };
+    }, [expandedHistoryId, historyDetail.isLoading, historyDetail.isError, expandedDetail]);
 
     return (
         <div className="space-y-8">
             <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-7 text-white shadow-xl shadow-slate-300/40 sm:px-8">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.28),_transparent_32%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.22),_transparent_28%)]" />
-                <div className="relative grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                <div aria-live="polite" className="relative grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
                             <GraduationCap className="h-3.5 w-3.5" />
-                            Mis cursos
+                            {historyHeroState ? "Curso completado" : "Mis cursos"}
                         </div>
                         <h1 className="mt-4 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">
-                            Consulta tus cursos asignados y registra participantes.
+                            {historyHeroState?.kind === "ready"
+                                ? historyHeroState.courseName
+                                : "Consulta tus cursos asignados y registra participantes."}
                         </h1>
+                        {historyHeroState?.kind === "ready" ? (
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                                Resumen historico del curso cerrado.
+                            </p>
+                        ) : null}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Sesiones</p>
-                            <p className="mt-3 text-3xl font-bold">{sessionsProgress}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Asistencia</p>
-                            <p className="mt-3 text-3xl font-bold">{attendanceRate}%</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Inscritos</p>
-                            <p className="mt-3 text-3xl font-bold">{activeAssignment?.members.length ?? 0}</p>
-                        </div>
+                        {historyHeroState?.kind === "loading" ? (
+                            <>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <div className="h-3 w-24 animate-pulse rounded bg-white/20" />
+                                    <div className="mt-3 h-9 w-16 animate-pulse rounded bg-white/20" />
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <div className="h-3 w-24 animate-pulse rounded bg-white/20" />
+                                    <div className="mt-3 h-9 w-16 animate-pulse rounded bg-white/20" />
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <div className="h-3 w-24 animate-pulse rounded bg-white/20" />
+                                    <div className="mt-3 h-9 w-16 animate-pulse rounded bg-white/20" />
+                                </div>
+                            </>
+                        ) : historyHeroState?.kind === "ready" ? (
+                            <>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Sesiones</p>
+                                    <p className="mt-3 text-3xl font-bold">{historyHeroState.sessionsProgress}</p>
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Asistencia</p>
+                                    <p className="mt-3 text-3xl font-bold">{historyHeroState.attendanceRate}%</p>
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Inscritos</p>
+                                    <p className="mt-3 text-3xl font-bold">{historyHeroState.enrolledCount}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Sesiones</p>
+                                    <p className="mt-3 text-3xl font-bold">{sessionsProgress}</p>
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Asistencia</p>
+                                    <p className="mt-3 text-3xl font-bold">{attendanceRate}%</p>
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Inscritos</p>
+                                    <p className="mt-3 text-3xl font-bold">{activeAssignment?.members.length ?? 0}</p>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </section>
@@ -510,7 +571,16 @@ export default function MyCoursesProfessor() {
                                                 aria-label={`Detalle del curso ${assignment.course.name}`}
                                                 className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-white p-4 xl:hidden"
                                             >
-                                                {historyDetailBody}
+                                                <HistoryCourseDetail
+                                                    assignment={assignment}
+                                                    detail={expandedDetail}
+                                                    isLoading={historyDetail.isLoading}
+                                                    isError={historyDetail.isError}
+                                                    summary={expandedSummary}
+                                                    isExporting={exportAttendanceMutation.isPending}
+                                                    onDownloadPdf={handleDownloadHistoryPdf}
+                                                    onExportExcel={handleExportHistoryExcel}
+                                                />
                                             </div>
                                         ) : null}
                                     </article>
@@ -525,19 +595,18 @@ export default function MyCoursesProfessor() {
                                     id="professor-history-detail-panel"
                                     role="region"
                                     aria-label={`Detalle del curso ${selectedHistoryItem.course.name}`}
-                                    aria-live="polite"
                                     className="rounded-3xl border border-amber-200 bg-white p-5"
                                 >
-                                    <div className="border-b border-amber-200 pb-4">
-                                        <h3 className="text-lg font-bold text-slate-900">
-                                            {selectedHistoryItem.course.name}
-                                        </h3>
-                                        <p className="mt-1 text-sm text-slate-600">
-                                            Completado · {formatAssignmentDate(selectedHistoryItem.endDate)} ·{" "}
-                                            {getLocationNameById(selectedHistoryItem.location)}
-                                        </p>
-                                    </div>
-                                    <div className="pt-4">{historyDetailBody}</div>
+                                    <HistoryCourseDetail
+                                        assignment={selectedHistoryItem}
+                                        detail={expandedDetail}
+                                        isLoading={historyDetail.isLoading}
+                                        isError={historyDetail.isError}
+                                        summary={expandedSummary}
+                                        isExporting={exportAttendanceMutation.isPending}
+                                        onDownloadPdf={handleDownloadHistoryPdf}
+                                        onExportExcel={handleExportHistoryExcel}
+                                    />
                                 </div>
                             ) : (
                                 <div className="rounded-3xl border border-amber-200 bg-white p-5">

@@ -1,9 +1,37 @@
-import { type ClassSession, type CourseAssigned } from "@/types/index"
 import { formatFullName } from "@/utils/text"
 
+type AttendanceReportMember = {
+    _id: string
+    firstName: string
+    lastName: string
+    documentID: string
+}
+
+type AttendanceReportAssignment = {
+    course: { name: string; description: string }
+    professor: { firstName: string; lastName: string }
+    members: AttendanceReportMember[]
+}
+
+type AttendanceReportAttendanceEntry = {
+    present: boolean
+    notes?: string
+    student?: AttendanceReportMember | null
+    member?: AttendanceReportMember | null
+}
+
+type AttendanceReportSession = {
+    classNumber: number
+    date: string
+    topic?: string
+    observations?: string
+    attendance: AttendanceReportAttendanceEntry[]
+}
+
 type AttendanceReportParams = {
-    assignment: CourseAssigned
-    sessions: ClassSession[]
+    assignment: AttendanceReportAssignment
+    sessions: AttendanceReportSession[]
+    filename?: string
 }
 
 const PDF_PAGE_WIDTH = 612
@@ -124,6 +152,7 @@ const buildPdfDocument = (pages: string[]) => {
 export const downloadAttendancePdfReport = ({
     assignment,
     sessions,
+    filename,
 }: AttendanceReportParams) => {
     const sortedSessions = [...sessions].sort((left, right) => left.classNumber - right.classNumber)
     const totalStudents = assignment.members.length
@@ -173,8 +202,11 @@ export const downloadAttendancePdfReport = ({
         )
 
         session.attendance.forEach((entry) => {
+            const student = entry.student ?? entry.member
+            if (!student) return
+
             appendParagraph(
-                `- ${formatFullName(entry.student.firstName, entry.student.lastName)} (${entry.student.documentID}): ${entry.present ? "ASISTE" : "FALLA"}`,
+                `- ${formatFullName(student.firstName, student.lastName)} (${student.documentID}): ${entry.present ? "ASISTE" : "FALLA"}`,
             )
         })
 
@@ -192,9 +224,10 @@ export const downloadAttendancePdfReport = ({
         const membersAtRisk = assignment.members
             .map((member) => {
                 const absenceCount = sortedSessions.reduce((totalAbsences, session) => {
-                    const attendance = session.attendance.find(
-                        (entry) => entry.student._id === member._id,
-                    )
+                    const attendance = session.attendance.find((entry) => {
+                        const student = entry.student ?? entry.member
+                        return student?._id === member._id
+                    })
 
                     return totalAbsences + (attendance?.present === false ? 1 : 0)
                 }, 0)
@@ -231,8 +264,15 @@ export const downloadAttendancePdfReport = ({
     const downloadUrl = URL.createObjectURL(pdfBlob)
     const link = document.createElement("a")
 
+    const safeCourseName = sanitizePdfText(assignment.course.name)
+        .replace(/\s+/g, "-")
+        .toLowerCase()
+    const safeFilename = filename
+        ? sanitizePdfText(filename).replace(/\s+/g, "-").toLowerCase()
+        : `reporte-asistencia-${safeCourseName}.pdf`
+
     link.href = downloadUrl
-    link.download = `reporte-asistencia-${sanitizePdfText(assignment.course.name).replace(/\s+/g, "-").toLowerCase()}.pdf`
+    link.download = safeFilename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
