@@ -1,4 +1,5 @@
 import { io, type Socket } from "socket.io-client"
+import type { Notification } from "@/types/index"
 
 /**
  * Payload que el servidor envía cuando invalida cache
@@ -10,6 +11,14 @@ type RealtimeInvalidationPayload = {
     type: string
     queryKeys: string[][]
     timestamp: string
+}
+
+/**
+ * Payload que el servidor envía cuando crea una notificación para el usuario
+ * - notification: notificación serializada recién creada
+ */
+type RealtimeNotificationPayload = {
+    notification: Notification
 }
 
 let realtimeSocket: Socket | null = null
@@ -76,5 +85,25 @@ export const onRealtimeInvalidation = (
 
     return () => {
         realtimeSocket?.off("queries:invalidate", handler)
+    }
+}
+
+/**
+ * Registra un listener para nuevas notificaciones en tiempo real
+ * Retorna función para desuscribirse
+ *
+ * Uso:
+ * const unsubscribe = onRealtimeNotification(({ notification }) => {
+ *   // mostrar toast / invalidar cache
+ * })
+ * unsubscribe() // cuando no necesites escuchar
+ */
+export const onRealtimeNotification = (
+    handler: (payload: RealtimeNotificationPayload) => void,
+) => {
+    realtimeSocket?.on("notifications:new", handler)
+
+    return () => {
+        realtimeSocket?.off("notifications:new", handler)
     }
 }

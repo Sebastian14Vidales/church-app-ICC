@@ -27,10 +27,12 @@ export default function Sidebar() {
     const isLiderOnly =
         isLider && !isAdmin && !isProfessor && !isSupervisor
 
-    const baseNavigation = [
-        { name: "Dashboard", href: PATHS.dashboard, icon: Home },
-        { name: "Miembros", href: PATHS.members, icon: Users },
-    ];
+    const baseNavigation = isAdmin
+        ? [
+            { name: "Dashboard", href: PATHS.dashboard, icon: Home },
+            { name: "Miembros", href: PATHS.members, icon: Users },
+        ]
+        : [{ name: "Miembros", href: PATHS.members, icon: Users }];
 
     const navigationItems: Array<{ name: string; href: string; icon: LucideIcon; disabled?: boolean }> = [...baseNavigation];
 

@@ -36,6 +36,11 @@ vi.mock("../../src/realtime/socket", () => ({
   emitRealtimeInvalidation: vi.fn(),
 }));
 
+vi.mock("../../src/services/notification.service", () => ({
+  createNotification: vi.fn(() => Promise.resolve()),
+  notifyAdmins: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock("../../src/models/course-assigned.model", () => {
   const courseAssignedModel = {
     findOne: vi.fn(),
@@ -164,8 +169,11 @@ const chainableWith = (resolved: unknown): Chain => {
 
 const VALID_COURSE_ID = "65a1f0c0c1d2a3b4f5e6f7a8";
 const VALID_PROFESSOR_ID = "65a1f0c0c1d2a3b4f5e6f7a9";
+const VALID_PROFESSOR_USER_ID = "65a1f0c0c1d2a3b4f5e6f7a9";
 const VALID_MEMBER_ID = "65a1f0c0c1d2a3b4f5e6f7b0";
+const VALID_MEMBER_USER_ID = "65a1f0c0c1d2a3b4f5e6f7b0";
 const OTHER_MEMBER_ID = "65a1f0c0c1d2a3b4f5e6f7b1";
+const OTHER_MEMBER_USER_ID = "65a1f0c0c1d2a3b4f5e6f7b1";
 const NON_EXISTENT_MEMBER_ID = "65a1f0c0c1d2a3b4f5e6f7b2";
 const ASSIGNMENT_ID = "65a1f0c0c1d2a3b4f5e6f7c0";
 
@@ -211,7 +219,7 @@ const buildPopulatedAssignment = (overrides: Record<string, unknown> = {}) => ({
 const buildProfessorProfile = (overrides: Record<string, unknown> = {}) => ({
   _id: VALID_PROFESSOR_ID,
   role: { name: "Profesor" },
-  user: { roles: [] },
+  user: { _id: VALID_PROFESSOR_USER_ID, roles: [] },
   ...overrides,
 });
 
@@ -224,6 +232,7 @@ const buildMember = (
   firstName: "Nombre",
   lastName: "Apellido",
   role: { name: roleName },
+  user: { _id: id },
   spiritualGrowthStage: undefined,
   ...overrides,
 });
@@ -1785,5 +1794,410 @@ describe("course-assignment.service — serializeCourseAssignedArray (ADR-0017 D
     // null-id → String(null) = "null"; counts.get("null") is undefined → 0
     expect(result[1]).toHaveProperty("_id", null);
     expect(result[1]).toHaveProperty("registeredSessions", 0);
+  });
+});
+
+// ---- Disparadores de notificaciones (pista A) -------------------------
+//
+// Los mocks de notification.service ya están declarados al inicio del archivo:
+//   createNotification: vi.fn(() => Promise.resolve())
+//   notifyAdmins: vi.fn(() => Promise.resolve())
+//
+// Los tests aquí verifican que cada operation llame a los helpers de
+// notificación con los parámetros correctos, siguiendo el contrato
+// EPC-NOTIFICATIONS-001 §4.
+
+import { createNotification, notifyAdmins } from "../../src/services/notification.service";
+
+const mockCreateNotification = createNotification as unknown as ReturnType<typeof vi.fn>;
+const mockNotifyAdmins = notifyAdmins as unknown as ReturnType<typeof vi.fn>;
+
+describe("course-assignment.service — disparador createAssignment → notificaciones", () => {
+  beforeEach(() => {
+    resetMocks();
+    mockCreateNotification.mockReset().mockResolvedValue({} as never);
+    mockNotifyAdmins.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("createAssignment → llama createNotification al profesor (type=course-assignment, link=/my-courses)", async () => {
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(chainableWith(buildProfessorProfile()));
+    assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
+    assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
+    assignedFindById.mockReturnValueOnce(
+      chainableWith(
+        buildPopulatedAssignment({
+          professor: { _id: VALID_PROFESSOR_ID, firstName: "Pedro", lastName: "García", role: { name: "Profesor" }, user: { _id: VALID_PROFESSOR_USER_ID } },
+          course: { _id: VALID_COURSE_ID, name: "Fundamentos de la Fe" },
+        }),
+      ),
+    );
+
+    await createAssignment({
+      course: VALID_COURSE_ID,
+      professor: VALID_PROFESSOR_ID,
+      startDate: "2026-02-01",
+      startTime: "18:00",
+      totalClasses: 8,
+      location: "Sede Central",
+    });
+
+    expect(mockCreateNotification).toHaveBeenCalledTimes(1);
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "course-assignment",
+        title: "Nueva asignación de curso",
+        recipientUser: VALID_PROFESSOR_USER_ID,
+        link: "/my-courses",
+      }),
+    );
+  });
+
+  it("createAssignment → llama notifyAdmins (copia administrativa)", async () => {
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(
+      chainableWith(
+        buildProfessorProfile({ firstName: "Pedro", lastName: "García" }),
+      ),
+    );
+    assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
+    assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
+    assignedFindById.mockReturnValueOnce(
+      chainableWith(
+        buildPopulatedAssignment({
+          professor: { _id: VALID_PROFESSOR_ID, firstName: "Pedro", lastName: "García", role: { name: "Profesor" }, user: { _id: VALID_PROFESSOR_USER_ID } },
+          course: { _id: VALID_COURSE_ID, name: "Discipulado" },
+        }),
+      ),
+    );
+
+    await createAssignment({
+      course: VALID_COURSE_ID,
+      professor: VALID_PROFESSOR_ID,
+      startDate: "2026-02-01",
+      startTime: "18:00",
+      totalClasses: 8,
+      location: "Sede Central",
+    });
+
+    expect(mockNotifyAdmins).toHaveBeenCalledTimes(1);
+    expect(mockNotifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "course-assignment",
+        title: "Curso asignado",
+        link: "/courses",
+      }),
+    );
+    // El message incluye el nombre del curso y del profesor
+    const notifyCall = mockNotifyAdmins.mock.calls[0][0];
+    expect(notifyCall.message).toContain("Discipulado");
+    expect(notifyCall.message).toContain("Pedro García");
+  });
+
+  it("createNotification que rechaza → la asignación se crea igualmente (tolerancia a fallos)", async () => {
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(chainableWith(buildProfessorProfile()));
+    assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
+    assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
+    assignedFindById.mockReturnValueOnce(
+      chainableWith(
+        buildPopulatedAssignment({
+          professor: { _id: VALID_PROFESSOR_ID, firstName: "Test", lastName: "Prof", role: { name: "Profesor" }, user: { _id: VALID_PROFESSOR_USER_ID } },
+          course: { _id: VALID_COURSE_ID, name: "Curso" },
+        }),
+      ),
+    );
+    mockCreateNotification.mockRejectedValue(new Error("Notification service down"));
+
+    // No debe lanzar: el try/catch del service come el error
+    const result = await createAssignment({
+      course: VALID_COURSE_ID,
+      professor: VALID_PROFESSOR_ID,
+      startDate: "2026-02-01",
+      startTime: "18:00",
+      totalClasses: 8,
+      location: "Sede Central",
+    });
+
+    expect(result).toBeDefined();
+    expect(assignedCreate).toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // REGRESIÓN: profesor sin cuenta de usuario (User) → skip silencioso
+  // El superadmin tiene profileId null → no tiene UserProfile → no tiene User.
+  // Cuando se le asigna un curso, NO recibe notificación personal,
+  // pero notifyAdmins SÍ se ejecuta (notificación administrativa).
+  // ---------------------------------------------------------------------------
+  it("createAssignment con profesor sin user → skip notificación personal, notifyAdmins sí", async () => {
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(
+      chainableWith(buildProfessorProfile({ user: null })),
+    );
+    assignedFindOne.mockResolvedValueOnce(null);
+    assignedDeleteMany.mockResolvedValue({ deletedCount: 0 });
+    assignedCreate.mockResolvedValue({ _id: ASSIGNMENT_ID });
+    // Profesor populado SIN cuenta de usuario
+    assignedFindById.mockReturnValueOnce(
+      chainableWith(
+        buildPopulatedAssignment({
+          professor: {
+            _id: VALID_PROFESSOR_ID,
+            firstName: "Pedro",
+            lastName: "García",
+            role: { name: "Profesor" },
+            user: null, // SIN cuenta de usuario
+          },
+          course: { _id: VALID_COURSE_ID, name: "Discipulado" },
+        }),
+      ),
+    );
+
+    await createAssignment({
+      course: VALID_COURSE_ID,
+      professor: VALID_PROFESSOR_ID,
+      startDate: "2026-02-01",
+      startTime: "18:00",
+      totalClasses: 8,
+      location: "Sede Central",
+    });
+
+    // El profesor NO recibe notificación (no tiene user)
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+    // Pero la notificación administrativa SÍ se envía
+    expect(mockNotifyAdmins).toHaveBeenCalledTimes(1);
+    expect(mockNotifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "course-assignment",
+        title: "Curso asignado",
+      }),
+    );
+  });
+});
+
+describe("course-assignment.service — disparador addMembers → notificaciones SOLO a miembros nuevos", () => {
+  beforeEach(() => {
+    resetMocks();
+    mockCreateNotification.mockReset().mockResolvedValue({} as never);
+    mockNotifyAdmins.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("addMembers → notifica SOLO al miembro nuevo (no al que ya estaba)", async () => {
+    // Consolidación → siguiente es Discipulado básico (SPIRITUAL_GROWTH_STAGES[0] → [1])
+    const existingAssignment = buildAssignment({
+      professor: { _id: VALID_PROFESSOR_ID },
+      members: [{ _id: VALID_MEMBER_ID }], // ya estaba
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(existingAssignment));
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Consolidación" }),
+        buildMember(OTHER_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Consolidación" }),
+      ]),
+    );
+    const populated = buildPopulatedAssignment({
+      members: [{ _id: VALID_MEMBER_ID }, { _id: OTHER_MEMBER_ID }],
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    await addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID, OTHER_MEMBER_ID], {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    // Solo el nuevo miembro recibe notificación (OTHER_MEMBER_ID)
+    expect(mockCreateNotification).toHaveBeenCalledTimes(1);
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "course-assignment",
+        title: "Inscripción en curso",
+        recipientUser: OTHER_MEMBER_USER_ID,
+        link: "/my-courses/student",
+      }),
+    );
+  });
+
+  it("addMembers → si el miembro ya estaba (es re-inserción), NO se le envía segunda notificación", async () => {
+    // Ambos miembros YA están en la asignación
+    const existingAssignment = buildAssignment({
+      professor: { _id: VALID_PROFESSOR_ID },
+      members: [{ _id: VALID_MEMBER_ID }, { _id: OTHER_MEMBER_ID }],
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(existingAssignment));
+    // Se re-pasan ambos IDs (dedup interno del service filtra existente)
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Consolidación" }),
+        buildMember(OTHER_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Consolidación" }),
+      ]),
+    );
+    const populated = buildPopulatedAssignment({
+      members: [{ _id: VALID_MEMBER_ID }, { _id: OTHER_MEMBER_ID }],
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    await addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID, OTHER_MEMBER_ID], {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    // No hay miembros nuevos → no se llama a createNotification
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // REGRESIÓN: addMembers con miembro sin cuenta de usuario (User) → skip
+  // Un miembro puede tener UserProfile pero no tener linkedUser.
+  // Ese miembro debe ser saltado silenciosamente (no recibe notificación).
+  // ---------------------------------------------------------------------------
+  it("addMembers con miembro sin user → skip silencioso; el que SÍ tiene user sí recibe", async () => {
+    // Un miembro existente (VALID_MEMBER_ID) y uno nuevo sin user (OTHER_MEMBER_ID)
+    const existingAssignment = buildAssignment({
+      professor: { _id: VALID_PROFESSOR_ID },
+      members: [{ _id: VALID_MEMBER_ID }],
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOne.mockReturnValueOnce(chainableWith(existingAssignment));
+    // Miembro existente: tiene user (pero ya estaba → no es "new").
+    // Miembro nuevo OTHER_MEMBER_ID: SIN user → debe ser saltado.
+    userProfileFind.mockReturnValue(
+      chainableWith([
+        buildMember(VALID_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Consolidación" }),
+        buildMember(OTHER_MEMBER_ID, "Miembro", { spiritualGrowthStage: "Consolidación", user: null }),
+      ]),
+    );
+    const populated = buildPopulatedAssignment({
+      members: [{ _id: VALID_MEMBER_ID }, { _id: OTHER_MEMBER_ID }],
+      course: { _id: VALID_COURSE_ID, name: "Discipulado", spiritualGrowthStage: "Discipulado básico" },
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    // Se añaden ambos: el existente (no nuevo) y el nuevo sin user
+    await addMembers(ASSIGNMENT_ID, [VALID_MEMBER_ID, OTHER_MEMBER_ID], {
+      callerProfileId: VALID_PROFESSOR_ID,
+      callerRoles: ["Profesor"],
+    });
+
+    // El único miembro nuevo es OTHER_MEMBER_ID que NO tiene user → skip silencioso
+    // VALID_MEMBER_ID ya existía → no se le vuelve a notificar
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe("course-assignment.service — disparador updateAssignment → notificación solo si cambió el profesor", () => {
+  beforeEach(() => {
+    resetMocks();
+    mockCreateNotification.mockReset().mockResolvedValue({} as never);
+    mockNotifyAdmins.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("updateAssignment con profesor diferente → llama createNotification al NUEVO profesor", async () => {
+    const existing = buildAssignment({
+      professor: { _id: VALID_PROFESSOR_ID },
+      course: { _id: VALID_COURSE_ID, name: "Fundamentos" },
+      status: "completed",
+    });
+    assignedFindOne
+      .mockResolvedValueOnce(existing) // lookup asignación
+      .mockResolvedValueOnce(null); // validateProfessorUniqueActive
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(
+      chainableWith(buildProfessorProfile({ firstName: "Nuevo", lastName: "Profesor" })),
+    );
+    const populated = buildPopulatedAssignment({
+      professor: { _id: OTHER_MEMBER_ID, firstName: "Nuevo", lastName: "Profesor", role: { name: "Profesor" }, user: { _id: OTHER_MEMBER_USER_ID } },
+      course: { _id: VALID_COURSE_ID, name: "Fundamentos" },
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    await updateAssignment(ASSIGNMENT_ID, {
+      course: VALID_COURSE_ID,
+      professor: OTHER_MEMBER_ID,
+      startDate: "2026-02-01",
+      startTime: "18:00",
+      totalClasses: 8,
+      location: "Sede Central",
+    });
+
+    expect(mockCreateNotification).toHaveBeenCalledTimes(1);
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "course-assignment",
+        title: "Nueva asignación de curso",
+        recipientUser: OTHER_MEMBER_USER_ID,
+        link: "/my-courses",
+      }),
+    );
+  });
+
+  it("updateAssignment SIN cambio de profesor → NO llama createNotification", async () => {
+    // professor como string (como Mongoose lo devuelve) para que String() sea consistente
+    const existing = buildAssignment({
+      professor: VALID_PROFESSOR_ID, // string, no { _id: ... }
+      course: { _id: VALID_COURSE_ID, name: "Fundamentos" },
+      status: "completed",
+    });
+    assignedFindOne
+      .mockResolvedValueOnce(existing) // lookup
+      .mockResolvedValueOnce(null); // validateProfessorUniqueActive
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(
+      chainableWith(buildProfessorProfile({ _id: VALID_PROFESSOR_ID })),
+    );
+    const populated = buildPopulatedAssignment({
+      professor: { _id: VALID_PROFESSOR_ID, firstName: "Mismo", lastName: "Profesor", role: { name: "Profesor" } },
+      course: { _id: VALID_COURSE_ID, name: "Fundamentos" },
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+
+    await updateAssignment(ASSIGNMENT_ID, {
+      course: VALID_COURSE_ID,
+      professor: VALID_PROFESSOR_ID, // mismo profesor (string)
+      startDate: "2026-02-01",
+      startTime: "18:00",
+      totalClasses: 8,
+      location: "Sede Central",
+    });
+
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
+  it("createNotification que rechaza en updateAssignment → tolerancia, asignación se devuelve igual", async () => {
+    const existing = buildAssignment({
+      professor: { _id: VALID_PROFESSOR_ID },
+      course: { _id: VALID_COURSE_ID, name: "Fundamentos" },
+      status: "completed",
+    });
+    assignedFindOne
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(null);
+    courseFindOne.mockResolvedValue({ _id: VALID_COURSE_ID });
+    userProfileFindById.mockReturnValueOnce(
+      chainableWith(buildProfessorProfile({ _id: OTHER_MEMBER_ID })),
+    );
+    const populated = buildPopulatedAssignment({
+      professor: { _id: OTHER_MEMBER_ID, firstName: "Nuevo", lastName: "Prof", role: { name: "Profesor" }, user: { _id: OTHER_MEMBER_USER_ID } },
+    });
+    assignedFindOneAndUpdate.mockReturnValueOnce(chainableWith(populated));
+    mockCreateNotification.mockRejectedValue(new Error("Service down"));
+
+    // No lanza: tolerancia a fallos
+    const result = await updateAssignment(ASSIGNMENT_ID, {
+      course: VALID_COURSE_ID,
+      professor: OTHER_MEMBER_ID,
+      startDate: "2026-02-01",
+      startTime: "18:00",
+      totalClasses: 8,
+      location: "Sede Central",
+    });
+
+    expect(result).toBeDefined();
+    expect(assignedFindOneAndUpdate).toHaveBeenCalled();
   });
 });

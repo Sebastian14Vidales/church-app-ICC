@@ -89,18 +89,45 @@ documento previa aprobación del `chief-architect`.
 **Enums de negocio** (copia de `backend/src/models/user-profile.model.ts`):
 
 ```text
-MINISTRIES:
+MINISTRIES (catálogo oficial de 14 ministerios):
   "Ministerio de Alabanza"
-  "Ministerio de Danza (Niñas entre 7 y 14 años)"
+  "Ministerio de Danza"
+  "Ministerio de Audiovisuales"
+  "Ministerio de Varones"
   "Ministerio de Jóvenes"
-  "Ministerio de Servidores"
-  "Ministerio de Oración e Intercesión"
-  "Ministerio de Hombres"
+  "Ministerio de Parejas y Familia"
   "Ministerio de Mujeres"
-  "Ministerio de Parejas y Familias"
-  "Ministerio Iglesia Infantil"
-  "Ministerio de Evangelismo y Consolidación G.V.E"
+  "Ministerio de Evangelismo y Consolidación"
+  "Funda Esperanza"
+  "Ministerio de Servidores"
+  "Ministerio Infantil"
+  "Ministerio de Oración e Intercesión"
+  "Ministerio de Liberación"
+  "Ministerio de Misericordia"
+```
 
+> **Nota sobre valores legacy**: para facilitar la importación de archivos antiguos del
+> Google Form, el servicio de bulk import acepta también los siguientes alias históricos,
+> normalizándolos automáticamente al nombre oficial antes de validar:
+>
+> | Alias legacy aceptado | Nombre oficial |
+> | --- | --- |
+> | `Ministerio de Danza (Niñas entre 7 y 14 años)` | `Ministerio de Danza` |
+> | `Ministerio de Hombres` | `Ministerio de Varones` |
+> | `Ministerio de Parejas y Familias` | `Ministerio de Parejas y Familia` |
+> | `Ministerio Iglesia Infantil` | `Ministerio Infantil` |
+> | `Ministerio de Evangelismo y Consolidación G.V.E` | `Ministerio de Evangelismo y Consolidación` |
+>
+> Los perfiles ya existentes en base de datos con valores legacy pueden alinearse al
+> catálogo oficial ejecutando:
+>
+> ```bash
+> npm run migrate:ministries-rename
+> ```
+>
+> (backend). Ver `backend/src/config/migrations/20260915-ministries-rename.ts`.
+
+```text
 SPIRITUAL_GROWTH_STAGE_CHOICES (perfil de miembro):
   "Ninguna"
   "Consolidación"

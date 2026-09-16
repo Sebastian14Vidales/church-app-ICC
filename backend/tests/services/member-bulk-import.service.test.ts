@@ -76,12 +76,30 @@ vi.mock("../../src/models/user-profile.model", () => {
     ...SPIRITUAL_GROWTH_STAGES,
   ];
 
+  const MINISTRIES = [
+    "Ministerio de Alabanza",
+    "Ministerio de Danza",
+    "Ministerio de Audiovisuales",
+    "Ministerio de Varones",
+    "Ministerio de Jóvenes",
+    "Ministerio de Parejas y Familia",
+    "Ministerio de Mujeres",
+    "Ministerio de Evangelismo y Consolidación",
+    "Funda Esperanza",
+    "Ministerio de Servidores",
+    "Ministerio Infantil",
+    "Ministerio de Oración e Intercesión",
+    "Ministerio de Liberación",
+    "Ministerio de Misericordia",
+  ];
+
   return {
     __esModule: true,
     default: { find: mockFind, insertMany: mockInsertMany },
     SPIRITUAL_GROWTH_STAGES,
     NO_SPIRITUAL_GROWTH_STAGE,
     SPIRITUAL_GROWTH_STAGE_CHOICES,
+    MINISTRIES,
   };
 });
 
@@ -707,6 +725,166 @@ describe("member-bulk-import.service — processBulkImport", () => {
 
     expect(result.failedCount).toBe(1);
     expect(result.errors[0].reason).toBe("Debes seleccionar el ministerio en el que está interesado");
+  });
+
+  // ---- CASO 6c-6g: Legacy ministry alias normalization (pista B) -----------
+
+  it("CASO-6c: ministry legacy 'Ministerio de Hombres' → se importa como 'Ministerio de Varones'", async () => {
+    const row: (string | number)[] = [...VALID_ROW_1];
+    row[7] = "Sí";
+    row[8] = "Ministerio de Hombres"; // legacy
+    registerRows([HEADERS, row]);
+
+    mockUserFind
+      .mockReturnValueOnce(chainable([]))
+      .mockReturnValueOnce(
+        chainable([{ documentID: "12345678", firstName: "Juan", lastName: "Pérez" }]),
+      );
+    mockUserInsertMany.mockResolvedValue([]);
+
+    const result = await processBulkImport(Buffer.from("fake"));
+
+    expect(result.insertedCount).toBe(1);
+    expect(result.failedCount).toBe(0);
+
+    expect(mockUserInsertMany).toHaveBeenCalled();
+    const insertCall = mockUserInsertMany.mock.calls[0];
+    const docs = insertCall[0] as Array<Record<string, unknown>>;
+    expect(docs[0]).toHaveProperty("ministry", "Ministerio de Varones");
+  });
+
+  it("CASO-6d: ministry legacy 'Ministerio de Danza (Niñas entre 7 y 14 años)' → normaliza a 'Ministerio de Danza'", async () => {
+    const row: (string | number)[] = [...VALID_ROW_1];
+    row[7] = "Sí";
+    row[8] = "Ministerio de Danza (Niñas entre 7 y 14 años)";
+    registerRows([HEADERS, row]);
+
+    mockUserFind
+      .mockReturnValueOnce(chainable([]))
+      .mockReturnValueOnce(
+        chainable([{ documentID: "12345678", firstName: "Juan", lastName: "Pérez" }]),
+      );
+    mockUserInsertMany.mockResolvedValue([]);
+
+    const result = await processBulkImport(Buffer.from("fake"));
+
+    expect(result.insertedCount).toBe(1);
+    const insertCall = mockUserInsertMany.mock.calls[0];
+    const docs = insertCall[0] as Array<Record<string, unknown>>;
+    expect(docs[0]).toHaveProperty("ministry", "Ministerio de Danza");
+  });
+
+  it("CASO-6e: ministry legacy 'Ministerio de Parejas y Familias' → normaliza a 'Ministerio de Parejas y Familia'", async () => {
+    const row: (string | number)[] = [...VALID_ROW_1];
+    row[7] = "Sí";
+    row[8] = "Ministerio de Parejas y Familias";
+    registerRows([HEADERS, row]);
+
+    mockUserFind
+      .mockReturnValueOnce(chainable([]))
+      .mockReturnValueOnce(
+        chainable([{ documentID: "12345678", firstName: "Juan", lastName: "Pérez" }]),
+      );
+    mockUserInsertMany.mockResolvedValue([]);
+
+    const result = await processBulkImport(Buffer.from("fake"));
+
+    expect(result.insertedCount).toBe(1);
+    const insertCall = mockUserInsertMany.mock.calls[0];
+    const docs = insertCall[0] as Array<Record<string, unknown>>;
+    expect(docs[0]).toHaveProperty("ministry", "Ministerio de Parejas y Familia");
+  });
+
+  it("CASO-6f: ministry legacy 'Ministerio Iglesia Infantil' → normaliza a 'Ministerio Infantil'", async () => {
+    const row: (string | number)[] = [...VALID_ROW_1];
+    row[7] = "Sí";
+    row[8] = "Ministerio Iglesia Infantil";
+    registerRows([HEADERS, row]);
+
+    mockUserFind
+      .mockReturnValueOnce(chainable([]))
+      .mockReturnValueOnce(
+        chainable([{ documentID: "12345678", firstName: "Juan", lastName: "Pérez" }]),
+      );
+    mockUserInsertMany.mockResolvedValue([]);
+
+    const result = await processBulkImport(Buffer.from("fake"));
+
+    expect(result.insertedCount).toBe(1);
+    const insertCall = mockUserInsertMany.mock.calls[0];
+    const docs = insertCall[0] as Array<Record<string, unknown>>;
+    expect(docs[0]).toHaveProperty("ministry", "Ministerio Infantil");
+  });
+
+  it("CASO-6g: ministry legacy 'Ministerio de Evangelismo y Consolidación G.V.E' → normaliza a 'Ministerio de Evangelismo y Consolidación'", async () => {
+    const row: (string | number)[] = [...VALID_ROW_1];
+    row[7] = "Sí";
+    row[8] = "Ministerio de Evangelismo y Consolidación G.V.E";
+    registerRows([HEADERS, row]);
+
+    mockUserFind
+      .mockReturnValueOnce(chainable([]))
+      .mockReturnValueOnce(
+        chainable([{ documentID: "12345678", firstName: "Juan", lastName: "Pérez" }]),
+      );
+    mockUserInsertMany.mockResolvedValue([]);
+
+    const result = await processBulkImport(Buffer.from("fake"));
+
+    expect(result.insertedCount).toBe(1);
+    const insertCall = mockUserInsertMany.mock.calls[0];
+    const docs = insertCall[0] as Array<Record<string, unknown>>;
+    expect(docs[0]).toHaveProperty("ministry", "Ministerio de Evangelismo y Consolidación");
+  });
+
+  it("CASO-6h: los 14 valores oficiales pasan validación sin error", async () => {
+    const officialMinistries = [
+      "Ministerio de Alabanza",
+      "Ministerio de Danza",
+      "Ministerio de Audiovisuales",
+      "Ministerio de Varones",
+      "Ministerio de Jóvenes",
+      "Ministerio de Parejas y Familia",
+      "Ministerio de Mujeres",
+      "Ministerio de Evangelismo y Consolidación",
+      "Funda Esperanza",
+      "Ministerio de Servidores",
+      "Ministerio Infantil",
+      "Ministerio de Oración e Intercesión",
+      "Ministerio de Liberación",
+      "Ministerio de Misericordia",
+    ];
+
+    for (const ministry of officialMinistries) {
+      const row: (string | number)[] = [...VALID_ROW_1];
+      row[7] = "Sí";
+      row[8] = ministry;
+      registerRows([HEADERS, row]);
+
+      mockUserFind
+        .mockReturnValueOnce(chainable([]))
+        .mockReturnValueOnce(
+          chainable([{ documentID: "12345678", firstName: "Juan", lastName: "Pérez" }]),
+        );
+      mockUserInsertMany.mockResolvedValue([]);
+
+      const result = await processBulkImport(Buffer.from("fake"));
+
+      expect(result.failedCount).toBe(0), `Fallo con ${ministry}`;
+    }
+  });
+
+  it("CASO-6i: valor inventado (no es legacy ni oficial) → error 'El ministerio en el que sirve no es válido'", async () => {
+    const row: (string | number)[] = [...VALID_ROW_1];
+    row[7] = "Sí";
+    row[8] = "Ministerio Inventado XYZ";
+    registerRows([HEADERS, row]);
+    mockUserInsertMany.mockResolvedValue([]);
+
+    const result = await processBulkImport(Buffer.from("fake"));
+
+    expect(result.failedCount).toBe(1);
+    expect(result.errors[0].reason).toBe("El ministerio en el que sirve no es válido");
   });
 
   // ---- CASO 7: Cabeceras faltantes ---------------------------------------

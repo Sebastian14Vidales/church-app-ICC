@@ -6,21 +6,12 @@ import { uploadExcel } from "../middleware/upload.middleware";
 import { handleInputErrors } from "../middleware/validation";
 import { ADMIN_ROLES, MEMBER_MANAGER_ROLES } from "../utils/auth.utils";
 import { MulterError } from "multer";
-import { SPIRITUAL_GROWTH_STAGE_CHOICES } from "../models/user-profile.model";
+import {
+  MINISTRIES,
+  SPIRITUAL_GROWTH_STAGE_CHOICES,
+} from "../models/user-profile.model";
 
 const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor", "Lider"];
-const MINISTRIES = [
-  "Ministerio de Alabanza",
-  "Ministerio de Danza (Niñas entre 7 y 14 años)",
-  "Ministerio de Jóvenes",
-  "Ministerio de Servidores",
-  "Ministerio de Oración e Intercesión",
-  "Ministerio de Hombres",
-  "Ministerio de Mujeres",
-  "Ministerio de Parejas y Familias",
-  "Ministerio Iglesia Infantil",
-  "Ministerio de Evangelismo y Consolidación G.V.E",
-];
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];
 
 const parseBooleanField = (value: unknown) => {

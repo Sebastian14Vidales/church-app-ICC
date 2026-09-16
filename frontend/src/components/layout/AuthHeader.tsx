@@ -1,6 +1,7 @@
-import { Menu, Bell } from "lucide-react"
+import { Menu } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getInitials } from "@/utils/text"
+import NotificationBell from "@/components/notifications/NotificationBell"
 
 export default function AuthHeader() {
     const { user } = useAuth()
@@ -9,8 +10,12 @@ export default function AuthHeader() {
 
     return (
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-            <button type="button" className="-m-2.5 p-2.5 text-gray-700 lg:hidden">
-                <Menu className="h-6 w-6" />
+            <button
+                type="button"
+                aria-label="Abrir menú de navegación"
+                className="-m-2.5 p-2.5 text-gray-700 transition hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 lg:hidden"
+            >
+                <Menu className="h-6 w-6" aria-hidden="true" />
             </button>
 
             <div className="h-6 w-px bg-gray-200 lg:hidden" />
@@ -24,9 +29,7 @@ export default function AuthHeader() {
                 </div>
 
                 <div className="flex items-center gap-x-4 lg:gap-x-6">
-                    <button type="button" className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500">
-                        <Bell className="h-6 w-6" />
-                    </button>
+                    <NotificationBell />
 
                     <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
 

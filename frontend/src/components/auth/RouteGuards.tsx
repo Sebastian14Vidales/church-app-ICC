@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import LoadingSpinner from "@/components/common/LoadingSpinner"
+import { getHomePathForRoles } from "@/lib/role-home"
 import PATHS from "@/utils/constants/routes"
 
 type RequireAuthProps = {
@@ -20,21 +21,21 @@ export function RequireAuth({ allowedRoles }: RequireAuthProps) {
     }
 
     if (allowedRoles && !user.roles.some((role) => allowedRoles.includes(role))) {
-        return <Navigate to={PATHS.dashboard} replace />
+        return <Navigate to={getHomePathForRoles(user.roles)} replace />
     }
 
     return <Outlet />
 }
 
 export function GuestOnly() {
-    const { isAuthenticated, isBootstrapping } = useAuth()
+    const { isAuthenticated, isBootstrapping, user } = useAuth()
 
     if (isBootstrapping) {
         return <LoadingSpinner label="Cargando..." className="min-h-[40vh]" />
     }
 
     if (isAuthenticated) {
-        return <Navigate to={PATHS.dashboard} replace />
+        return <Navigate to={getHomePathForRoles(user?.roles ?? [])} replace />
     }
 
     return <Outlet />

@@ -139,16 +139,43 @@ Copia exactamente estos valores en las preguntas 9 y 10:
 
 ```text
 Ministerio de Alabanza
-Ministerio de Danza (Niñas entre 7 y 14 años)
+Ministerio de Danza
+Ministerio de Audiovisuales
+Ministerio de Varones
 Ministerio de Jóvenes
-Ministerio de Servidores
-Ministerio de Oración e Intercesión
-Ministerio de Hombres
+Ministerio de Parejas y Familia
 Ministerio de Mujeres
-Ministerio de Parejas y Familias
-Ministerio Iglesia Infantil
-Ministerio de Evangelismo y Consolidación G.V.E
+Ministerio de Evangelismo y Consolidación
+Funda Esperanza
+Ministerio de Servidores
+Ministerio Infantil
+Ministerio de Oración e Intercesión
+Ministerio de Liberación
+Ministerio de Misericordia
 ```
+
+> **Archivos antiguos y alias legacy**: si descargas un archivo de respuestas anterior
+> (por ejemplo, de una campaña pasada) que aún use los nombres viejos, el sistema los
+> acepta igual y los convierte automáticamente al nombre oficial. Los alias compatibles
+> son:
+>
+> | Alias legacy aceptado | Nombre oficial |
+> | --- | --- |
+> | Ministerio de Danza (Niñas entre 7 y 14 años) | Ministerio de Danza |
+> | Ministerio de Hombres | Ministerio de Varones |
+> | Ministerio de Parejas y Familias | Ministerio de Parejas y Familia |
+> | Ministerio Iglesia Infantil | Ministerio Infantil |
+> | Ministerio de Evangelismo y Consolidación G.V.E | Ministerio de Evangelismo y Consolidación |
+>
+> Si tienes perfiles guardados en la base de datos con los nombres viejos, el administrador
+> puede ejecutar la migración correspondiente:
+>
+> ```bash
+> npm run migrate:ministries-rename
+> ```
+>
+> (comando del backend). Más detalles técnicos en
+> `backend/src/config/migrations/20260915-ministries-rename.ts`.
 
 #### Lista de etapas de crecimiento espiritual
 

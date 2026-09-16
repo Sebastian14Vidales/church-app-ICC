@@ -13,7 +13,9 @@
     "migrate:courses-cancelled": "ts-node src/config/migrations/20260721-courses-cancelled-to-completed.ts",
     "migrate:courses-indexes": "ts-node src/config/migrations/20260721-courses-indexes.ts",
     "migrate:courses-missing-stage": "ts-node src/config/migrations/20260804-courses-missing-spiritual-growth-stage.ts",
-    "migrate:courses-drop-legacy-professor-index": "ts-node src/config/migrations/20260808-courses-drop-legacy-professor-index.ts"
+    "migrate:courses-drop-legacy-professor-index": "ts-node src/config/migrations/20260808-courses-drop-legacy-professor-index.ts",
+    "migrate:ministries-rename": "ts-node src/config/migrations/20260915-ministries-rename.ts",
+    "migrate:notifications-recipient-user": "ts-node src/config/migrations/20260915-notifications-recipient-user.ts"
   },
   "keywords": [],
   "author": "",

@@ -27,6 +27,9 @@ consideradas y las consecuencias para el sistema.
 | [ADR-0017](0017-courses-attendance-export-close-hint.md) | Cursos: exportación Excel de asistencia y cierre sugerido | Aceptado | 2026-09-09 |
 | [ADR-0018](0018-life-groups-attendees-leader-owned.md) | El roster de asistentes del grupo de vida lo gestiona el Líder | Aceptado (implementado) | 2026-09-12 |
 | [ADR-0019](0019-frontend-render-hardening.md) | Hardening de render frontend: selección estable, defaults de React Query y scroll único | Aceptado | 2026-09-12 |
+| [ADR-0020](0020-dashboard-admin-only-role-landing.md) | Dashboard exclusivo para Admin/Superadmin y rutas de aterrizaje por rol | Aceptado (implementado) | 2026-09-15 |
+| [ADR-0021](0021-notifications-inapp-bell-realtime.md) | Notificaciones in-app con campanita (módulo `Notification` + realtime) | Aceptado (implementado) | 2026-09-15 |
+| [ADR-0022](0022-ministries-catalog-2026-single-source.md) | Nuevo catálogo oficial de ministerios (14) con fuente única y migración | Aceptado (implementado) | 2026-09-15 |
 
 ---
 

@@ -13,6 +13,7 @@ import userRoutes from "./routes/user.routes";
 import userProfileRoutes from "./routes/user-profile.routes";
 import lifeGroupRoutes from "./routes/life-group.routes";
 import eventRoutes from "./routes/event.routes";
+import notificationRoutes from "./routes/notification.routes";
 
 const app = express();
 app.use(express.json());
@@ -80,5 +81,6 @@ app.use("/api/courses", attendanceRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/life-groups", lifeGroupRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 export default app;

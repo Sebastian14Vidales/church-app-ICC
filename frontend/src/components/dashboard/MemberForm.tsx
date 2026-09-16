@@ -16,7 +16,7 @@ import FormSelect from "@/components/common/FormSelect";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import { useStableSelection } from "@/hooks/useStableSelection";
-import { spiritualGrowthStageChoiceSchema, type MemberFormData } from "@/types/index";
+import { MINISTRIES, spiritualGrowthStageChoiceSchema, type MemberFormData } from "@/types/index";
 
 
 const LOGIN_ENABLED_ROLES = ["Admin", "Superadmin", "Profesor", "Pastor", "Supervisor", "Lider"];
@@ -25,18 +25,6 @@ const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 const BOOLEAN_OPTIONS = [
   { key: "true", label: "Sí" },
   { key: "false", label: "No" },
-];
-const MINISTRIES = [
-  "Ministerio de Alabanza",
-  "Ministerio de Danza (Niñas entre 7 y 14 años)",
-  "Ministerio de Jóvenes",
-  "Ministerio de Servidores",
-  "Ministerio de Oración e Intercesión",
-  "Ministerio de Hombres",
-  "Ministerio de Mujeres",
-  "Ministerio de Parejas y Familias",
-  "Ministerio Iglesia Infantil",
-  "Ministerio de Evangelismo y Consolidación G.V.E",
 ];
 const SPIRITUAL_GROWTH_STAGES = spiritualGrowthStageChoiceSchema.options;
 

@@ -134,16 +134,22 @@ export type Role = z.infer<typeof roleSchema>
 // Members
 export const ministrySchema = z.enum([
     "Ministerio de Alabanza",
-    "Ministerio de Danza (Niñas entre 7 y 14 años)",
+    "Ministerio de Danza",
+    "Ministerio de Audiovisuales",
+    "Ministerio de Varones",
     "Ministerio de Jóvenes",
-    "Ministerio de Servidores",
-    "Ministerio de Oración e Intercesión",
-    "Ministerio de Hombres",
+    "Ministerio de Parejas y Familia",
     "Ministerio de Mujeres",
-    "Ministerio de Parejas y Familias",
-    "Ministerio Iglesia Infantil",
-    "Ministerio de Evangelismo y Consolidación G.V.E",
+    "Ministerio de Evangelismo y Consolidación",
+    "Funda Esperanza",
+    "Ministerio de Servidores",
+    "Ministerio Infantil",
+    "Ministerio de Oración e Intercesión",
+    "Ministerio de Liberación",
+    "Ministerio de Misericordia",
 ])
+
+export const MINISTRIES = ministrySchema.options
 
 export const encounterStageSchema = z.enum([
     "Ninguno",
@@ -559,3 +565,53 @@ export const bulkImportResultSchema = z.object({
     errors: z.array(bulkImportErrorSchema),
 });
 export type BulkImportResult = z.infer<typeof bulkImportResultSchema>;
+
+// ============================================================================
+// notifications-api formal contract (EPC-NOTIFICATIONS-001)
+// Source of truth: docs/api/notifications-api.md. Do not deviate here.
+// The frontend-engineer materializes these; new views MUST use these schemas.
+// ============================================================================
+
+/**
+ * Notificación in-app serializada (§1, §2.1).
+ * El campo `type` es `string` abierto a futuros tipos; hoy el backend genera
+ * "course-assignment".
+ */
+export const notificationSchema = z.object({
+    _id: z.string(),
+    type: z.string(),
+    title: z.string(),
+    message: z.string(),
+    link: z.string().nullable().default(null),
+    readAt: z.string().datetime().nullable().default(null),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+});
+export type Notification = z.infer<typeof notificationSchema>;
+
+/** Respuesta de `GET /api/notifications?limit=` (§1.1, §2.2). */
+export const notificationsResponseSchema = z.object({
+    items: z.array(notificationSchema),
+    unreadCount: z.number().int().nonnegative(),
+});
+export type NotificationsResponse = z.infer<typeof notificationsResponseSchema>;
+
+/** Respuesta de `PATCH /api/notifications/:id/read` (§1.2, §2.3). */
+export const markNotificationReadResponseSchema = z.object({
+    message: z.string(),
+    notification: notificationSchema,
+});
+export type MarkNotificationReadResponse = z.infer<typeof markNotificationReadResponseSchema>;
+
+/** Respuesta de `PATCH /api/notifications/read-all` (§1.3, §2.4). */
+export const markAllNotificationsReadResponseSchema = z.object({
+    message: z.string(),
+    updatedCount: z.number().int().nonnegative(),
+});
+export type MarkAllNotificationsReadResponse = z.infer<typeof markAllNotificationsReadResponseSchema>;
+
+/** Query params de `GET /api/notifications` (§2.5). */
+export const notificationListQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+export type NotificationListQuery = z.infer<typeof notificationListQuerySchema>;

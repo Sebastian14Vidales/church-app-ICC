@@ -63,7 +63,7 @@ Todos los endpoints de lectura y mutación devuelven este shape poblado.
     "bloodType": "O+",
     "baptized": true,
     "servesInMinistry": true,
-    "ministry": "Ministerio de Hombres",
+    "ministry": "Ministerio de Varones",
     "ministryInterest": null,
     "spiritualGrowthStage": "Consolidación",
     "role": { "_id": "role1", "name": "Supervisor" },

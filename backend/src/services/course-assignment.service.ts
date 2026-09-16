@@ -9,6 +9,7 @@ import UserProfile, {
 } from "../models/user-profile.model";
 import { emitRealtimeInvalidation } from "../realtime/socket";
 import { AppError } from "./app-error";
+import { createNotification, notifyAdmins } from "./notification.service";
 import type { CourseAssignedStatus } from "../models/course-assigned.model";
 
 /**
@@ -313,6 +314,44 @@ export const createAssignment = async (body: CreateAssignmentBody) => {
     .populate(professorPopulate);
 
   emitRealtimeInvalidation("courseAssignments.changed", ASSIGNMENT_QUERY_KEYS);
+
+  try {
+    const assignedProfessor = populatedAssignment?.professor as {
+      _id: unknown;
+      firstName?: string;
+      lastName?: string;
+      user?: { _id?: unknown } | null;
+    } | null;
+    const assignedCourse = populatedAssignment?.course as { name?: string } | null;
+    const professorUserId = assignedProfessor?.user?._id
+      ? String(assignedProfessor.user._id)
+      : "";
+    const courseName = assignedCourse?.name ?? "Curso";
+    const professorName = `${assignedProfessor?.firstName ?? ""} ${assignedProfessor?.lastName ?? ""}`.trim();
+
+    if (professorUserId) {
+      await createNotification({
+        type: "course-assignment",
+        title: "Nueva asignación de curso",
+        message: `Se te asignó el curso «${courseName}».`,
+        link: "/my-courses",
+        recipientUser: professorUserId,
+      });
+    }
+
+    await notifyAdmins({
+      type: "course-assignment",
+      title: "Curso asignado",
+      message: `El curso «${courseName}» fue asignado a ${professorName || "un profesor"}.`,
+      link: "/courses",
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error al enviar notificaciones de nueva asignación", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   return populatedAssignment;
 };
 
@@ -337,6 +376,8 @@ export const updateAssignment = async (id: string, body: UpdateAssignmentBody) =
   if (!existingAssignment) {
     throw new AppError(404, "Asignacion no encontrada");
   }
+
+  const previousProfessorId = String(existingAssignment.professor);
 
   const {
     course,
@@ -386,6 +427,37 @@ export const updateAssignment = async (id: string, body: UpdateAssignmentBody) =
     .populate(professorPopulate);
 
   emitRealtimeInvalidation("courseAssignments.changed", ASSIGNMENT_QUERY_KEYS);
+
+  try {
+    const newProfessor = updatedAssignment?.professor as {
+      _id: unknown;
+      user?: { _id?: unknown } | null;
+    } | null;
+    const newProfessorUserId = newProfessor?.user?._id
+      ? String(newProfessor.user._id)
+      : "";
+    const newProfessorProfileId = newProfessor?._id
+      ? String(newProfessor._id)
+      : "";
+
+    if (newProfessorUserId && newProfessorProfileId !== previousProfessorId) {
+      const assignedCourse = updatedAssignment?.course as { name?: string } | null;
+      const courseName = assignedCourse?.name ?? "Curso";
+      await createNotification({
+        type: "course-assignment",
+        title: "Nueva asignación de curso",
+        message: `Se te asignó el curso «${courseName}».`,
+        link: "/my-courses",
+        recipientUser: newProfessorUserId,
+      });
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error al enviar notificación de cambio de profesor", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   return updatedAssignment;
 };
 
@@ -497,9 +569,16 @@ export const addMembers = async (id: string, memberIds: string[], context: AddMe
     new Set((memberIds ?? []).filter((memberId) => typeof memberId === "string")),
   );
 
+  const existingMemberIds = new Set(
+    (assignment.members ?? []).map((member) => memberIdToString(member)),
+  );
+  const newMemberIds = normalizedMemberIds.filter((id) => !existingMemberIds.has(id));
+
   const availableMembers = await UserProfile.find({
     _id: { $in: normalizedMemberIds },
-  }).populate("role");
+  })
+    .populate("role")
+    .populate("user");
 
   const memberById = new Map(
     availableMembers.map((member) => [memberIdToString(member), member]),
@@ -550,6 +629,43 @@ export const addMembers = async (id: string, memberIds: string[], context: AddMe
     .populate(professorPopulate);
 
   emitRealtimeInvalidation("courseAssignments.members.changed", ASSIGNMENT_QUERY_KEYS);
+
+  try {
+    const courseName =
+      (updatedAssignment?.course as { name?: string } | null)?.name ?? "Curso";
+    await Promise.all(
+      newMemberIds.map((memberId) => {
+        const member = memberById.get(memberId) as {
+          user?: { _id?: unknown } | null;
+        } | null;
+        const memberUserId = member?.user?._id ? String(member.user._id) : "";
+
+        if (!memberUserId) {
+          return Promise.resolve();
+        }
+
+        return createNotification({
+          type: "course-assignment",
+          title: "Inscripción en curso",
+          message: `Te inscribieron en el curso «${courseName}».`,
+          link: "/my-courses/student",
+          recipientUser: memberUserId,
+        }).catch((error) => {
+          // eslint-disable-next-line no-console
+          console.error("Error al notificar inscripción de miembro", {
+            memberId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      }),
+    );
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error al enviar notificaciones de inscripción de miembros", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   return updatedAssignment;
 };
 

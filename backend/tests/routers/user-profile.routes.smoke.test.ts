@@ -91,6 +91,22 @@ vi.mock("../../src/models/user-profile.model", () => {
       "Finanzas y Gobierno",
       "Doctrina cristiana",
     ],
+    MINISTRIES: [
+      "Ministerio de Alabanza",
+      "Ministerio de Danza",
+      "Ministerio de Audiovisuales",
+      "Ministerio de Varones",
+      "Ministerio de Jóvenes",
+      "Ministerio de Parejas y Familia",
+      "Ministerio de Mujeres",
+      "Ministerio de Evangelismo y Consolidación",
+      "Funda Esperanza",
+      "Ministerio de Servidores",
+      "Ministerio Infantil",
+      "Ministerio de Oración e Intercesión",
+      "Ministerio de Liberación",
+      "Ministerio de Misericordia",
+    ],
   };
 });
 

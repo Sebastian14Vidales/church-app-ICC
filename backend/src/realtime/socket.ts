@@ -13,6 +13,13 @@ type RealtimeInvalidationPayload = {
     timestamp: string
 }
 
+/**
+ * Payload que se envía a los clientes cuando se crea una notificación
+ */
+type RealtimeNotificationPayload = {
+    notification: Record<string, unknown>
+}
+
 let io: Server | null = null
 
 /**
@@ -89,11 +96,16 @@ export const initializeSocketServer = (httpServer: HttpServer) => {
 
         // Canal privado por perfil
         const auth = socket.data.auth as AuthSession | undefined
-        
+
+        // Canal privado por cuenta de usuario — siempre disponible
+        if (auth?.userId) {
+            socket.join(`user:${auth.userId}`)
+        }
+
         // Canales privados por rol (ej: "role:admin", "role:teacher")
         auth?.roles.forEach((role) => socket.join(`role:${role}`))
 
-        // Canal privado por usuario
+        // Canal privado por perfil
         if (auth?.profileId) {
             socket.join(`profile:${auth.profileId}`)
         }
@@ -120,4 +132,33 @@ export const emitRealtimeInvalidation = (type: string, queryKeys: string[][]) =>
     }
 
     io.to("authenticated").emit("queries:invalidate", payload)
+}
+
+/**
+ * Emite una notificación en tiempo real a salas específicas
+ *
+ * Salas válidas:
+ * - "authenticated": todos los usuarios conectados
+ * - "role:<rol>": usuarios con un rol específico
+ * - "profile:<profileId>": usuario con un perfil específico
+ * - "user:<userId>": cuenta de usuario específica (canónico para notificaciones,
+ *   funciona incluso cuando el usuario no tiene perfil, p. ej. superadmin)
+ *
+ * Uso desde services:
+ * emitRealtimeNotification(
+ *     ["user:6650ab...", "role:Admin", "role:Superadmin"],
+ *     { notification: { id: "abc", title: "Nueva asignación", read: false } }
+ * )
+ */
+export const emitRealtimeNotification = (
+    rooms: string[],
+    payload: RealtimeNotificationPayload,
+) => {
+    if (!io) {
+        return
+    }
+
+    rooms.forEach((room) => {
+        io?.to(room).emit("notifications:new", payload)
+    })
 }

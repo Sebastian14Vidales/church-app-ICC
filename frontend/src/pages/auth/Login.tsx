@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { login } from "@/api/AuthAPI";
 import PasswordField from "@/components/auth/PasswordField";
 import { useAuth } from "@/hooks/useAuth";
+import { getHomePathForRoles } from "@/lib/role-home";
 import PATHS from "@/utils/constants/routes";
 
 type LoginFormData = {
@@ -22,7 +23,7 @@ const initialValues: LoginFormData = {
 export default function Login() {
     const navigate = useNavigate()
     const location = useLocation()
-    const { login: loginSession, isAuthenticated, isBootstrapping } = useAuth()
+    const { login: loginSession, isAuthenticated, isBootstrapping, user } = useAuth()
     const [searchParams] = useSearchParams()
     const initialEmail = useMemo(() => searchParams.get("email") ?? "", [searchParams])
     const notice = (location.state as { notice?: string } | null)?.notice
@@ -39,13 +40,13 @@ export default function Login() {
     })
 
     // Defensa en profundidad: si ya existe una sesión activa (por ejemplo, una
-    // pestaña abierta con la misma cuenta), se redirige al dashboard en lugar de
+    // pestaña abierta con la misma cuenta), se redirige a la home por rol en lugar de
     // permitir iniciar otra sesión.
     useEffect(() => {
         if (isAuthenticated && !isBootstrapping) {
-            navigate(PATHS.dashboard, { replace: true })
+            navigate(getHomePathForRoles(user?.roles ?? []), { replace: true })
         }
-    }, [isAuthenticated, isBootstrapping, navigate])
+    }, [isAuthenticated, isBootstrapping, navigate, user])
 
     useEffect(() => {
         if (initialEmail) {
@@ -60,7 +61,7 @@ export default function Login() {
 
     const onSubmit = async (formData: LoginFormData) => {
         if (isAuthenticated) {
-            navigate(PATHS.dashboard, { replace: true })
+            navigate(getHomePathForRoles(user?.roles ?? []), { replace: true })
             return
         }
 
@@ -73,7 +74,7 @@ export default function Login() {
             token: response.token,
             user: response.user,
         })
-        navigate(PATHS.dashboard, { replace: true })
+        navigate(getHomePathForRoles(response.user.roles), { replace: true })
     }
 
     return (

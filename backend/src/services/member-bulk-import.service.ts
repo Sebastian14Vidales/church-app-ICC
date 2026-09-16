@@ -1,5 +1,8 @@
 import * as XLSX from "xlsx";
-import UserProfile, { SPIRITUAL_GROWTH_STAGE_CHOICES } from "../models/user-profile.model";
+import UserProfile, {
+  MINISTRIES,
+  SPIRITUAL_GROWTH_STAGE_CHOICES,
+} from "../models/user-profile.model";
 import Role from "../models/role.model";
 import { AppError } from "./app-error";
 import { emitRealtimeInvalidation } from "../realtime/socket";
@@ -8,18 +11,13 @@ const MEMBER_QUERY_KEYS = [["members"], ["myCourses"], ["myAttendance"], ["cours
 
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 
-const MINISTRIES = [
-  "Ministerio de Alabanza",
-  "Ministerio de Danza (Niñas entre 7 y 14 años)",
-  "Ministerio de Jóvenes",
-  "Ministerio de Servidores",
-  "Ministerio de Oración e Intercesión",
-  "Ministerio de Hombres",
-  "Ministerio de Mujeres",
-  "Ministerio de Parejas y Familias",
-  "Ministerio Iglesia Infantil",
-  "Ministerio de Evangelismo y Consolidación G.V.E",
-];
+export const LEGACY_MINISTRY_ALIASES: Record<string, string> = {
+  "Ministerio de Danza (Niñas entre 7 y 14 años)": "Ministerio de Danza",
+  "Ministerio de Hombres": "Ministerio de Varones",
+  "Ministerio de Parejas y Familias": "Ministerio de Parejas y Familia",
+  "Ministerio Iglesia Infantil": "Ministerio Infantil",
+  "Ministerio de Evangelismo y Consolidación G.V.E": "Ministerio de Evangelismo y Consolidación",
+};
 
 const ENCOUNTER_STAGES = ["Ninguno", "Encuentro", "Reencuentro"];
 
@@ -255,8 +253,10 @@ const validateRow = (
   const rawPhoneNumber = getCellValue(row, indexByKey, "phoneNumber");
   const rawBloodType = normalizeString(getCellValue(row, indexByKey, "bloodType"));
   const rawServesInMinistry = getCellValue(row, indexByKey, "servesInMinistry");
-  const rawMinistry = normalizeString(getCellValue(row, indexByKey, "ministry"));
-  const rawMinistryInterest = normalizeString(getCellValue(row, indexByKey, "ministryInterest"));
+  let rawMinistry = normalizeString(getCellValue(row, indexByKey, "ministry"));
+  rawMinistry = LEGACY_MINISTRY_ALIASES[rawMinistry] ?? rawMinistry;
+  let rawMinistryInterest = normalizeString(getCellValue(row, indexByKey, "ministryInterest"));
+  rawMinistryInterest = LEGACY_MINISTRY_ALIASES[rawMinistryInterest] ?? rawMinistryInterest;
   const rawSpiritualGrowthStage = normalizeString(
     getCellValue(row, indexByKey, "spiritualGrowthStage"),
   );

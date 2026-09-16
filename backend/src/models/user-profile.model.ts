@@ -20,17 +20,21 @@ export interface IUserProfile extends Document {
   user?: PopulatedDoc<Types.ObjectId>;
 }
 
-const MINISTRIES = [
+export const MINISTRIES = [
   "Ministerio de Alabanza",
-  "Ministerio de Danza (Niñas entre 7 y 14 años)",
+  "Ministerio de Danza",
+  "Ministerio de Audiovisuales",
+  "Ministerio de Varones",
   "Ministerio de Jóvenes",
-  "Ministerio de Servidores",
-  "Ministerio de Oración e Intercesión",
-  "Ministerio de Hombres",
+  "Ministerio de Parejas y Familia",
   "Ministerio de Mujeres",
-  "Ministerio de Parejas y Familias",
-  "Ministerio Iglesia Infantil",
-  "Ministerio de Evangelismo y Consolidación G.V.E",
+  "Ministerio de Evangelismo y Consolidación",
+  "Funda Esperanza",
+  "Ministerio de Servidores",
+  "Ministerio Infantil",
+  "Ministerio de Oración e Intercesión",
+  "Ministerio de Liberación",
+  "Ministerio de Misericordia",
 ];
 
 export const SPIRITUAL_GROWTH_STAGES = [

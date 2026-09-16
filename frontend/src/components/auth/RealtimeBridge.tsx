@@ -1,7 +1,13 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "react-toastify"
 import { useAuth } from "@/hooks/useAuth"
-import { connectRealtime, disconnectRealtime, onRealtimeInvalidation } from "@/lib/realtime"
+import {
+    connectRealtime,
+    disconnectRealtime,
+    onRealtimeInvalidation,
+    onRealtimeNotification,
+} from "@/lib/realtime"
 
 /**
  * RealtimeBridge - Componente invisible que sincroniza Socket.IO con React Query
@@ -28,15 +34,27 @@ export default function RealtimeBridge() {
         connectRealtime(token)
 
         // Escuchar invalidaciones del servidor e invalidar cache localmente
-        const unsubscribe = onRealtimeInvalidation(({ queryKeys }) => {
+        const unsubscribeInvalidation = onRealtimeInvalidation(({ queryKeys }) => {
             queryKeys.forEach((queryKey) => {
                 queryClient.invalidateQueries({ queryKey })
             })
         })
 
+        // Escuchar nuevas notificaciones: invalidar query y mostrar toast
+        const unsubscribeNotification = onRealtimeNotification(({ notification }) => {
+            queryClient.invalidateQueries({ queryKey: ["notifications"] })
+            toast.info(
+                <div className="text-sm">
+                    <p className="font-semibold">{notification.title}</p>
+                    <p className="text-slate-200">{notification.message}</p>
+                </div>,
+            )
+        })
+
         // Limpieza: escuchar cambios en autenticación
         return () => {
-            unsubscribe()
+            unsubscribeInvalidation()
+            unsubscribeNotification()
             disconnectRealtime()
         }
     }, [isAuthenticated, queryClient, token])
